@@ -1,0 +1,186 @@
+---
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Console</title>
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body>
+    <main class="container">
+      <div class="card">
+        <h1 class="h1">Admin Console</h1>
+        <p class="small">This UI calls the backend admin endpoints. Keep the token private.</p>
+
+        <div class="row">
+          <div>
+            <label for="apiBase">API base</label>
+            <input id="apiBase" type="text" placeholder="http://127.0.0.1:8787" />
+            <div class="small">Default: <span class="code">PUBLIC_API_BASE</span> or <span class="code">http://127.0.0.1:8787</span></div>
+          </div>
+          <div>
+            <label for="token">Admin token</label>
+            <input id="token" type="password" placeholder="ADMIN_TOKEN" />
+            <div class="small">Sent as <span class="code">x-admin-token</span> header.</div>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="row">
+          <button class="btn btnPrimary" id="save">Save settings</button>
+          <button class="btn" id="refresh">Refresh</button>
+        </div>
+
+        <div class="tabs">
+          <button class="tab" data-active="true" data-tab="users">Users</button>
+          <button class="tab" data-active="false" data-tab="cycles">Cycles</button>
+          <button class="tab" data-active="false" data-tab="logs">Logs</button>
+        </div>
+
+        <div style="height:12px"></div>
+        <div class="small" id="status"></div>
+
+        <div style="height:10px"></div>
+        <div id="content"></div>
+      </div>
+    </main>
+
+    <script>
+      const DEFAULT_API = (import.meta.env.PUBLIC_API_BASE || 'http://127.0.0.1:8787');
+      const LS_API = 'admin_api_base';
+      const LS_TOKEN = 'admin_token';
+
+      const apiBaseEl = document.getElementById('apiBase');
+      const tokenEl = document.getElementById('token');
+      const statusEl = document.getElementById('status');
+      const contentEl = document.getElementById('content');
+
+      let activeTab = 'users';
+
+      function setStatus(msg) { statusEl.textContent = msg; }
+
+      function getSettings() {
+        return {
+          apiBase: (localStorage.getItem(LS_API) || DEFAULT_API).replace(/\/$/, ''),
+          token: localStorage.getItem(LS_TOKEN) || '',
+        };
+      }
+
+      function applySettingsToInputs() {
+        const s = getSettings();
+        apiBaseEl.value = s.apiBase;
+        tokenEl.value = s.token;
+      }
+
+      async function adminFetch(path) {
+        const { apiBase, token } = getSettings();
+        const res = await fetch(`${apiBase}${path}`, {
+          headers: { 'x-admin-token': token },
+        });
+        if (res.status === 401) throw new Error('Unauthorized (check ADMIN_TOKEN)');
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+        return res.json();
+      }
+
+      function setActiveTab(next) {
+        activeTab = next;
+        for (const el of document.querySelectorAll('.tab')) {
+          el.dataset.active = (el.dataset.tab === activeTab) ? 'true' : 'false';
+        }
+      }
+
+      function renderTable(headers, rows) {
+        const table = document.createElement('table');
+        table.className = 'table';
+
+        const thead = document.createElement('thead');
+        const hr = document.createElement('tr');
+        for (const h of headers) {
+          const th = document.createElement('th');
+          th.textContent = h;
+          hr.appendChild(th);
+        }
+        thead.appendChild(hr);
+
+        const tbody = document.createElement('tbody');
+        for (const r of rows) {
+          const tr = document.createElement('tr');
+          for (const cell of r) {
+            const td = document.createElement('td');
+            td.textContent = cell;
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        }
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        return table;
+      }
+
+      async function load() {
+        contentEl.innerHTML = '';
+        setStatus('Loading…');
+
+        try {
+          if (activeTab === 'users') {
+            const data = await adminFetch('/admin/users');
+            const rows = (data.users || []).map(u => [u.id, u.email, u.createdAt || '']);
+            contentEl.appendChild(renderTable(['id', 'email', 'createdAt'], rows));
+          }
+
+          if (activeTab === 'cycles') {
+            const data = await adminFetch('/admin/cycles');
+            const rows = (data.cycles || []).map(c => [
+              c.id,
+              c.userId,
+              c.startDate,
+              c.state,
+              c.peakDate || '-',
+              c.tempShiftConfirmedDate || '-',
+            ]);
+            contentEl.appendChild(renderTable(['id', 'userId', 'startDate', 'state', 'peakDate', 'tempShift'], rows));
+          }
+
+          if (activeTab === 'logs') {
+            const data = await adminFetch('/admin/logs?limit=200');
+            const rows = (data.logs || []).map(l => [
+              l.date,
+              l.userId,
+              l.cycleId,
+              `${l.mucusType}/${l.sensation}`,
+              l.bleeding,
+              (l.temperature == null ? '-' : String(l.temperature)),
+              l.lhTest,
+            ]);
+            contentEl.appendChild(renderTable(['date', 'userId', 'cycleId', 'mucus/sensation', 'bleeding', 'temp', 'LH'], rows));
+          }
+
+          setStatus('');
+        } catch (e) {
+          setStatus(e?.message || 'Error');
+        }
+      }
+
+      document.getElementById('save')?.addEventListener('click', () => {
+        localStorage.setItem(LS_API, (apiBaseEl.value || DEFAULT_API).trim());
+        localStorage.setItem(LS_TOKEN, (tokenEl.value || '').trim());
+        setStatus('Saved.');
+      });
+
+      document.getElementById('refresh')?.addEventListener('click', load);
+
+      for (const el of document.querySelectorAll('.tab')) {
+        el.addEventListener('click', () => {
+          setActiveTab(el.dataset.tab);
+          load();
+        });
+      }
+
+      applySettingsToInputs();
+      load();
+    </script>
+  </body>
+</html>

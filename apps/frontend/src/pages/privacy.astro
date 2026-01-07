@@ -1,0 +1,23 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+
+<AppLayout title="Privacy" active="settings" showNav={false}>
+  <div class="space-y-4">
+    <header class="space-y-2">
+      <h1 class="text-2xl font-semibold tracking-tight">Privacy</h1>
+      <p class="text-sm text-muted-foreground">Plain-language overview of what we store and what we don’t.</p>
+    </header>
+
+    <div class="rounded-xl border bg-card p-4">
+      <div class="space-y-3 text-sm text-muted-foreground">
+        <div>No analytics, no third-party sharing.</div>
+        <div>Only stores cycle logs and authentication needed to run the app.</div>
+        <div>
+          “Delete All Data” is available in Settings.
+        </div>
+        <div>No ads, no profiling.</div>
+      </div>
+    </div>
+  </div>
+</AppLayout>

@@ -1,0 +1,19 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+
+<AppLayout title="Terms" active="settings" showNav={false}>
+  <div class="space-y-4">
+    <header class="space-y-2">
+      <h1 class="text-2xl font-semibold tracking-tight">Terms of use</h1>
+      <p class="text-sm text-muted-foreground">Short terms for safe, informed use.</p>
+    </header>
+
+    <div class="rounded-xl border bg-card p-4">
+      <div class="space-y-3 text-sm text-muted-foreground">
+        <div>Informational only. Not a substitute for medical advice.</div>
+        <div>Use at your own discretion.</div>
+      </div>
+    </div>
+  </div>
+</AppLayout>

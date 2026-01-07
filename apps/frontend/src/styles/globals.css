@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    --color-risk-high: #C94A4A;
+    --color-risk-medium: #C28B1E;
+    --color-risk-low: #3F8F5F;
+    --color-bg: #ffffff;
+    --color-text-primary: #111827;
+    --color-text-muted: #6B7280;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 47.4% 11.2%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --radius: 14px;
+
+    /* Risk tones (muted) */
+    --risk-high: 0 72% 45%;
+    --risk-high-bg: 0 72% 96%;
+    --risk-medium: 36 92% 40%;
+    --risk-medium-bg: 36 92% 95%;
+    --risk-low: 142 71% 35%;
+    --risk-low-bg: 142 71% 95%;
+  }
+
+  .dark {
+    --background: 222.2 47.4% 6.5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 47.4% 9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 47.4% 9%;
+    --popover-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 14%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --border: 217.2 32.6% 18%;
+    --input: 217.2 32.6% 18%;
+    --ring: 212.7 26.8% 83.9%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 14%;
+    --secondary-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 42%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Risk tones (muted) */
+    --risk-high: 0 72% 60%;
+    --risk-high-bg: 0 35% 14%;
+    --risk-medium: 36 92% 55%;
+    --risk-medium-bg: 36 40% 14%;
+    --risk-low: 142 60% 55%;
+    --risk-low-bg: 142 35% 14%;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  ::selection {
+    background: hsl(var(--muted));
+  }
+}

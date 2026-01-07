@@ -1,0 +1,55 @@
+---
+const { title, active } = Astro.props;
+const showBranding = Astro.props.showBranding ?? true;
+const showNav = Astro.props.showNav ?? true;
+const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md';
+import { BottomNav } from '../components/BottomNav';
+import '../styles/globals.css';
+
+const mainPaddingBottom = showNav ? 'pb-28' : 'pb-6';
+---
+<!doctype html>
+<html lang="en" class="bg-background">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title ?? 'Today'}</title>
+    <meta name="theme-color" content="#0b0b0f" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const shouldDark = stored ? stored === 'dark' : prefersDark;
+          document.documentElement.classList.toggle('dark', shouldDark);
+        } catch {
+          // ignore
+        }
+      })();
+    </script>
+    <script type="module">
+      import { registerSW } from 'virtual:pwa-register';
+
+      if (import.meta.env.PROD) {
+        registerSW({ immediate: true });
+      }
+    </script>
+  </head>
+  <body class="bg-background text-foreground">
+    {showBranding ? (
+      <header class="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div class={`mx-auto flex ${maxWidthClass} items-center justify-between px-4 py-3`}>
+          <a href="/" class="text-sm font-semibold tracking-tight text-foreground">canihavesex.today</a>
+          <div class="text-xs text-muted-foreground">Informational only</div>
+        </div>
+      </header>
+    ) : null}
+
+    <main class={`mx-auto min-h-dvh ${maxWidthClass} px-4 pt-6 ${mainPaddingBottom}`}>
+      <slot />
+    </main>
+
+    {showNav ? <BottomNav active={active} /> : null}
+  </body>
+</html>

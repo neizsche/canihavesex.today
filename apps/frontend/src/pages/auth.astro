@@ -1,0 +1,8 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import { AuthForm } from '../components/AuthForm';
+---
+
+<AppLayout title="Sign in" active="settings" showBranding={false} showNav={false}>
+  <AuthForm client:load />
+</AppLayout>

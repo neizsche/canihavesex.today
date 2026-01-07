@@ -1,0 +1,8 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import { TodayScreen } from '../components/TodayScreen';
+---
+
+<AppLayout title="Today" active="today">
+  <TodayScreen client:only="react" />
+</AppLayout>

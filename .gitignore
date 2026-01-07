@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# build output
+/dist/
+**/dist/
+
+# local databases
+*.db
+
+# misc
+.DS_Store

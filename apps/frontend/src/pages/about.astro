@@ -1,0 +1,29 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+
+<AppLayout title="About" active="settings" showNav={false}>
+  <div class="space-y-4">
+    <header class="space-y-2">
+      <h1 class="text-2xl font-semibold tracking-tight">We don’t guess. We read your body.</h1>
+      <p class="text-sm text-muted-foreground">
+        canihavesex.today is a signal-based fertility awareness tool. It summarizes your logged observations and stays conservative.
+      </p>
+    </header>
+
+    <div class="rounded-xl border bg-card p-4">
+      <div class="space-y-3 text-sm">
+        <div class="font-medium text-foreground">Values</div>
+        <ul class="list-disc space-y-1 pl-5 text-muted-foreground">
+          <li>No predictions</li>
+          <li>No tracking</li>
+          <li>No false safety</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+      Contact: <a href="mailto:support@canihavesex.today" class="underline underline-offset-4">support@canihavesex.today</a>
+    </div>
+  </div>
+</AppLayout>
