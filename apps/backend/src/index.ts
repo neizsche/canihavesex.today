@@ -13,6 +13,7 @@ import type { Db } from './db.js';
 import { migrate } from './migrate.js';
 import type { Cycle, DailyLog } from './types.js';
 import { calculateRisk, fertilityIndexForLog, updateCycleState } from './fertilityEngine.js';
+import { createRateLimitMiddleware } from './rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,6 +107,29 @@ app.setErrorHandler((err, req, reply) => {
 
 const adminToken = process.env.ADMIN_TOKEN ?? null;
 
+// Health check endpoint
+app.get('/health', async (req, reply) => {
+  try {
+    // Test database connectivity
+    await db.query('SELECT 1 as health_check');
+
+    return reply.send({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.version,
+    });
+  } catch (error) {
+    req.log.error({ error }, 'health check failed');
+    return reply.status(503).send({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: 'Database connection failed',
+    });
+  }
+});
+
 app.get('/admin', async (req, reply) => {
   if (!adminToken) return reply.status(404).send('Not found');
   const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
@@ -179,9 +203,38 @@ await app.register(cookie, {
 });
 await app.register(formbody);
 
+// Rate limiting for API endpoints
+app.addHook('preHandler', createRateLimitMiddleware({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 100, // 100 requests per 15 minutes
+}));
+
 await migrate();
 
 const db = await createDb();
+
+// Graceful shutdown handling
+async function gracefulShutdown(signal: string) {
+  console.log(`Received ${signal}, shutting down gracefully...`);
+
+  try {
+    // Close database connections
+    if (db.kind === 'postgres') {
+      // For PostgreSQL, we need to access the pool through a different approach
+      // Since we're using the abstraction, we'll handle this in the db.ts file
+    }
+
+    await app.close();
+    console.log('Server shut down successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 type OauthProvider = 'google' | 'apple';
 
@@ -386,200 +439,288 @@ const LogDayBody = z.object({
 });
 
 app.post('/api/log-day', async (req, reply) => {
-  const userId = (req as any).userId as string;
-  const parsed = LogDayBody.safeParse(req.body);
-  if (!parsed.success) return reply.status(400).send({ error: 'Invalid payload' });
+  try {
+    const userId = (req as any).userId as string;
+    const parsed = LogDayBody.safeParse(req.body);
+    if (!parsed.success) {
+      req.log.warn({ route: '/api/log-day', userId, validationError: parsed.error }, 'invalid payload');
+      return reply.status(400).send({ error: 'Invalid payload', details: parsed.error.issues });
+    }
 
-  const now = new Date().toISOString();
-  const { date, mucusType, sensation, bleeding, temperature, lhTest } = parsed.data;
+    const now = new Date().toISOString();
+    const { date, mucusType, sensation, bleeding, temperature, lhTest } = parsed.data;
 
-  app.log.info(
-    { route: '/api/log-day', userId, date, mucusType, sensation, bleeding, temperature, lhTest },
-    'log-day'
-  );
-
-  if (bleeding === 'light' || bleeding === 'heavy') {
-    const cycleId = randomUUID();
-    await db.query(
-      db.paramStyle === 'postgres'
-        ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-        : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
-      [cycleId, userId, date, 'INFERTILE_PRE', null, null, now]
+    app.log.info(
+      { route: '/api/log-day', userId, date, mucusType, sensation, bleeding, temperature, lhTest },
+      'log-day'
     );
+
+    try {
+      // Create new cycle if bleeding indicates period start
+      if (bleeding === 'light' || bleeding === 'heavy') {
+        const cycleId = randomUUID();
+        await db.query(
+          db.paramStyle === 'postgres'
+            ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
+            : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+          [cycleId, userId, date, 'INFERTILE_PRE', null, null, now]
+        );
+        req.log.info({ route: '/api/log-day', userId, cycleId }, 'new cycle created');
+      }
+
+      // Get current cycle
+      const cycle = await getCurrentCycle(db, userId);
+
+      // Insert/update daily log
+      const logId = randomUUID();
+      await db.query(
+        db.paramStyle === 'postgres'
+          ? `insert into daily_logs
+              (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
+             values
+              ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,0,0,$10)
+             on conflict (user_id, date) do update set
+              cycle_id = excluded.cycle_id,
+              mucus_type = excluded.mucus_type,
+              sensation = excluded.sensation,
+              bleeding = excluded.bleeding,
+              temperature = excluded.temperature,
+              lh_test = excluded.lh_test`
+          : `insert into daily_logs
+              (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
+             values
+              (?,?,?,?,?,?,?,?,?,0,0,0,?)
+             on conflict(user_id, date) do update set
+              cycle_id=excluded.cycle_id,
+              mucus_type=excluded.mucus_type,
+              sensation=excluded.sensation,
+              bleeding=excluded.bleeding,
+              temperature=excluded.temperature,
+              lh_test=excluded.lh_test`,
+        [logId, userId, cycle.id, date, mucusType, sensation, bleeding, temperature ?? null, lhTest, now]
+      );
+
+      // Update cycle state based on new data
+      const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
+      const updated = updateCycleState({ cycle, logsInCycle });
+
+      app.log.info(
+        { route: '/api/log-day', userId, cycleId: cycle.id, state: updated.state, peakDate: updated.peakDate, tempShift: updated.tempShiftConfirmedDate },
+        'cycle updated'
+      );
+
+      await db.query(
+        db.paramStyle === 'postgres'
+          ? 'update cycles set state=$1, peak_date=$2, temp_shift_confirmed_date=$3 where id=$4'
+          : 'update cycles set state=?, peak_date=?, temp_shift_confirmed_date=? where id=?',
+        [updated.state, updated.peakDate, updated.tempShiftConfirmedDate, cycle.id]
+      );
+
+      return reply.send({ ok: true, cycleState: updated.state });
+
+    } catch (dbError) {
+      req.log.error({ route: '/api/log-day', userId, dbError, date }, 'database operation failed');
+      return reply.status(500).send({ error: 'Database operation failed' });
+    }
+
+  } catch (error) {
+    const userId = (req as any).userId as string | undefined;
+    req.log.error({ route: '/api/log-day', userId, error }, 'unexpected error in log-day');
+    return reply.status(500).send({ error: 'Internal server error' });
   }
-
-  const cycle = await getCurrentCycle(db, userId);
-
-  const logId = randomUUID();
-  await db.query(
-    db.paramStyle === 'postgres'
-      ? `insert into daily_logs
-          (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-         values
-          ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,0,0,$10)
-         on conflict (user_id, date) do update set
-          cycle_id = excluded.cycle_id,
-          mucus_type = excluded.mucus_type,
-          sensation = excluded.sensation,
-          bleeding = excluded.bleeding,
-          temperature = excluded.temperature,
-          lh_test = excluded.lh_test`
-      : `insert into daily_logs
-          (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-         values
-          (?,?,?,?,?,?,?,?,?,0,0,0,?)
-         on conflict(user_id, date) do update set
-          cycle_id=excluded.cycle_id,
-          mucus_type=excluded.mucus_type,
-          sensation=excluded.sensation,
-          bleeding=excluded.bleeding,
-          temperature=excluded.temperature,
-          lh_test=excluded.lh_test`,
-    [logId, userId, cycle.id, date, mucusType, sensation, bleeding, temperature ?? null, lhTest, now]
-  );
-
-  const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
-  const updated = updateCycleState({ cycle, logsInCycle });
-
-  app.log.info(
-    { route: '/api/log-day', userId, cycleId: cycle.id, state: updated.state, peakDate: updated.peakDate, tempShift: updated.tempShiftConfirmedDate },
-    'cycle updated'
-  );
-
-  await db.query(
-    db.paramStyle === 'postgres'
-      ? 'update cycles set state=$1, peak_date=$2, temp_shift_confirmed_date=$3 where id=$4'
-      : 'update cycles set state=?, peak_date=?, temp_shift_confirmed_date=? where id=?',
-    [updated.state, updated.peakDate, updated.tempShiftConfirmedDate, cycle.id]
-  );
-
-  return reply.send({ ok: true, cycleState: updated.state });
 });
 
-app.get('/api/today', async (req) => {
-  const userId = (req as any).userId as string;
-  const today = new Date().toISOString().slice(0, 10);
+app.get('/api/today', async (req, reply) => {
+  try {
+    const userId = (req as any).userId as string;
+    const today = new Date().toISOString().slice(0, 10);
 
-  const cycle = await getCurrentCycle(db, userId);
-  const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
+    try {
+      const cycle = await getCurrentCycle(db, userId);
+      const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
 
-  const updated = updateCycleState({ cycle, logsInCycle });
+      const updated = updateCycleState({ cycle, logsInCycle });
 
-  const todayLog = logsInCycle.find((l) => l.date === today) ?? null;
-  const fertilityIndexToday = todayLog ? fertilityIndexForLog(todayLog) : 0;
+      const todayLog = logsInCycle.find((l) => l.date === today) ?? null;
+      const fertilityIndexToday = todayLog ? fertilityIndexForLog(todayLog) : 0;
 
-  const yesterday = isoDateOffset(-1);
-  const yesterdayLog = logsInCycle.find((l) => l.date === yesterday) ?? null;
-  const lhPositiveCarryover = yesterdayLog?.lhTest === 'positive';
+      const yesterday = isoDateOffset(-1);
+      const yesterdayLog = logsInCycle.find((l) => l.date === yesterday) ?? null;
+      const lhPositiveCarryover = yesterdayLog?.lhTest === 'positive';
 
-  const risk = calculateRisk({
-    cycleState: updated.state,
-    todayLog,
-    fertilityIndexToday,
-    tempShiftConfirmed: updated.tempShiftConfirmedDate !== null,
-    lhPositiveCarryover,
-  });
-
-  app.log.info(
-    {
-      route: '/api/today',
-      userId,
-      date: today,
-      cycleState: updated.state,
-      fertilityIndexToday,
-      risk: risk.risk,
-      peakDate: updated.peakDate,
-      tempShift: updated.tempShiftConfirmedDate,
-    },
-    'today risk'
-  );
-
-  return {
-    date: today,
-    risk: risk.risk,
-    explanation: risk.explanation,
-    disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
-  };
-});
-
-app.get('/api/chart', async (req) => {
-  const userId = (req as any).userId as string;
-  const cycle = await getCurrentCycle(db, userId);
-  const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
-  const updated = updateCycleState({ cycle, logsInCycle });
-
-  app.log.info(
-    { route: '/api/chart', userId, cycleId: cycle.id, days: logsInCycle.length, state: updated.state },
-    'chart'
-  );
-
-  const days = logsInCycle
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((l) => {
-      const idx = fertilityIndexForLog(l);
-      const yesterday = isoDateFrom(l.date, -1);
-      const y = logsInCycle.find((x) => x.date === yesterday) ?? null;
-      const lhPositiveCarryover = y?.lhTest === 'positive';
-      const r = calculateRisk({
+      const risk = calculateRisk({
         cycleState: updated.state,
-        todayLog: l,
-        fertilityIndexToday: idx,
+        todayLog,
+        fertilityIndexToday,
         tempShiftConfirmed: updated.tempShiftConfirmedDate !== null,
         lhPositiveCarryover,
       });
-      return {
-        date: l.date,
-        fertilityIndex: idx,
-        risk: r.risk,
-        temperature: l.temperature,
-        lhTest: l.lhTest,
-      };
-    });
 
-  return {
-    cycle: {
-      id: cycle.id,
-      startDate: cycle.startDate,
-      state: updated.state,
-      peakDate: updated.peakDate,
-      tempShiftConfirmedDate: updated.tempShiftConfirmedDate,
-    },
-    days,
-    disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
-  };
+      app.log.info(
+        {
+          route: '/api/today',
+          userId,
+          date: today,
+          cycleState: updated.state,
+          fertilityIndexToday,
+          risk: risk.risk,
+          peakDate: updated.peakDate,
+          tempShift: updated.tempShiftConfirmedDate,
+        },
+        'today risk calculated'
+      );
+
+      return {
+        date: today,
+        risk: risk.risk,
+        explanation: risk.explanation,
+        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+      };
+
+    } catch (dbError) {
+      req.log.error({ route: '/api/today', userId, dbError }, 'database operation failed');
+      return reply.status(500).send({ error: 'Database operation failed' });
+    }
+
+  } catch (error) {
+    const userId = (req as any).userId as string | undefined;
+    req.log.error({ route: '/api/today', userId, error }, 'unexpected error in today');
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/chart', async (req, reply) => {
+  try {
+    const userId = (req as any).userId as string;
+
+    try {
+      const cycle = await getCurrentCycle(db, userId);
+      const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
+      const updated = updateCycleState({ cycle, logsInCycle });
+
+      app.log.info(
+        { route: '/api/chart', userId, cycleId: cycle.id, days: logsInCycle.length, state: updated.state },
+        'chart data calculated'
+      );
+
+      const days = logsInCycle
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((l) => {
+          try {
+            const idx = fertilityIndexForLog(l);
+            const yesterday = isoDateFrom(l.date, -1);
+            const y = logsInCycle.find((x) => x.date === yesterday) ?? null;
+            const lhPositiveCarryover = y?.lhTest === 'positive';
+            const r = calculateRisk({
+              cycleState: updated.state,
+              todayLog: l,
+              fertilityIndexToday: idx,
+              tempShiftConfirmed: updated.tempShiftConfirmedDate !== null,
+              lhPositiveCarryover,
+            });
+            return {
+              date: l.date,
+              fertilityIndex: idx,
+              risk: r.risk,
+              temperature: l.temperature,
+              lhTest: l.lhTest,
+            };
+          } catch (calcError) {
+            req.log.warn({ route: '/api/chart', userId, date: l.date, calcError }, 'error calculating risk for date');
+            return {
+              date: l.date,
+              fertilityIndex: 0,
+              risk: 'HIGH' as const, // Conservative default
+              temperature: l.temperature,
+              lhTest: l.lhTest,
+            };
+          }
+        });
+
+      return {
+        cycle: {
+          id: cycle.id,
+          startDate: cycle.startDate,
+          state: updated.state,
+          peakDate: updated.peakDate,
+          tempShiftConfirmedDate: updated.tempShiftConfirmedDate,
+        },
+        days,
+        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+      };
+
+    } catch (dbError) {
+      req.log.error({ route: '/api/chart', userId, dbError }, 'database operation failed');
+      return reply.status(500).send({ error: 'Database operation failed' });
+    }
+
+  } catch (error) {
+    const userId = (req as any).userId as string | undefined;
+    req.log.error({ route: '/api/chart', userId, error }, 'unexpected error in chart');
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
 });
 
 app.post('/api/reset-cycle', async (req, reply) => {
-  const userId = (req as any).userId as string;
-  const now = new Date().toISOString();
-  const startDate = now.slice(0, 10);
-  const cycleId = randomUUID();
+  try {
+    const userId = (req as any).userId as string;
+    const now = new Date().toISOString();
+    const startDate = now.slice(0, 10);
+    const cycleId = randomUUID();
 
-  await db.query(
-    db.paramStyle === 'postgres'
-      ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-      : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
-    [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
-  );
+    try {
+      await db.query(
+        db.paramStyle === 'postgres'
+          ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
+          : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+        [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
+      );
 
-  return reply.send({ ok: true });
+      req.log.info({ route: '/api/reset-cycle', userId, cycleId }, 'cycle reset');
+      return reply.send({ ok: true });
+
+    } catch (dbError) {
+      req.log.error({ route: '/api/reset-cycle', userId, dbError }, 'database operation failed');
+      return reply.status(500).send({ error: 'Failed to reset cycle' });
+    }
+
+  } catch (error) {
+    const userId = (req as any).userId as string | undefined;
+    req.log.error({ route: '/api/reset-cycle', userId, error }, 'unexpected error in reset-cycle');
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
 });
 
 app.post('/api/delete-all-data', async (req, reply) => {
-  const userId = (req as any).userId as string;
+  try {
+    const userId = (req as any).userId as string;
 
-  app.log.warn({ route: '/api/delete-all-data', userId }, 'delete all data');
+    app.log.warn({ route: '/api/delete-all-data', userId }, 'delete all data initiated');
 
-  await db.query(
-    db.paramStyle === 'postgres' ? 'delete from daily_logs where user_id=$1' : 'delete from daily_logs where user_id=?',
-    [userId]
-  );
-  await db.query(
-    db.paramStyle === 'postgres' ? 'delete from cycles where user_id=$1' : 'delete from cycles where user_id=?',
-    [userId]
-  );
+    try {
+      // Delete in correct order to maintain referential integrity
+      await db.query(
+        db.paramStyle === 'postgres' ? 'delete from daily_logs where user_id=$1' : 'delete from daily_logs where user_id=?',
+        [userId]
+      );
+      await db.query(
+        db.paramStyle === 'postgres' ? 'delete from cycles where user_id=$1' : 'delete from cycles where user_id=?',
+        [userId]
+      );
 
-  return reply.send({ ok: true });
+      req.log.warn({ route: '/api/delete-all-data', userId }, 'all user data deleted');
+      return reply.send({ ok: true });
+
+    } catch (dbError) {
+      req.log.error({ route: '/api/delete-all-data', userId, dbError }, 'database operation failed');
+      return reply.status(500).send({ error: 'Failed to delete data' });
+    }
+
+  } catch (error) {
+    const userId = (req as any).userId as string | undefined;
+    req.log.error({ route: '/api/delete-all-data', userId, error }, 'unexpected error in delete-all-data');
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
 });
 
 const port = Number(process.env.PORT ?? 8787);
@@ -592,14 +733,40 @@ try {
 }
 
 async function getCurrentCycle(db: Db, userId: string): Promise<Cycle> {
-  const rows = await db.query<Cycle>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 order by start_date desc, created_at desc limit 1'
-      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? order by start_date desc, created_at desc limit 1',
-    [userId]
-  );
-  if (!rows[0]) throw new Error('No cycle found');
-  return rows[0] as Cycle;
+  try {
+    const rows = await db.query<Cycle>(
+      db.paramStyle === 'postgres'
+        ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 order by start_date desc, created_at desc limit 1'
+        : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? order by start_date desc, created_at desc limit 1',
+      [userId]
+    );
+    if (!rows[0]) {
+      // Create a default cycle for new users
+      const now = new Date().toISOString();
+      const startDate = now.slice(0, 10);
+      const cycleId = randomUUID();
+
+      await db.query(
+        db.paramStyle === 'postgres'
+          ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
+          : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+        [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
+      );
+
+      return {
+        id: cycleId,
+        userId,
+        startDate,
+        state: 'INFERTILE_PRE',
+        peakDate: null,
+        tempShiftConfirmedDate: null,
+        createdAt: now,
+      };
+    }
+    return rows[0] as Cycle;
+  } catch (error) {
+    throw new Error(`Failed to get current cycle for user ${userId}: ${error}`);
+  }
 }
 
 async function getLogsInCycle(
@@ -607,51 +774,55 @@ async function getLogsInCycle(
   userId: string,
   cycleId: string
 ): Promise<DailyLog[]> {
-  const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? `select
-          id,
-          user_id as "userId",
-          cycle_id as "cycleId",
-          date,
-          mucus_type as "mucusType",
-          sensation,
-          bleeding,
-          temperature,
-          lh_test as "lhTest",
-          sick,
-          bad_sleep as "badSleep",
-          alcohol,
-          created_at as "createdAt"
-         from daily_logs
-         where user_id = $1 and cycle_id = $2
-         order by date asc`
-      : `select
-          id,
-          user_id as userId,
-          cycle_id as cycleId,
-          date,
-          mucus_type as mucusType,
-          sensation,
-          bleeding,
-          temperature,
-          lh_test as lhTest,
-          sick,
-          bad_sleep as badSleep,
-          alcohol,
-          created_at as createdAt
-         from daily_logs
-         where user_id = ? and cycle_id = ?
-         order by date asc`,
-    [userId, cycleId]
-  );
+  try {
+    const rows = await db.query<any>(
+      db.paramStyle === 'postgres'
+        ? `select
+            id,
+            user_id as "userId",
+            cycle_id as "cycleId",
+            date,
+            mucus_type as "mucusType",
+            sensation,
+            bleeding,
+            temperature,
+            lh_test as "lhTest",
+            sick,
+            bad_sleep as "badSleep",
+            alcohol,
+            created_at as "createdAt"
+           from daily_logs
+           where user_id = $1 and cycle_id = $2
+           order by date asc`
+        : `select
+            id,
+            user_id as userId,
+            cycle_id as cycleId,
+            date,
+            mucus_type as mucusType,
+            sensation,
+            bleeding,
+            temperature,
+            lh_test as lhTest,
+            sick,
+            bad_sleep as badSleep,
+            alcohol,
+            created_at as createdAt
+           from daily_logs
+           where user_id = ? and cycle_id = ?
+           order by date asc`,
+      [userId, cycleId]
+    );
 
-  return (rows as any[]).map((r) => ({
-    ...r,
-    sick: !!r.sick,
-    badSleep: !!r.badSleep,
-    alcohol: !!r.alcohol,
-  })) as DailyLog[];
+    return (rows as any[]).map((r) => ({
+      ...r,
+      sick: !!r.sick,
+      badSleep: !!r.badSleep,
+      alcohol: !!r.alcohol,
+    })) as DailyLog[];
+  } catch (error) {
+    throw new Error(`Failed to get logs for cycle ${cycleId}, user ${userId}: ${error}`);
+  }
 }
 
 function isoDateOffset(offsetDays: number): string {

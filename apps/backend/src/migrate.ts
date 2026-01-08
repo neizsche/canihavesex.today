@@ -46,5 +46,14 @@ export async function migrate() {
       created_at text not null,
       unique(user_id, date)
     );
+
+    -- Critical performance indexes
+    create index if not exists idx_users_email on users(email);
+    create index if not exists idx_cycles_user_start_date on cycles(user_id, start_date desc);
+    create index if not exists idx_cycles_user_created on cycles(user_id, created_at desc);
+    create index if not exists idx_daily_logs_user_date on daily_logs(user_id, date desc);
+    create index if not exists idx_daily_logs_cycle_date on daily_logs(cycle_id, date asc);
+    create index if not exists idx_daily_logs_user_cycle on daily_logs(user_id, cycle_id);
+    create index if not exists idx_user_identities_user on user_identities(user_id);
   `);
 }
