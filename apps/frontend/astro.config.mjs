@@ -1,6 +1,9 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import { VitePWA } from 'vite-plugin-pwa';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadEnv } from 'vite';
 
 // Environment-specific configuration
 const isProduction = process.env.NODE_ENV === 'production';
@@ -25,12 +28,23 @@ const allowedHosts = [
   '.ondigitalocean.app',
 ];
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Load `.env` from the repo root so frontend + backend share one config file.
+const envDir = path.resolve(__dirname, '../..');
+
+const mode = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+const env = loadEnv(mode, envDir, '');
+const frontendPort = Number(env.FRONTEND_PORT || 3000);
+const frontendPreviewPort = Number(env.FRONTEND_PREVIEW_PORT || frontendPort);
+
 export default defineConfig({
   integrations: [react()],
   devToolbar: {
     enabled: false,
   },
   vite: {
+    envDir,
     server: {
       allowedHosts,
     },
@@ -68,5 +82,9 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts,
+    port: frontendPort,
+  },
+  preview: {
+    port: frontendPreviewPort,
   },
 });

@@ -4,9 +4,6 @@ import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { createDb } from './db.js';
 import type { Db } from './db.js';
@@ -14,27 +11,9 @@ import { migrate } from './migrate.js';
 import type { Cycle, DailyLog } from './types.js';
 import { calculateRisk, fertilityIndexForLog, updateCycleState } from './fertilityEngine.js';
 import { createRateLimitMiddleware } from './rateLimiter.js';
+import { loadEnv } from './env.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envPath = path.resolve(__dirname, '..', '.env');
-if (fs.existsSync(envPath)) {
-  const raw = fs.readFileSync(envPath, 'utf8');
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const idx = trimmed.indexOf('=');
-    if (idx <= 0) continue;
-    const key = trimmed.slice(0, idx).trim();
-    let value = trimmed.slice(idx + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] == null || process.env[key] === '') {
-      process.env[key] = value;
-    }
-  }
-}
+loadEnv();
 
 const shouldPrettyLog =
   process.env.PRETTY_LOGS === '1' ||
@@ -258,12 +237,12 @@ function publicBackendBase(req: any): string {
   const configured = process.env.PUBLIC_BACKEND_BASE;
   if (configured) return configured.replace(/\/$/, '');
   const proto = (req.headers['x-forwarded-proto'] as string | undefined) ?? 'http';
-  const host = (req.headers['x-forwarded-host'] as string | undefined) ?? (req.headers.host as string | undefined) ?? 'localhost:8787';
+  const host = (req.headers['x-forwarded-host'] as string | undefined) ?? (req.headers.host as string | undefined) ?? 'localhost:1299';
   return `${proto}://${host}`.replace(/\/$/, '');
 }
 
 function appBase(): string {
-  return (process.env.PUBLIC_APP_BASE ?? 'http://localhost:3000').replace(/\/$/, '');
+  return (process.env.PUBLIC_APP_BASE ?? 'http://localhost:3112').replace(/\/$/, '');
 }
 
 function oauthRedirectUri(provider: OauthProvider, req: any): string {

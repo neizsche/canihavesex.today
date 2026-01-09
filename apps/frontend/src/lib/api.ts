@@ -1,5 +1,10 @@
 export function getApiBase(): string {
-  return (import.meta.env.PUBLIC_API_BASE || 'http://localhost:8787').replace(/\/$/, '');
+  const env = import.meta.env as any;
+  const base = env.PUBLIC_BACKEND_BASE;
+  if (!base) {
+    throw new Error('Missing PUBLIC_BACKEND_BASE. Set it in the repo-root .env file.');
+  }
+  return String(base).replace(/\/$/, '');
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}) {

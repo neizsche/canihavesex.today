@@ -17,8 +17,8 @@
         <div class="row">
           <div>
             <label for="apiBase">API base</label>
-            <input id="apiBase" type="text" placeholder="http://127.0.0.1:8787" />
-            <div class="small">Default: <span class="code">PUBLIC_API_BASE</span> or <span class="code">http://127.0.0.1:8787</span></div>
+            <input id="apiBase" type="text" placeholder="https://api.canihavesex.today" />
+            <div class="small">Default: <span class="code">PUBLIC_BACKEND_BASE</span></div>
           </div>
           <div>
             <label for="token">Admin token</label>
@@ -48,7 +48,7 @@
     </main>
 
     <script>
-      const DEFAULT_API = (import.meta.env.PUBLIC_API_BASE || 'http://127.0.0.1:8787');
+      const DEFAULT_API = (import.meta.env.PUBLIC_BACKEND_BASE || '');
       const LS_API = 'admin_api_base';
       const LS_TOKEN = 'admin_token';
 

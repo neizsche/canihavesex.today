@@ -35,25 +35,31 @@ Every screen shows the disclaimer:
 npm install
 ```
 
-2. Run backend (with seed data):
+2. Create env file (copy example):
+
+```bash
+cp .env.example .env
+```
+
+3. Run backend (with seed data):
 
 ```bash
 SEED=1 npm run dev -w apps/backend
 ```
 
-Backend runs on `http://127.0.0.1:8787`.
+Backend runs on `http://127.0.0.1:1299`.
 
-3. Run frontend:
+4. Run frontend:
 
 ```bash
 npm run dev -w apps/frontend
 ```
 
-Frontend runs on `http://localhost:3000`.
+Frontend runs on `http://localhost:3112`.
 
 If you want the frontend to talk to a different backend URL, set:
 
-- `PUBLIC_API_BASE` (e.g. `http://127.0.0.1:8787`)
+- `PUBLIC_BACKEND_BASE` (e.g. `http://127.0.0.1:1299`)
 
 ## API endpoints
 

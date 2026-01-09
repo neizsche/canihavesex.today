@@ -3,14 +3,8 @@ import { Mail, X } from 'lucide-react';
 
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { getApiBase } from '../lib/api';
 type StatusTone = 'muted' | 'danger';
-
-function getApiBase(): string {
-  // Astro exposes PUBLIC_ env vars to the client
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const env: any = import.meta.env;
-  return (env.PUBLIC_API_BASE || 'http://localhost:8787').replace(/\/$/, '');
-}
 
 export function AuthForm() {
   const [status, setStatus] = React.useState<string>('');

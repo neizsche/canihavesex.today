@@ -1,7 +1,9 @@
 import { createDb } from './db.js';
 import { migrate } from './migrate.js';
+import { loadEnv } from './env.js';
 
 async function main() {
+  loadEnv();
   await migrate();
   const db = await createDb();
 

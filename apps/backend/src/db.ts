@@ -10,10 +10,34 @@ export type Db = {
 
 export async function createDb(): Promise<Db> {
   const url = process.env.DATABASE_URL;
-  if (url && url.startsWith('postgres')) {
+  let usePostgres = !!url && url.startsWith('postgres');
+  if (usePostgres && url) {
+    // Guard against partial / malformed DATABASE_URL values like "postgres"
+    // which can crash pg's connection-string parser.
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+        throw new Error(`Unsupported DATABASE_URL protocol: ${parsed.protocol}`);
+      }
+    } catch (err) {
+      const msg =
+        `Ignoring invalid DATABASE_URL (falling back to SQLite). ` +
+        `Expected e.g. "postgresql://user:pass@host:5432/db". ` +
+        `Received: ${JSON.stringify(url)}`;
+
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(msg);
+      }
+
+      console.warn(msg, err);
+      usePostgres = false;
+    }
+  }
+
+  if (usePostgres) {
     // Configure connection pool for production use
     const pool = new pg.Pool({
-      connectionString: url,
+      connectionString: url!,
       // Connection pool settings
       max: parseInt(process.env.DB_POOL_MAX || '20'), // Maximum number of clients
       min: parseInt(process.env.DB_POOL_MIN || '2'),  // Minimum number of clients
@@ -41,11 +65,24 @@ export async function createDb(): Promise<Db> {
       testClient.release();
       console.log('PostgreSQL connection pool initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize PostgreSQL connection pool:', error);
-      throw error;
+      // In dev, prefer falling back to SQLite so "npm run dev" works out of the box
+      // even when DATABASE_URL is set but Postgres isn't running.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          'PostgreSQL connection failed in development; falling back to SQLite. ' +
+            'Either start Postgres, or unset DATABASE_URL to use SQLite.',
+          error
+        );
+        await pool.end().catch(() => undefined);
+        usePostgres = false;
+      } else {
+        console.error('Failed to initialize PostgreSQL connection pool:', error);
+        throw error;
+      }
     }
 
-    return {
+    if (usePostgres) {
+      return {
       kind: 'postgres',
       paramStyle: 'postgres',
       async query<T>(sql: string, params: any[] = []) {
@@ -71,7 +108,8 @@ export async function createDb(): Promise<Db> {
           client.release();
         }
       },
-    };
+      };
+    }
   }
 
   const filename = process.env.SQLITE_PATH ?? 'dev.db';

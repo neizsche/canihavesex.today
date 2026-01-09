@@ -1,6 +1,8 @@
 import { createDb } from './db.js';
+import { loadEnv } from './env.js';
 
 export async function migrate() {
+  loadEnv();
   const db = await createDb();
 
   await db.exec(`

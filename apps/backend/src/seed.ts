@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { createDb } from './db.js';
 import { migrate } from './migrate.js';
+import { loadEnv } from './env.js';
 
 export async function seed() {
+  loadEnv();
   await migrate();
   const db = await createDb();
 

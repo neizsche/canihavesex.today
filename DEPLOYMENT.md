@@ -4,11 +4,11 @@
 
 ### Environment Variables
 
-Create `.env` file in `/apps/frontend/`:
+Use environment variables (recommended) or a repo-root `.env` file (start from `.env.example`).
 
 ```bash
 # Backend API URL (required for production)
-PUBLIC_API_BASE=https://your-backend-domain.com
+PUBLIC_BACKEND_BASE=https://api.canihavesex.today
 
 # Optional: Google Analytics, etc.
 # GA_TRACKING_ID=your_google_analytics_id
@@ -38,7 +38,7 @@ npm run build
 
 ### Environment Variables
 
-Create `.env` file in `/apps/backend/`:
+Use environment variables (recommended) or a repo-root `.env` file (start from `.env.example`).
 
 ```bash
 # Database (required)
@@ -52,21 +52,21 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 COOKIE_SECRET=your_very_long_random_secret_minimum_32_characters
 
 # Frontend URL (required for production CORS)
-FRONTEND_URL=https://your-frontend-domain.com
+FRONTEND_URL=https://canihavesex.today
 
 # Admin (optional)
 ADMIN_TOKEN=your_admin_token
 
 # Server (optional - defaults provided)
-PORT=8787
+PORT=1299
 HOST=0.0.0.0
 NODE_ENV=production
 LOG_LEVEL=info
 PRETTY_LOGS=0
 
 # Public URLs (for email links, etc.)
-PUBLIC_BACKEND_BASE=https://your-backend-domain.com
-PUBLIC_APP_BASE=https://your-frontend-domain.com
+PUBLIC_BACKEND_BASE=https://api.canihavesex.today
+PUBLIC_APP_BASE=https://canihavesex.today
 ```
 
 ### CORS Configuration
@@ -152,7 +152,7 @@ allowedHosts: [
 ### Vercel
 
 **Frontend**:
-- Set `PUBLIC_API_BASE` to your backend URL
+- Set `PUBLIC_BACKEND_BASE` to your backend URL
 - Vercel automatically handles the build
 
 **Backend**:
@@ -162,7 +162,7 @@ allowedHosts: [
 ### Netlify
 
 **Frontend**:
-- Set `PUBLIC_API_BASE` in Netlify environment variables
+- Set `PUBLIC_BACKEND_BASE` in Netlify environment variables
 - Use Netlify's build settings
 
 **Backend**:
@@ -174,7 +174,7 @@ allowedHosts: [
 **Full Stack**:
 - Deploy both frontend and backend to the same platform
 - Set `FRONTEND_URL` to your frontend domain
-- Set `PUBLIC_API_BASE` to your backend domain (may be same if using Railway)
+- Set `PUBLIC_BACKEND_BASE` to your backend domain (may be same if using Railway)
 
 ## Domain Configuration
 
@@ -198,7 +198,7 @@ Before deploying, test locally with production settings:
 ```bash
 # Frontend
 cd apps/frontend
-PUBLIC_API_BASE=https://your-backend-domain.com npm run build
+PUBLIC_BACKEND_BASE=https://api.canihavesex.today npm run build
 
 # Backend
 cd apps/backend
