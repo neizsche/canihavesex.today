@@ -99,7 +99,7 @@ export function TodayScreen() {
           date: new Date().toISOString().slice(0, 10),
           risk: 'HIGH',
           explanation: 'Network error — cannot determine risk. Assume fertile.',
-          disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+          disclaimer: '',
         });
         setLoading(false);
         setAuthChecked(true);

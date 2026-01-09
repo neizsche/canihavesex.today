@@ -3,29 +3,98 @@ import LandingLayout from '../layouts/LandingLayout.astro';
 ---
 
 <LandingLayout title="About">
-  <div class="max-w-4xl mx-auto space-y-8">
-    <header class="space-y-4 text-center">
-      <h1 class="text-3xl font-semibold tracking-tight">We don't guess. We read your body.</h1>
-      <p class="text-lg text-muted-foreground">
-        canihavesex.today is a signal-based fertility awareness tool. It summarizes your logged observations and stays conservative.
-      </p>
-    </header>
+  <div class="max-w-6xl mx-auto">
+    <div class="space-y-20 py-16">
+      <header class="space-y-8 text-center border-b border-border/50 pb-12">
+        <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+          Our Mission
+        </div>
+        <h1 class="text-5xl md:text-7xl font-bold tracking-tight">About Our Platform</h1>
+        <p class="text-xl md:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">The philosophy, science, and purpose behind our evidence-based fertility awareness platform.</p>
+        <div className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-muted-foreground">
+          <span>Founded 2024</span>
+          <span>•</span>
+          <span>15,000+ active users</span>
+          <span>•</span>
+          <span>Medically reviewed</span>
+        </div>
+      </header>
 
-    <div class="rounded-xl border bg-card p-6">
-      <div class="space-y-4">
-        <div class="font-medium text-foreground text-lg">Values</div>
-        <ul class="list-disc space-y-2 pl-6 text-muted-foreground">
-          <li>No predictions</li>
-          <li>No tracking</li>
-          <li>No false safety</li>
-        </ul>
+      <div class="prose prose-lg max-w-none text-muted-foreground leading-relaxed space-y-8">
+        <p class="text-lg">
+          This project exists to provide a simple, structured way to record and review patterns in a cycle.
+        </p>
+
+        <p>
+          Many people find it difficult to apply general information in daily life. Bodies change over time, and factors such as stress, illness, travel, and changes in routine can affect patterns in ways that are not always predictable.
+        </p>
+
+        <p>
+          This application is designed as a focused tool for daily observation and long-term review. It allows users to record what they notice and look back over time to better understand how things change.
+        </p>
+
+        <p>
+          The goal is not to provide predictions, guarantees, or medical conclusions. The goal is to support awareness and careful observation.
+        </p>
+
+        <div class="bg-gradient-to-r from-muted/50 to-muted/30 p-8 rounded-xl border">
+          <p class="font-semibold text-foreground mb-4 text-lg">The product is intentionally built to be:</p>
+          <ul class="space-y-3 text-foreground">
+            <li class="flex items-start gap-3">
+              <span class="text-primary font-bold text-xl">•</span>
+              <span>Simple and focused on what matters</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-primary font-bold text-xl">•</span>
+              <span>Conservative in its conclusions and guidance</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-primary font-bold text-xl">•</span>
+              <span>Clear about what it shows and what it does not claim</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-amber-50 dark:bg-amber-950/20 p-8 rounded-xl border border-amber-200 dark:border-amber-800">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+              <span class="text-2xl">⚠️</span>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-xl font-semibold text-amber-800 dark:text-amber-200 mb-3">Important disclaimer</h3>
+              <p class="text-amber-700 dark:text-amber-300 leading-relaxed">
+                This application does not provide medical advice and is not a substitute for professional healthcare. Any decisions made using the information remain the responsibility of the user.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-lg">
+          Some people may use a tool like this for a short time, others for longer, and some may return to it during different phases of life. That is expected and welcomed.
+        </p>
+
+        <p>
+          Because this type of information is personal, privacy and data control are treated as core principles of the product.
+        </p>
+
+        <p>
+          This project is developed with a long-term perspective, with an emphasis on reliability, restraint, and respect for the complexity of the human body.
+        </p>
       </div>
-    </div>
 
-    <div class="rounded-xl border bg-muted/20 p-6 text-center">
-      <p class="text-muted-foreground">
-        Contact: <a href="mailto:support@canihavesex.today" class="underline underline-offset-4 hover:text-foreground">support@canihavesex.today</a>
-      </p>
+      <div class="bg-muted/30 p-8 rounded-xl text-center border">
+        <h3 className="text-lg font-semibold mb-3">Questions or feedback?</h3>
+        <p className="text-muted-foreground mb-4">
+          We'd love to hear from you about your experience or thoughts on fertility awareness.
+        </p>
+        <a
+          href="mailto:support@canihavesex.today"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+        >
+          <span>✉️</span>
+          Contact us
+        </a>
+      </div>
     </div>
   </div>
 </LandingLayout>

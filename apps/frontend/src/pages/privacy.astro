@@ -3,18 +3,153 @@ import LandingLayout from '../layouts/LandingLayout.astro';
 ---
 
 <LandingLayout title="Privacy">
-  <div class="max-w-4xl mx-auto space-y-8">
-    <header class="space-y-4 text-center">
-      <h1 class="text-3xl font-semibold tracking-tight">Privacy</h1>
-      <p class="text-lg text-muted-foreground">Plain-language overview of what we store and what we don't.</p>
-    </header>
+  <div class="max-w-6xl mx-auto">
+    <div class="space-y-20 py-16">
+      <header class="space-y-8 text-center border-b border-border/50 pb-12">
+        <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+          Privacy & Security
+        </div>
+        <h1 class="text-5xl md:text-7xl font-bold tracking-tight">Privacy Policy</h1>
+        <p class="text-xl md:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">How we protect and handle your personal health information with the highest standards of care and transparency.</p>
+        <div className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-muted-foreground">
+          <span>Last updated: January 2025</span>
+          <span>•</span>
+          <span>Effective for all users</span>
+        </div>
+      </header>
 
-    <div class="rounded-xl border bg-card p-6">
-      <div class="space-y-4 text-muted-foreground">
-        <div>No analytics, no third-party sharing.</div>
-        <div>Only stores cycle logs and authentication needed to run the app.</div>
-        <div>"Delete All Data" is available in Settings.</div>
-        <div>No ads, no profiling.</div>
+      <div class="prose prose-lg max-w-none text-muted-foreground leading-relaxed space-y-12">
+        <div class="text-center mb-16 p-8 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border">
+          <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-primary/20 text-primary text-sm font-medium mb-6">
+            <span>🔒</span>
+            <span>Your data belongs to you</span>
+          </div>
+          <p class="text-xl md:text-2xl font-medium text-foreground mb-4">
+            Complete transparency and control
+          </p>
+          <p class="text-lg max-w-3xl mx-auto">
+            This application is built around a simple principle: information about your body is personal, and it should remain under your control.
+          </p>
+        </div>
+
+        <div class="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 p-8 rounded-xl border">
+          <h3 class="text-2xl font-semibold text-foreground mb-4">Data minimization</h3>
+          <p class="mb-4">
+            We intentionally collect as little personal information as possible.
+          </p>
+          <p class="mb-4">
+            The application does not ask for, and does not store:
+          </p>
+          <ul class="space-y-2 ml-6 text-foreground">
+            <li class="flex items-start gap-3">
+              <span class="text-destructive mt-1">✗</span>
+              <span>Your name, age, location, or any demographic information</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-destructive mt-1">✗</span>
+              <span>Any profile information that describes who you are</span>
+            </li>
+          </ul>
+          <p class="mt-4">
+            Your account is identified only by the minimum technical information required for access.
+          </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+          <div class="bg-muted/30 p-6 rounded-xl border">
+            <h3 class="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span class="text-primary">📊</span>
+              What data is stored
+            </h3>
+            <ul class="space-y-2 text-foreground">
+              <li class="flex items-start gap-3">
+                <span class="text-primary">✓</span>
+                <span>Your daily observations and cycle entries</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="text-primary">✓</span>
+                <span>Minimum technical data for account access</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bg-muted/30 p-6 rounded-xl border">
+            <h3 class="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span class="text-primary">🔒</span>
+              How your data is used
+            </h3>
+            <ul class="space-y-2 text-foreground">
+              <li class="flex items-start gap-3">
+                <span class="text-primary">→</span>
+                <span>To show you your own records</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="text-primary">→</span>
+                <span>To calculate and display results</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="text-primary">→</span>
+                <span>To provide the features you use</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="bg-destructive/5 p-8 rounded-xl border border-destructive/20">
+          <h3 class="text-xl font-semibold text-destructive mb-4 flex items-center gap-2">
+            <span class="text-destructive">🚫</span>
+            Your data is NOT used for
+          </h3>
+          <ul class="space-y-2 text-red-700 dark:text-red-300">
+            <li class="flex items-start gap-3">
+              <span class="text-destructive">✗</span>
+              <span>Selling or renting to third parties</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-destructive">✗</span>
+              <span>Advertising or marketing</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-destructive">✗</span>
+              <span>Building behavioral profiles</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-primary/5 p-8 rounded-xl border border-primary/20">
+          <h3 class="text-xl font-semibold text-primary mb-4 flex items-center gap-2">
+            <span class="text-primary">🎛️</span>
+            You control your data
+          </h3>
+          <ul class="space-y-2 text-green-700 dark:text-green-300">
+            <li class="flex items-start gap-3">
+              <span class="text-primary">✓</span>
+              <span>Delete your data anytime from within the app</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-primary">✓</span>
+              <span>Stop using the service at any time</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-primary">✓</span>
+              <span>Data is removed from active systems when deleted</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-muted/30 p-6 rounded-xl border text-center">
+          <h3 class="text-lg font-semibold mb-3">Questions about your privacy?</h3>
+          <p class="text-muted-foreground mb-4">
+            We're committed to transparency. Reach out if you have any concerns.
+          </p>
+          <a
+            href="mailto:support@canihavesex.today"
+            class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          >
+            <span>📧</span>
+            Contact us
+          </a>
+        </div>
       </div>
     </div>
   </div>

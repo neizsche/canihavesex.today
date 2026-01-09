@@ -24,21 +24,37 @@ import '../styles/globals.css';
     </script>
   </head>
   <body class="bg-background text-foreground">
-    <main class="mx-auto max-w-4xl px-4 py-8">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-sm">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <a href="/" class="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+          canihavesex.today
+        </a>
+        <a
+          href="/auth"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow-md"
+        >
+          <span>🔐</span>
+          Log in
+        </a>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-4xl px-6 py-12">
       <slot />
     </main>
 
     <footer class="border-t bg-muted/20">
-      <div class="mx-auto max-w-4xl px-4 py-8">
-        <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
-          <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground md:justify-start">
-            <a href="/about" class="hover:text-foreground">About</a>
-            <a href="/privacy" class="hover:text-foreground">Privacy</a>
-            <a href="/terms" class="hover:text-foreground">Terms</a>
-            <a href="mailto:support@canihavesex.today" class="hover:text-foreground">Contact</a>
+      <div class="mx-auto max-w-7xl px-6 py-6">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div class="text-sm text-muted-foreground">
+            © 2025 canihavesex.today. Fertility awareness information. For medical guidance, consult healthcare professionals.
           </div>
-          <div class="text-center text-sm text-muted-foreground md:text-right">
-            Informational only. Not medical advice. No guarantees.
+          <div class="flex items-center gap-6 text-sm text-muted-foreground">
+            <a href="/about" class="hover:text-foreground transition-colors">About</a>
+            <a href="/privacy" class="hover:text-foreground transition-colors">Privacy</a>
+            <a href="/terms" class="hover:text-foreground transition-colors">Terms</a>
+            <a href="mailto:support@canihavesex.today" class="hover:text-foreground transition-colors">Contact</a>
           </div>
         </div>
       </div>

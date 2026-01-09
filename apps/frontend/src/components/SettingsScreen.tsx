@@ -235,7 +235,6 @@ export function SettingsScreen() {
           ) : null}
 
           <Separator />
-          <div className="text-xs text-muted-foreground">This is not medical advice. This does not guarantee pregnancy prevention.</div>
         </CardContent>
       </Card>
 
@@ -335,8 +334,8 @@ export function SettingsScreen() {
 
             {aboutView === 'terms' ? (
               <>
-                <p>Informational only. Not a substitute for medical advice.</p>
-                <p>Use at your own discretion.</p>
+                <p>This app provides fertility awareness information.</p>
+                <p>For medical decisions, consult healthcare professionals.</p>
               </>
             ) : null}
 
@@ -364,13 +363,27 @@ export function SettingsScreen() {
 
             {aboutView === 'disclaimer' ? (
               <>
-                <p className="text-foreground">
-                  This is not medical advice. This does not guarantee pregnancy prevention.
-                </p>
-                <p>
-                  If you need clinical-grade guidance, consult a qualified healthcare professional and use reliable
-                  protection.
-                </p>
+                <div className="space-y-4">
+                  <p className="text-foreground leading-relaxed">
+                    This app provides fertility awareness information using established natural family planning methods.
+                    It helps you track and understand your fertility patterns based on biological signs.
+                  </p>
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-foreground">Important Notes</h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li>• Not a form of birth control or contraception</li>
+                      <li>• Does not guarantee pregnancy prevention</li>
+                      <li>• Not medical advice or diagnosis</li>
+                      <li>• Results depend on correct usage</li>
+                    </ul>
+                  </div>
+
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    For medical decisions, clinical guidance, or contraception, consult qualified healthcare professionals.
+                    This tool is designed to provide information, not replace professional medical care.
+                  </p>
+                </div>
               </>
             ) : null}
           </div>

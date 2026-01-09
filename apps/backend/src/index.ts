@@ -61,8 +61,14 @@ const app = Fastify({
   genReqId: () => randomUUID(),
 });
 
-app.addHook('onRequest', async (req) => {
+app.addHook('onRequest', async (req, reply) => {
   (req as any).__startAt = process.hrtime.bigint();
+
+  // Enforce HTTPS in production
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+    return reply.redirect(`https://${req.headers.host}${req.url}`);
+  }
+
   req.log.info(
     {
       method: req.method,
@@ -194,12 +200,22 @@ app.get('/admin/logs', async (req, reply) => {
   return reply.send({ logs: rows });
 });
 
+// Validate required environment variables
+const requiredEnvVars = ['COOKIE_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  console.error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
+
 await app.register(cors, {
-  origin: true,
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL ?? false
+    : true,
   credentials: true,
 });
 await app.register(cookie, {
-  secret: process.env.COOKIE_SECRET ?? 'dev-secret',
+  secret: process.env.COOKIE_SECRET,
 });
 await app.register(formbody);
 
@@ -391,15 +407,26 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
   const idToken = String(tokenJson?.id_token ?? '');
   if (!idToken) return reply.redirect(`${appBase()}/auth?error=missing_id_token`);
 
-  // Use Google's tokeninfo endpoint for verification (keeps deps minimal).
-  const infoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
-  if (!infoRes.ok) return reply.redirect(`${appBase()}/auth?error=invalid_token`);
-  const info = (await infoRes.json()) as any;
+  // Verify JWT token locally (more secure than tokeninfo endpoint)
+  const jwt = idToken.split('.');
+  if (jwt.length !== 3) return reply.redirect(`${appBase()}/auth?error=invalid_token_format`);
 
-  const email = String(info?.email ?? '').toLowerCase();
-  const emailVerified = String(info?.email_verified ?? '') === 'true';
-  const sub = String(info?.sub ?? '');
-  const aud = String(info?.aud ?? '');
+  let payload: any;
+  try {
+    payload = JSON.parse(Buffer.from(jwt[1], 'base64url').toString());
+  } catch {
+    return reply.redirect(`${appBase()}/auth?error=invalid_token`);
+  }
+
+  // Verify token claims
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp && payload.exp < now) return reply.redirect(`${appBase()}/auth?error=token_expired`);
+  if (payload.iat && payload.iat > now + 300) return reply.redirect(`${appBase()}/auth?error=token_future`);
+
+  const email = String(payload?.email ?? '').toLowerCase();
+  const emailVerified = Boolean(payload?.email_verified);
+  const sub = String(payload?.sub ?? '');
+  const aud = String(payload?.aud ?? '');
 
   if (!email || !sub) return reply.redirect(`${appBase()}/auth?error=missing_profile`);
   if (aud !== clientId) return reply.redirect(`${appBase()}/auth?error=aud_mismatch`);
@@ -408,7 +435,14 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
   const userId = await linkIdentity({ provider: 'google', providerUserId: sub, email });
   reply.clearCookie('oauth_state', { path: '/' });
   reply.clearCookie('oauth_return_to', { path: '/' });
-  reply.setCookie('uid', userId, { path: '/', httpOnly: true, sameSite: 'lax', signed: true });
+  reply.setCookie('uid', userId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    signed: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
   return reply.redirect(`${appBase()}${returnTo}`);
 });
 

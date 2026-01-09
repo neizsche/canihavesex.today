@@ -283,7 +283,6 @@ export function ChartScreen() {
             );
           })}
 
-          <div className="pt-2 text-xs text-muted-foreground">{data?.disclaimer ?? 'This is not medical advice. This does not guarantee pregnancy prevention.'}</div>
         </CardContent>
       </Card>
     </div>

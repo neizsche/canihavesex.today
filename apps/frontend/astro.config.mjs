@@ -2,12 +2,38 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Environment-specific configuration
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Hosting platform detection
+const allowedHosts = [
+  'canihavesex.today',
+  'www.canihavesex.today',
+  'localhost',
+  // Vercel
+  '.vercel.app',
+  // Netlify
+  '.netlify.app',
+  '.netlify.dev',
+  // Railway
+  '.railway.app',
+  // Render
+  '.onrender.com',
+  // Fly.io
+  '.fly.dev',
+  // Digital Ocean App Platform
+  '.ondigitalocean.app',
+];
+
 export default defineConfig({
   integrations: [react()],
   devToolbar: {
     enabled: false,
   },
   vite: {
+    server: {
+      allowedHosts,
+    },
     plugins: [
       VitePWA({
         registerType: 'autoUpdate',
@@ -41,5 +67,6 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts,
   },
 });

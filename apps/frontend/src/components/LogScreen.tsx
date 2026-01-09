@@ -239,7 +239,6 @@ export function LogScreen() {
           </div>
 
           <Separator />
-          <div className="text-xs text-muted-foreground">This is not medical advice. This does not guarantee pregnancy prevention.</div>
 
           <div style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
             <Button className="mt-2 h-12 w-full" onClick={save} disabled={busy}>
