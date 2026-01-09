@@ -1,11 +1,11 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { LogScreen } from '../components/LogScreen';
+import { TodayScreen } from '../components/TodayScreen';
 import { AppPageGuard } from '../components/AppPageGuard';
 ---
 
-<AppLayout title="Log today" active="log">
+<AppLayout title="Today" active="today">
   <AppPageGuard client:load>
-    <LogScreen client:only="react" />
+    <TodayScreen client:only="react" />
   </AppPageGuard>
 </AppLayout>

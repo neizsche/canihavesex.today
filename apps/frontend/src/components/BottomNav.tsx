@@ -6,7 +6,7 @@ type NavKey = 'today' | 'log' | 'chart' | 'settings';
 
 export function BottomNav(props: { active: NavKey }) {
   const items: Array<{ key: NavKey; href: string; label: string; Icon: any }> = [
-    { key: 'today', href: '/', label: 'Today', Icon: ShieldCheck },
+    { key: 'today', href: '/today', label: 'Today', Icon: ShieldCheck },
     { key: 'log', href: '/log', label: 'Log', Icon: ClipboardList },
     { key: 'chart', href: '/chart', label: 'Chart', Icon: BarChart3 },
     { key: 'settings', href: '/settings', label: 'Settings', Icon: Settings },

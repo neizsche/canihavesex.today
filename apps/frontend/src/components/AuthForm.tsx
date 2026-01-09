@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mail } from 'lucide-react';
+import { Mail, X } from 'lucide-react';
 
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -54,7 +54,17 @@ export function AuthForm() {
 
   return (
     <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center">
-      <Card>
+      <Card className="relative">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-4 top-4 h-8 w-8 p-0"
+          onClick={() => window.location.href = '/'}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+
         <CardHeader className="space-y-2">
           <CardTitle className="text-xl">Sign in</CardTitle>
           <CardDescription>

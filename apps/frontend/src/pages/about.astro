@@ -1,20 +1,20 @@
 ---
-import AppLayout from '../layouts/AppLayout.astro';
+import LandingLayout from '../layouts/LandingLayout.astro';
 ---
 
-<AppLayout title="About" active="settings" showNav={false}>
-  <div class="space-y-4">
-    <header class="space-y-2">
-      <h1 class="text-2xl font-semibold tracking-tight">We don’t guess. We read your body.</h1>
-      <p class="text-sm text-muted-foreground">
+<LandingLayout title="About">
+  <div class="max-w-4xl mx-auto space-y-8">
+    <header class="space-y-4 text-center">
+      <h1 class="text-3xl font-semibold tracking-tight">We don't guess. We read your body.</h1>
+      <p class="text-lg text-muted-foreground">
         canihavesex.today is a signal-based fertility awareness tool. It summarizes your logged observations and stays conservative.
       </p>
     </header>
 
-    <div class="rounded-xl border bg-card p-4">
-      <div class="space-y-3 text-sm">
-        <div class="font-medium text-foreground">Values</div>
-        <ul class="list-disc space-y-1 pl-5 text-muted-foreground">
+    <div class="rounded-xl border bg-card p-6">
+      <div class="space-y-4">
+        <div class="font-medium text-foreground text-lg">Values</div>
+        <ul class="list-disc space-y-2 pl-6 text-muted-foreground">
           <li>No predictions</li>
           <li>No tracking</li>
           <li>No false safety</li>
@@ -22,8 +22,10 @@ import AppLayout from '../layouts/AppLayout.astro';
       </div>
     </div>
 
-    <div class="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-      Contact: <a href="mailto:support@canihavesex.today" class="underline underline-offset-4">support@canihavesex.today</a>
+    <div class="rounded-xl border bg-muted/20 p-6 text-center">
+      <p class="text-muted-foreground">
+        Contact: <a href="mailto:support@canihavesex.today" class="underline underline-offset-4 hover:text-foreground">support@canihavesex.today</a>
+      </p>
     </div>
   </div>
-</AppLayout>
+</LandingLayout>

@@ -1,8 +1,11 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
 import { SettingsScreen } from '../components/SettingsScreen';
+import { AppPageGuard } from '../components/AppPageGuard';
 ---
 
 <AppLayout title="Settings" active="settings">
-  <SettingsScreen client:only="react" />
+  <AppPageGuard client:load>
+    <SettingsScreen client:only="react" />
+  </AppPageGuard>
 </AppLayout>

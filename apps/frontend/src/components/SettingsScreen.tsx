@@ -119,6 +119,10 @@ export function SettingsScreen() {
       setStatus(res.ok ? 'Signed out.' : 'Sign out failed.');
       setBusy(false);
       setSessionState('signedOut');
+      if (res.ok) {
+        // Redirect to landing page after successful logout
+        window.location.href = '/';
+      }
     } catch {
       setStatusTone('danger');
       setStatus('Network error.');

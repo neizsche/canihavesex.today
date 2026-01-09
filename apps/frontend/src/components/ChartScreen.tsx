@@ -40,9 +40,7 @@ function yesNo(v: boolean): string {
 }
 
 export function ChartScreen() {
-  const [authChecked, setAuthChecked] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [authed, setAuthed] = React.useState(true);
   const [data, setData] = React.useState<ChartData | null>(null);
 
   React.useEffect(() => {
@@ -53,23 +51,17 @@ export function ChartScreen() {
         const res = await apiFetch('/api/chart');
         if (cancelled) return;
 
-        if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent('/chart')}`;
-          return;
-        }
-
         if (!res.ok) throw new Error('Failed');
         const json = (await res.json()) as ChartData;
-        setAuthed(true);
         setData(json);
-        setLoading(false);
-        setAuthChecked(true);
-      } catch {
+      } catch (error) {
         if (cancelled) return;
-        setAuthed(true);
+        console.error('Failed to load chart data:', error);
         setData(null);
-        setLoading(false);
-        setAuthChecked(true);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -78,8 +70,6 @@ export function ChartScreen() {
       cancelled = true;
     };
   }, []);
-
-  if (!authChecked) return <div className="min-h-[70dvh]" />;
 
   return (
     <div className="space-y-4">

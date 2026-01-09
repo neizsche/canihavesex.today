@@ -26,3 +26,12 @@ export function fertilityPct(fertilityIndex: number): number {
   const pct = Math.round(Math.min(100, Math.max(0, fertilityIndex * 12.5)));
   return pct;
 }
+
+export async function checkAuth(): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/chart');
+    return res.status !== 401;
+  } catch {
+    return false;
+  }
+}

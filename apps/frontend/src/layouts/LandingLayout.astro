@@ -1,0 +1,47 @@
+---
+const { title } = Astro.props;
+import '../styles/globals.css';
+---
+
+<!doctype html>
+<html lang="en" class="bg-background">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title ?? 'canihavesex.today'}</title>
+    <meta name="theme-color" content="#0b0b0f" />
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const shouldDark = stored ? stored === 'dark' : prefersDark;
+          document.documentElement.classList.toggle('dark', shouldDark);
+        } catch {
+          // ignore
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-background text-foreground">
+    <main class="mx-auto max-w-4xl px-4 py-8">
+      <slot />
+    </main>
+
+    <footer class="border-t bg-muted/20">
+      <div class="mx-auto max-w-4xl px-4 py-8">
+        <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
+          <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground md:justify-start">
+            <a href="/about" class="hover:text-foreground">About</a>
+            <a href="/privacy" class="hover:text-foreground">Privacy</a>
+            <a href="/terms" class="hover:text-foreground">Terms</a>
+            <a href="mailto:support@canihavesex.today" class="hover:text-foreground">Contact</a>
+          </div>
+          <div class="text-center text-sm text-muted-foreground md:text-right">
+            Informational only. Not medical advice. No guarantees.
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
