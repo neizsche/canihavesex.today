@@ -23,32 +23,9 @@ export function LogScreen() {
   const [bleeding, setBleeding] = React.useState<Bleeding>('none');
   const [lhTest, setLhTest] = React.useState<LhTest>('notTaken');
 
-  const [authChecked, setAuthChecked] = React.useState(false);
-
   const [busy, setBusy] = React.useState(false);
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<'muted' | 'danger' | 'ok'>('muted');
-
-  React.useEffect(() => {
-    let cancelled = false;
-    async function probe() {
-      try {
-        const res = await apiFetch('/api/session');
-        if (cancelled) return;
-        if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
-          return;
-        }
-        setAuthChecked(true);
-      } catch {
-        setAuthChecked(true);
-      }
-    }
-    void probe();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function save() {
     setBusy(true);
@@ -88,7 +65,14 @@ export function LogScreen() {
       setStatusTone('ok');
       setStatus('Saved.');
       setBusy(false);
-      setTimeout(() => (location.href = '/'), 350);
+      // Navigate within the SPA (avoid flashing the landing page).
+      setTimeout(() => {
+        if (window.location.pathname.startsWith('/app')) {
+          window.location.hash = '#/today';
+        } else {
+          window.location.href = '/app#/today';
+        }
+      }, 350);
     } catch {
       setStatusTone('danger');
       setStatus('Network error.');
@@ -97,9 +81,6 @@ export function LogScreen() {
   }
 
   return (
-    !authChecked ? (
-      <div className="min-h-[70dvh]" />
-    ) : (
     <div className="space-y-4">
       <header className="space-y-1">
         <div className="text-sm text-muted-foreground">Log</div>
@@ -263,6 +244,5 @@ export function LogScreen() {
         </CardContent>
       </Card>
     </div>
-    )
   );
 }

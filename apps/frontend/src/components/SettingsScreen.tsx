@@ -11,9 +11,8 @@ export function SettingsScreen() {
   const queryClient = useQueryClient();
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<'muted' | 'danger' | 'ok'>('muted');
-  const [sessionState, setSessionState] = React.useState<'unknown' | 'signedIn' | 'signedOut'>('unknown');
+  const [sessionState, setSessionState] = React.useState<'signedIn' | 'signedOut'>('signedIn');
   const [busy, setBusy] = React.useState(false);
-  const [authChecked, setAuthChecked] = React.useState(false);
   const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
     try {
       const stored = localStorage.getItem('theme');
@@ -37,28 +36,7 @@ export function SettingsScreen() {
     }
   }
 
-  React.useEffect(() => {
-    let cancelled = false;
-    async function probe() {
-      try {
-        const res = await apiFetch('/api/session');
-        if (cancelled) return;
-        if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
-          return;
-        }
-        setSessionState('signedIn');
-        setAuthChecked(true);
-      } catch {
-        setSessionState('unknown');
-        setAuthChecked(true);
-      }
-    }
-    void probe();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // This screen is rendered inside AppShell's SessionGate, so an extra /api/session probe is redundant.
 
   function openAbout(view: 'about' | 'privacy' | 'terms' | 'how' | 'limits' | 'disclaimer') {
     setAboutView(view);
@@ -134,8 +112,6 @@ export function SettingsScreen() {
     }
   }
 
-  if (!authChecked) return <div className="min-h-[70dvh]" />;
-
   return (
     <div className="space-y-4">
       <header className="space-y-1">
@@ -148,11 +124,7 @@ export function SettingsScreen() {
         <CardHeader className="space-y-2">
           <CardTitle className="text-base">Account & data</CardTitle>
           <CardDescription className="text-sm">
-            {sessionState === 'unknown'
-              ? 'Session status unknown.'
-              : sessionState === 'signedIn'
-                ? 'Session active on this device.'
-                : 'Not signed in.'}
+            {sessionState === 'signedIn' ? 'Session active on this device.' : 'Not signed in.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

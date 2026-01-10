@@ -100,8 +100,10 @@ export function createRateLimitMiddleware(options: {
   );
 
   return async function rateLimitMiddleware(req: any, reply: any) {
-    // Use IP address as identifier (could be enhanced with user ID for authenticated routes)
-    const identifier = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    // Prefer a stable authenticated identifier when possible.
+    // Falls back to IP-based limiting for unauthenticated requests.
+    const uid = typeof req.userId === 'string' && req.userId ? req.userId : null;
+    const identifier = uid || req.ip || req.headers['x-forwarded-for'] || 'unknown';
 
     if (limiter.isRateLimited(identifier)) {
       const resetTime = limiter.getResetTime(identifier);
@@ -109,8 +111,8 @@ export function createRateLimitMiddleware(options: {
 
       req.log.warn({
         route: req.url,
-        ip: identifier,
-        userId: req.userId,
+        identifier: uid ? 'user' : 'ip',
+        userId: uid ?? undefined,
       }, 'rate limit exceeded');
 
       return reply.status(429).send({

@@ -20,6 +20,9 @@ const shouldPrettyLog =
   (process.env.PRETTY_LOGS !== '0' && process.env.NODE_ENV !== 'production' && !!process.stdout.isTTY);
 
 const app = Fastify({
+  // In production we typically run behind a reverse proxy (Fly/Render/NGINX/etc).
+  // Trust proxy headers so req.ip / protocol are derived correctly.
+  trustProxy: process.env.TRUST_PROXY === '1' || process.env.NODE_ENV === 'production',
   logger: {
     level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
     ...(shouldPrettyLog
@@ -44,8 +47,12 @@ app.addHook('onRequest', async (req, reply) => {
   (req as any).__startAt = process.hrtime.bigint();
 
   // Enforce HTTPS in production
-  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
-    return reply.redirect(`https://${req.headers.host}${req.url}`);
+  if (process.env.NODE_ENV === 'production') {
+    const xfProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
+    const proto = xfProto || (req as any).protocol;
+    if (proto && proto !== 'https') {
+      return reply.redirect(`https://${req.headers.host}${req.url}`);
+    }
   }
 
   req.log.info(
@@ -198,14 +205,31 @@ await app.register(cookie, {
 });
 await app.register(formbody);
 
-// Rate limiting for API endpoints
-app.addHook('preHandler', createRateLimitMiddleware({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100, // 100 requests per 15 minutes
-}));
-
 const db = await createDb();
 await migrate(db);
+
+// Auth preHandler: require a signed uid cookie for protected API routes.
+app.addHook('preHandler', async (req, reply) => {
+  if (
+    req.url.startsWith('/api/') &&
+    !req.url.startsWith('/api/auth/oauth/') &&
+    req.url !== '/api/logout'
+  ) {
+    const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
+    const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;
+    if (!uid) return reply.status(401).send({ error: 'Not authenticated' });
+    (req as any).userId = uid;
+  }
+});
+
+// Rate limiting
+app.addHook(
+  'preHandler',
+  createRateLimitMiddleware({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 100, // 100 requests per 15 minutes
+  })
+);
 
 // Graceful shutdown handling
 async function gracefulShutdown(signal: string) {
@@ -469,8 +493,14 @@ app.get('/api/auth/oauth/:provider/start', async (req, reply) => {
   if (!clientId) return reply.status(500).send({ error: 'GOOGLE_CLIENT_ID not configured' });
 
   const state = randomUUID();
-  reply.setCookie('oauth_state', state, { path: '/', httpOnly: true, sameSite: 'lax' });
-  reply.setCookie('oauth_return_to', returnTo, { path: '/', httpOnly: true, sameSite: 'lax' });
+  const oauthCookieBase = {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+  };
+  reply.setCookie('oauth_state', state, oauthCookieBase);
+  reply.setCookie('oauth_return_to', returnTo, oauthCookieBase);
 
   const redirectUri = oauthRedirectUri('google', req);
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -598,18 +628,47 @@ app.get('/api/session', async (req, reply) => {
   return reply.send({ userId });
 });
 
-app.addHook('preHandler', async (req, reply) => {
-  if (
-    req.url.startsWith('/api/') &&
-    !req.url.startsWith('/api/auth/oauth/') &&
-    req.url !== '/api/logout'
-  ) {
-    const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
-    const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;
-    if (!uid) return reply.status(401).send({ error: 'Not authenticated' });
-    (req as any).userId = uid;
-  }
-});
+async function getCycleForDate(db: Db, userId: string, isoDate: string): Promise<Cycle | null> {
+  const rows = await db.query<Cycle>(
+    db.paramStyle === 'postgres'
+      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 and start_date <= $2 order by start_date desc, created_at desc limit 1'
+      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? and start_date <= ? order by start_date desc, created_at desc limit 1',
+    [userId, isoDate]
+  );
+  return rows[0] ?? null;
+}
+
+async function getCycleStartingOn(db: Db, userId: string, isoDate: string): Promise<Cycle | null> {
+  const rows = await db.query<Cycle>(
+    db.paramStyle === 'postgres'
+      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 and start_date = $2 order by created_at desc limit 1'
+      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? and start_date = ? order by created_at desc limit 1',
+    [userId, isoDate]
+  );
+  return rows[0] ?? null;
+}
+
+async function ensureCycleStartingOn(db: Db, userId: string, isoDate: string): Promise<Cycle> {
+  const existing = await getCycleStartingOn(db, userId, isoDate);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  const cycleId = randomUUID();
+  await db.query(
+    db.paramStyle === 'postgres'
+      ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
+      : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+    [cycleId, userId, isoDate, 'INFERTILE_PRE', null, null, now]
+  );
+  return {
+    id: cycleId,
+    userId,
+    startDate: isoDate,
+    state: 'INFERTILE_PRE',
+    peakDate: null,
+    tempShiftConfirmedDate: null,
+    createdAt: now,
+  };
+}
 
 const LogDayBody = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -632,26 +691,17 @@ app.post('/api/log-day', async (req, reply) => {
     const now = new Date().toISOString();
     const { date, mucusType, sensation, bleeding, temperature, lhTest } = parsed.data;
 
-    app.log.info(
-      { route: '/api/log-day', userId, date, mucusType, sensation, bleeding, temperature, lhTest },
-      'log-day'
-    );
+    // Avoid logging sensitive health signals.
+    app.log.info({ route: '/api/log-day', userId, date }, 'log-day');
 
     try {
-      // Create new cycle if bleeding indicates period start
-      if (bleeding === 'light' || bleeding === 'heavy') {
-        const cycleId = randomUUID();
-        await db.query(
-          db.paramStyle === 'postgres'
-            ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-            : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
-          [cycleId, userId, date, 'INFERTILE_PRE', null, null, now]
-        );
-        req.log.info({ route: '/api/log-day', userId, cycleId }, 'new cycle created');
-      }
-
-      // Get current cycle
-      const cycle = await getCurrentCycle(db, userId);
+      // Determine which cycle this log belongs to:
+      // - If bleeding indicates a new period start, create/find a cycle starting on `date`.
+      // - Otherwise, attach to the most recent cycle whose start_date <= `date`.
+      const isPeriodStart = bleeding === 'light' || bleeding === 'heavy';
+      const cycle = isPeriodStart
+        ? await ensureCycleStartingOn(db, userId, date)
+        : (await getCycleForDate(db, userId, date)) ?? (await ensureCycleStartingOn(db, userId, date));
 
       // Insert/update daily log
       const logId = randomUUID();
@@ -887,6 +937,16 @@ app.post('/api/delete-all-data', async (req, reply) => {
       );
       await db.query(
         db.paramStyle === 'postgres' ? 'delete from cycles where user_id=$1' : 'delete from cycles where user_id=?',
+        [userId]
+      );
+      await db.query(
+        db.paramStyle === 'postgres'
+          ? 'delete from user_identities where user_id=$1'
+          : 'delete from user_identities where user_id=?',
+        [userId]
+      );
+      await db.query(
+        db.paramStyle === 'postgres' ? 'delete from users where id=$1' : 'delete from users where id=?',
         [userId]
       );
 

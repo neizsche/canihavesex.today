@@ -7,6 +7,8 @@ import { BottomNav } from '../components/BottomNav';
 import '../styles/globals.css';
 
 const mainPaddingBottom = showNav ? 'pb-28' : 'pb-6';
+// If this layout is being used for app-adjacent pages, keep the brand link inside the app shell.
+const brandHref = showNav === false ? '/app#/today' : '/';
 ---
 
 <!doctype html>
@@ -41,7 +43,7 @@ const mainPaddingBottom = showNav ? 'pb-28' : 'pb-6';
     {showBranding ? (
       <header class="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div class={`mx-auto flex ${maxWidthClass} items-center justify-between px-4 py-3`}>
-          <a href="/" class="text-sm font-semibold tracking-tight text-foreground">canihavesex.today</a>
+          <a href={brandHref} class="text-sm font-semibold tracking-tight text-foreground">canihavesex.today</a>
           <div class="text-xs text-muted-foreground">Informational only</div>
         </div>
       </header>

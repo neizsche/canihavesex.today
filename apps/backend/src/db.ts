@@ -91,7 +91,8 @@ export async function createDb(): Promise<Db> {
           const res = await client.query(sql, params);
           return res.rows as T[];
         } catch (error) {
-          console.error('Database query error:', { sql, params, error });
+          // Avoid logging params: they may contain sensitive user data.
+          console.error('Database query error:', { sql, error });
           throw error;
         } finally {
           client.release();
