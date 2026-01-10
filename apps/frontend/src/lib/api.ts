@@ -19,6 +19,12 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   });
 }
 
+export function currentReturnTo(): string {
+  if (typeof window === 'undefined') return '/';
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  return current || '/';
+}
+
 export type Risk = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export function riskBadgeVariant(risk: Risk): 'riskHigh' | 'riskMedium' | 'riskLow' {
@@ -34,8 +40,8 @@ export function fertilityPct(fertilityIndex: number): number {
 
 export async function checkAuth(): Promise<boolean> {
   try {
-    const res = await apiFetch('/api/chart');
-    return res.status !== 401;
+    const res = await apiFetch('/api/session');
+    return res.ok;
   } catch {
     return false;
   }

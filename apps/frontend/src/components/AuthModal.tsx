@@ -31,7 +31,7 @@ export function AuthModal({ isOpen, onClose, returnTo = '/' }: AuthModalProps) {
     let cancelled = false;
     async function probe() {
       try {
-        const res = await fetch(`${apiBase}/api/chart`, { credentials: 'include' });
+        const res = await fetch(`${apiBase}/api/session`, { credentials: 'include' });
         if (cancelled) return;
         if (res.status !== 401) {
           onClose();

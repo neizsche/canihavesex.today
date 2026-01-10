@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Trash2, RotateCcw, LogIn, LogOut, Sun, Moon } from 'lucide-react';
 
-import { apiFetch } from '../lib/api';
+import { apiFetch, currentReturnTo } from '../lib/api';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
@@ -39,10 +39,10 @@ export function SettingsScreen() {
     let cancelled = false;
     async function probe() {
       try {
-        const res = await apiFetch('/api/today');
+        const res = await apiFetch('/api/session');
         if (cancelled) return;
         if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent('/settings')}`;
+          location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
           return;
         }
         setSessionState('signedIn');
@@ -75,7 +75,7 @@ export function SettingsScreen() {
     try {
       const res = await apiFetch('/api/reset-cycle', { method: 'POST' });
       if (res.status === 401) {
-        location.href = `/auth?returnTo=${encodeURIComponent('/settings')}`;
+        location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
       }
       setStatusTone(res.ok ? 'ok' : 'danger');
@@ -96,7 +96,7 @@ export function SettingsScreen() {
     try {
       const res = await apiFetch('/api/delete-all-data', { method: 'POST' });
       if (res.status === 401) {
-        location.href = `/auth?returnTo=${encodeURIComponent('/settings')}`;
+        location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
       }
       setStatusTone(res.ok ? 'ok' : 'danger');
@@ -154,7 +154,7 @@ export function SettingsScreen() {
         <CardContent className="space-y-3">
           {sessionState !== 'signedIn' ? (
             <Button asChild className="h-11" disabled={busy}>
-              <a href="/auth?returnTo=%2F">
+              <a href={`/auth?returnTo=${encodeURIComponent(currentReturnTo())}`}>
                 <LogIn className="mr-2 h-4 w-4" />
                 Sign in
               </a>

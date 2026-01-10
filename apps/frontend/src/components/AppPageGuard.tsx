@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { checkAuth } from '../lib/api';
+import { checkAuth, currentReturnTo } from '../lib/api';
 
 interface AppPageGuardProps {
   children: React.ReactNode;
@@ -17,14 +17,13 @@ export function AppPageGuard({ children }: AppPageGuardProps) {
         if (!cancelled) {
           setIsAuthenticated(auth);
           if (!auth) {
-            // Redirect to landing page
-            window.location.href = '/';
+            window.location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
           }
         }
       } catch {
         if (!cancelled) {
           setIsAuthenticated(false);
-          window.location.href = '/';
+          window.location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
         }
       }
     }

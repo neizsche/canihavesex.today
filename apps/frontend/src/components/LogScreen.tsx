@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { CalendarDays, Droplets, Save, Thermometer, TestTube2 } from 'lucide-react';
 
-import { apiFetch } from '../lib/api';
+import { apiFetch, currentReturnTo } from '../lib/api';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
@@ -33,10 +33,10 @@ export function LogScreen() {
     let cancelled = false;
     async function probe() {
       try {
-        const res = await apiFetch('/api/today');
+        const res = await apiFetch('/api/session');
         if (cancelled) return;
         if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent('/log')}`;
+          location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
           return;
         }
         setAuthChecked(true);
@@ -73,7 +73,7 @@ export function LogScreen() {
 
       if (res.status === 401) {
         setStatusTone('danger');
-        location.href = `/auth?returnTo=${encodeURIComponent('/log')}`;
+        location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
         setBusy(false);
         return;
       }

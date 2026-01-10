@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ArrowRight, ClipboardList } from 'lucide-react';
 
-import { apiFetch, type Risk, riskBadgeVariant } from '../lib/api';
+import { apiFetch, currentReturnTo, type Risk, riskBadgeVariant } from '../lib/api';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -72,7 +72,7 @@ export function TodayScreen() {
         const res = await apiFetch('/api/today');
         if (cancelled) return;
         if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent('/')}`;
+          location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
           return;
         }
 

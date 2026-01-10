@@ -564,6 +564,13 @@ app.post('/api/logout', async (_req, reply) => {
   return reply.send({ ok: true });
 });
 
+app.get('/api/session', async (req, reply) => {
+  // This route is protected by the /api/* auth preHandler below.
+  // If unauthenticated, the preHandler will return 401.
+  const userId = (req as any).userId as string | undefined;
+  return reply.send({ userId });
+});
+
 app.addHook('preHandler', async (req, reply) => {
   if (
     req.url.startsWith('/api/') &&

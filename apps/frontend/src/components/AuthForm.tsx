@@ -31,7 +31,7 @@ export function AuthForm() {
     let cancelled = false;
     async function probe() {
       try {
-        const res = await fetch(`${apiBase}/api/chart`, { credentials: 'include' });
+        const res = await fetch(`${apiBase}/api/session`, { credentials: 'include' });
         if (cancelled) return;
         if (res.status !== 401) {
           location.href = returnTo;
@@ -55,7 +55,7 @@ export function AuthForm() {
             variant="ghost"
             size="sm"
             className="absolute right-4 top-4 h-8 w-8 p-0 hover:bg-muted/50 rounded-full"
-            onClick={() => window.location.href = '/'}
+            onClick={() => (window.location.href = returnTo)}
           >
             <X className="h-4 w-4" />
           </Button>
