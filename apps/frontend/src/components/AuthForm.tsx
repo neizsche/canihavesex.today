@@ -16,7 +16,7 @@ export function AuthForm() {
   const returnTo = React.useMemo(() => {
     if (typeof window === 'undefined') return '/';
     const p = new URLSearchParams(window.location.search);
-    const v = p.get('returnTo') ?? '/';
+    const v = p.get('returnTo') ?? '/app#/today';
     if (!v.startsWith('/')) return '/';
     if (v.startsWith('//')) return '/';
     return v;

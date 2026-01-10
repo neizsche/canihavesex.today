@@ -1,11 +1,8 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { SettingsScreen } from '../components/SettingsScreen';
-import { AppPageGuard } from '../components/AppPageGuard';
+import { LegacyAppRedirect } from '../components/LegacyAppRedirect';
 ---
 
-<AppLayout title="Settings" active="settings">
-  <AppPageGuard client:load>
-    <SettingsScreen client:only="react" />
-  </AppPageGuard>
+<AppLayout title="Settings" active="settings" showNav={false}>
+  <LegacyAppRedirect client:only="react" to="/app#/settings" />
 </AppLayout>

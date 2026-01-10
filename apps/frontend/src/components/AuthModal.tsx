@@ -13,7 +13,7 @@ interface AuthModalProps {
   returnTo?: string;
 }
 
-export function AuthModal({ isOpen, onClose, returnTo = '/' }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthModalProps) {
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<StatusTone>('muted');
   const [busy, setBusy] = React.useState(false);

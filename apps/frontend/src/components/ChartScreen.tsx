@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { addDays, format, isAfter, isBefore, parseISO, startOfDay, startOfWeek, subWeeks } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
 
-import { apiFetch, fertilityPct, type Risk, riskBadgeVariant } from '../lib/api';
+import { apiJson, fertilityPct, type Risk, riskBadgeVariant } from '../lib/api';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
@@ -40,36 +41,13 @@ function yesNo(v: boolean): string {
 }
 
 export function ChartScreen() {
-  const [loading, setLoading] = React.useState(true);
-  const [data, setData] = React.useState<ChartData | null>(null);
+  const chartQuery = useQuery({
+    queryKey: ['chart'],
+    queryFn: () => apiJson<ChartData>('/api/chart'),
+  });
 
-  React.useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await apiFetch('/api/chart');
-        if (cancelled) return;
-
-        if (!res.ok) throw new Error('Failed');
-        const json = (await res.json()) as ChartData;
-        setData(json);
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Failed to load chart data:', error);
-        setData(null);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const loading = chartQuery.isLoading;
+  const data = chartQuery.isError ? null : chartQuery.data ?? null;
 
   return (
     <div className="space-y-4">

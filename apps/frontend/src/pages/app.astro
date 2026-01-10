@@ -1,0 +1,9 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import { AppShell } from '../components/AppShell';
+---
+
+<AppLayout title="App" showNav={false}>
+  <AppShell client:only="react" />
+</AppLayout>
+

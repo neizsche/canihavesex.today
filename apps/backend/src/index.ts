@@ -560,7 +560,34 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
 });
 
 app.post('/api/logout', async (_req, reply) => {
-  reply.clearCookie('uid', { path: '/' });
+  // Be extra defensive: some browsers can be finicky about deleting cookies if attributes differ.
+  // Overwrite with an expired cookie (maxAge=0 + expires) and also attempt clearCookie with/without signing.
+  const base = {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+  };
+
+  // Overwrite (signed)
+  reply.setCookie('uid', '', {
+    ...base,
+    signed: true,
+    maxAge: 0,
+    expires: new Date(0),
+  });
+
+  // Overwrite (unsigned) - in case an older cookie exists from a prior version
+  reply.setCookie('uid', '', {
+    ...base,
+    signed: false,
+    maxAge: 0,
+    expires: new Date(0),
+  });
+
+  // Also call clearCookie helpers
+  reply.clearCookie('uid', { ...base, signed: true });
+  reply.clearCookie('uid', { ...base, signed: false });
   return reply.send({ ok: true });
 });
 

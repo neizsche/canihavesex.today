@@ -19,6 +19,20 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   });
 }
 
+export class UnauthorizedError extends Error {
+  constructor(message = 'Unauthorized') {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await apiFetch(path, init);
+  if (res.status === 401) throw new UnauthorizedError();
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  return (await res.json()) as T;
+}
+
 export function currentReturnTo(): string {
   if (typeof window === 'undefined') return '/';
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;

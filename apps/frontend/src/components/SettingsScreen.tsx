@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Trash2, RotateCcw, LogIn, LogOut, Sun, Moon } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { apiFetch, currentReturnTo } from '../lib/api';
 import { Button } from './ui/button';
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Separator } from './ui/separator';
 
 export function SettingsScreen() {
+  const queryClient = useQueryClient();
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<'muted' | 'danger' | 'ok'>('muted');
   const [sessionState, setSessionState] = React.useState<'unknown' | 'signedIn' | 'signedOut'>('unknown');
@@ -120,6 +122,8 @@ export function SettingsScreen() {
       setBusy(false);
       setSessionState('signedOut');
       if (res.ok) {
+        // Drop any cached signed-in data so the SPA can't "feel" logged in.
+        queryClient.clear();
         // Redirect to landing page after successful logout
         window.location.href = '/';
       }

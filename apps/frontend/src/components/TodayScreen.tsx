@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { ArrowRight, ClipboardList } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
-import { apiFetch, currentReturnTo, type Risk, riskBadgeVariant } from '../lib/api';
+import { apiJson, type Risk, riskBadgeVariant } from '../lib/api';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -59,70 +60,39 @@ function deriveWhyReasons(args: {
 }
 
 export function TodayScreen() {
-  const [authChecked, setAuthChecked] = React.useState(false);
-  const [loading, setLoading] = React.useState(true);
-  const [data, setData] = React.useState<TodayData | null>(null);
-  const [chart, setChart] = React.useState<ChartData | null>(null);
+  const todayQuery = useQuery({
+    queryKey: ['today'],
+    queryFn: () => apiJson<TodayData>('/api/today'),
+  });
 
-  React.useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await apiFetch('/api/today');
-        if (cancelled) return;
-        if (res.status === 401) {
-          location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
-          return;
-        }
+  const chartQuery = useQuery({
+    queryKey: ['chart'],
+    queryFn: () => apiJson<ChartData>('/api/chart'),
+    enabled: todayQuery.isSuccess,
+  });
 
-        if (!res.ok) throw new Error('Failed');
-        const json = (await res.json()) as TodayData;
-        setData(json);
-
-        try {
-          const chartRes = await apiFetch('/api/chart');
-          if (cancelled) return;
-          if (chartRes.ok) {
-            const chartJson = (await chartRes.json()) as ChartData;
-            setChart(chartJson);
-          }
-        } catch {
-          // ignore: Today can render without this.
-        }
-
-        setLoading(false);
-        setAuthChecked(true);
-      } catch {
-        if (cancelled) return;
-        setData({
+  const loading = todayQuery.isLoading;
+  const data: TodayData =
+    todayQuery.data ??
+    (todayQuery.isError
+      ? {
           date: new Date().toISOString().slice(0, 10),
           risk: 'HIGH',
           explanation: 'Network error — cannot determine risk. Assume fertile.',
           disclaimer: '',
-        });
-        setLoading(false);
-        setAuthChecked(true);
-      }
-    }
+        }
+      : { date: new Date().toISOString().slice(0, 10), risk: 'HIGH', explanation: '', disclaimer: '' });
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const risk = data?.risk ?? 'HIGH';
+  const chart = chartQuery.isError ? null : chartQuery.data ?? null;
+  const risk = data.risk ?? 'HIGH';
   const cycleLine = chart?.cycle?.state ? `Cycle state: ${cycleStateLabel(chart.cycle.state)}` : null;
   const whyReasons = deriveWhyReasons({ chart });
-
-  if (!authChecked) return <div className="min-h-[70dvh]" />;
 
   return (
     <div className="space-y-4">
       <header className="space-y-1">
         <div className="text-sm text-muted-foreground">Today</div>
-        <div className="text-sm text-muted-foreground tabular-nums">{data?.date ?? ''}</div>
+        <div className="text-sm text-muted-foreground tabular-nums">{data.date ?? ''}</div>
       </header>
 
       <Card>
@@ -163,13 +133,13 @@ export function TodayScreen() {
 
           <div className="grid grid-cols-2 gap-2">
             <Button asChild className="h-11">
-              <a href="/log">
+              <a href="/app#/log">
                 <ClipboardList className="mr-2 h-4 w-4" />
                 Log today
               </a>
             </Button>
             <Button asChild variant="outline" className="h-11">
-              <a href="/chart">
+              <a href="/app#/chart">
                 View chart
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>

@@ -1,11 +1,8 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { LogScreen } from '../components/LogScreen';
-import { AppPageGuard } from '../components/AppPageGuard';
+import { LegacyAppRedirect } from '../components/LegacyAppRedirect';
 ---
 
-<AppLayout title="Log today" active="log">
-  <AppPageGuard client:load>
-    <LogScreen client:only="react" />
-  </AppPageGuard>
+<AppLayout title="Log today" active="log" showNav={false}>
+  <LegacyAppRedirect client:only="react" to="/app#/log" />
 </AppLayout>

@@ -1,11 +1,8 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { TodayScreen } from '../components/TodayScreen';
-import { AppPageGuard } from '../components/AppPageGuard';
+import { LegacyAppRedirect } from '../components/LegacyAppRedirect';
 ---
 
-<AppLayout title="Today" active="today">
-  <AppPageGuard client:load>
-    <TodayScreen client:only="react" />
-  </AppPageGuard>
+<AppLayout title="Today" active="today" showNav={false}>
+  <LegacyAppRedirect client:only="react" to="/app#/today" />
 </AppLayout>

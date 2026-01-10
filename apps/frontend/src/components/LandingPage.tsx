@@ -15,8 +15,8 @@ export function LandingPage() {
       try {
         const isAuthenticated = await checkAuth();
         if (!cancelled && isAuthenticated) {
-          // Redirect authenticated users to /today
-          window.location.href = '/today';
+          // Redirect authenticated users to the SPA shell
+          window.location.href = '/app#/today';
         }
       } catch {
         // Ignore - stay on landing page
@@ -483,7 +483,7 @@ export function LandingPage() {
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        returnTo="/today"
+        returnTo="/app#/today"
       />
     </div>
   );

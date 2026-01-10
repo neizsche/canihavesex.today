@@ -1,11 +1,8 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { ChartScreen } from '../components/ChartScreen';
-import { AppPageGuard } from '../components/AppPageGuard';
+import { LegacyAppRedirect } from '../components/LegacyAppRedirect';
 ---
 
-<AppLayout title="Chart" active="chart">
-  <AppPageGuard client:load>
-    <ChartScreen client:only="react" />
-  </AppPageGuard>
+<AppLayout title="Chart" active="chart" showNav={false}>
+  <LegacyAppRedirect client:only="react" to="/app#/chart" />
 </AppLayout>
