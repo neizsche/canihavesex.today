@@ -70,7 +70,7 @@ export async function createDb(): Promise<Db> {
       if (process.env.NODE_ENV !== 'production') {
         console.warn(
           'PostgreSQL connection failed in development; falling back to SQLite. ' +
-            'Either start Postgres, or unset DATABASE_URL to use SQLite.',
+            'DATABASE_URL is set in your environment (shell/.env). To use SQLite, unset DATABASE_URL; to use Postgres, start Postgres.',
           error
         );
         await pool.end().catch(() => undefined);

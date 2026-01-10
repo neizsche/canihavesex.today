@@ -1,10 +1,6 @@
-import { createDb } from './db.js';
-import { loadEnv } from './env.js';
+import type { Db } from './db.js';
 
-export async function migrate() {
-  loadEnv();
-  const db = await createDb();
-
+export async function migrate(db: Db) {
   await db.exec(`
     create table if not exists users (
       id text primary key,

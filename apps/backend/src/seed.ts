@@ -5,8 +5,8 @@ import { loadEnv } from './env.js';
 
 export async function seed() {
   loadEnv();
-  await migrate();
   const db = await createDb();
+  await migrate(db);
 
   const now = new Date().toISOString();
   const userId = '00000000-0000-0000-0000-000000000001';

@@ -3,7 +3,7 @@ import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import { z } from 'zod';
-import { randomUUID } from 'node:crypto';
+import { createPublicKey, randomUUID, verify as cryptoVerify } from 'node:crypto';
 
 import { createDb } from './db.js';
 import type { Db } from './db.js';
@@ -204,9 +204,8 @@ app.addHook('preHandler', createRateLimitMiddleware({
   maxRequests: 100, // 100 requests per 15 minutes
 }));
 
-await migrate();
-
 const db = await createDb();
+await migrate(db);
 
 // Graceful shutdown handling
 async function gracefulShutdown(signal: string) {
@@ -232,6 +231,151 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 type OauthProvider = 'google' | 'apple';
+
+type JwtHeader = {
+  alg?: string;
+  kid?: string;
+  typ?: string;
+};
+
+type GoogleJwk = {
+  kty: string;
+  kid: string;
+  use?: string;
+  alg?: string;
+  n?: string;
+  e?: string;
+  x5c?: string[];
+};
+
+type GoogleIdTokenPayload = {
+  iss?: string;
+  aud?: string | string[];
+  exp?: number;
+  iat?: number;
+  nbf?: number;
+  azp?: string;
+  sub?: string;
+  email?: string;
+  email_verified?: boolean;
+};
+
+function decodeJwtPartJson(part: string): any {
+  return JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
+}
+
+function normalizeAud(aud: unknown): string[] {
+  if (typeof aud === 'string') return [aud];
+  if (Array.isArray(aud)) return aud.filter(x => typeof x === 'string') as string[];
+  return [];
+}
+
+let googleJwksCache: { expiresAtMs: number; keys: GoogleJwk[] } | null = null;
+
+async function fetchGoogleJwks(): Promise<GoogleJwk[]> {
+  const now = Date.now();
+  if (googleJwksCache && googleJwksCache.expiresAtMs > now) return googleJwksCache.keys;
+
+  const res = await fetch('https://www.googleapis.com/oauth2/v3/certs', {
+    headers: { accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`jwks_fetch_failed:${res.status}`);
+
+  const cacheControl = res.headers.get('cache-control') ?? '';
+  const m = cacheControl.match(/max-age=(\d+)/i);
+  const maxAgeSeconds = m ? Number(m[1]) : 3600;
+  const expiresAtMs = now + Math.max(60, maxAgeSeconds) * 1000;
+
+  const json = (await res.json()) as any;
+  const keys = (Array.isArray(json?.keys) ? json.keys : []) as GoogleJwk[];
+  if (!keys.length) throw new Error('jwks_empty');
+
+  googleJwksCache = { expiresAtMs, keys };
+  return keys;
+}
+
+function verifyJwtRs256Signature(params: { jwt: string; header: JwtHeader; jwks: GoogleJwk[] }): void {
+  const [encodedHeader, encodedPayload, encodedSig] = params.jwt.split('.');
+  if (!encodedHeader || !encodedPayload || !encodedSig) throw new Error('jwt_format');
+
+  const alg = String(params.header.alg ?? '');
+  if (alg !== 'RS256') throw new Error('jwt_alg_not_rs256');
+
+  const kid = String(params.header.kid ?? '');
+  if (!kid) throw new Error('jwt_missing_kid');
+
+  const jwk = params.jwks.find(k => k.kid === kid);
+  if (!jwk) throw new Error('jwks_no_matching_kid');
+
+  // Node supports JWK import directly (avoids PEM conversion).
+  const publicKey = createPublicKey({ key: jwk as any, format: 'jwk' as any });
+  const signedData = Buffer.from(`${encodedHeader}.${encodedPayload}`, 'utf8');
+  const signature = Buffer.from(encodedSig, 'base64url');
+  const ok = cryptoVerify('RSA-SHA256', signedData, publicKey, signature);
+  if (!ok) throw new Error('jwt_bad_signature');
+}
+
+function validateGoogleIdTokenClaims(payload: GoogleIdTokenPayload, clientId: string): void {
+  const iss = String(payload.iss ?? '');
+  if (iss !== 'https://accounts.google.com' && iss !== 'accounts.google.com') {
+    throw new Error('iss_mismatch');
+  }
+
+  const auds = normalizeAud(payload.aud);
+  if (!auds.includes(clientId)) throw new Error('aud_mismatch');
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = typeof payload.exp === 'number' ? payload.exp : undefined;
+  if (!exp || exp < now) throw new Error('token_expired');
+
+  const iat = typeof payload.iat === 'number' ? payload.iat : undefined;
+  if (iat && iat > now + 300) throw new Error('token_future');
+
+  const nbf = typeof payload.nbf === 'number' ? payload.nbf : undefined;
+  if (nbf && nbf > now + 60) throw new Error('token_not_yet_valid');
+}
+
+async function verifyGoogleIdToken(idToken: string, clientId: string): Promise<GoogleIdTokenPayload> {
+  const parts = idToken.split('.');
+  if (parts.length !== 3) throw new Error('invalid_token_format');
+
+  const header = decodeJwtPartJson(parts[0]) as JwtHeader;
+  const payload = decodeJwtPartJson(parts[1]) as GoogleIdTokenPayload;
+
+  // Always validate the claims ourselves (even if signature verification uses tokeninfo fallback).
+  validateGoogleIdTokenClaims(payload, clientId);
+
+  try {
+    const jwks = await fetchGoogleJwks();
+    verifyJwtRs256Signature({ jwt: idToken, header, jwks });
+    return payload;
+  } catch (e) {
+    // Fallback: Google tokeninfo endpoint (still validate claims locally).
+    const res = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
+      { headers: { accept: 'application/json' } }
+    );
+    if (!res.ok) throw e;
+    const tokeninfo = (await res.json()) as any;
+
+    // tokeninfo fields are strings
+    const tokeninfoPayload: GoogleIdTokenPayload = {
+      iss: tokeninfo?.iss,
+      aud: tokeninfo?.aud,
+      exp: tokeninfo?.exp ? Number(tokeninfo.exp) : undefined,
+      iat: tokeninfo?.iat ? Number(tokeninfo.iat) : undefined,
+      sub: tokeninfo?.sub,
+      email: tokeninfo?.email,
+      email_verified:
+        tokeninfo?.email_verified === true ||
+        tokeninfo?.email_verified === 'true' ||
+        tokeninfo?.email_verified === '1',
+      azp: tokeninfo?.azp,
+    };
+    validateGoogleIdTokenClaims(tokeninfoPayload, clientId);
+    return tokeninfoPayload;
+  }
+}
 
 function publicBackendBase(req: any): string {
   const configured = process.env.PUBLIC_BACKEND_BASE;
@@ -386,43 +530,33 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
   const idToken = String(tokenJson?.id_token ?? '');
   if (!idToken) return reply.redirect(`${appBase()}/auth?error=missing_id_token`);
 
-  // Verify JWT token locally (more secure than tokeninfo endpoint)
-  const jwt = idToken.split('.');
-  if (jwt.length !== 3) return reply.redirect(`${appBase()}/auth?error=invalid_token_format`);
-
-  let payload: any;
   try {
-    payload = JSON.parse(Buffer.from(jwt[1], 'base64url').toString());
-  } catch {
+    const payload = await verifyGoogleIdToken(idToken, clientId);
+
+    const email = String(payload?.email ?? '').toLowerCase();
+    const emailVerified = Boolean(payload?.email_verified);
+    const sub = String(payload?.sub ?? '');
+
+    if (!email || !sub) return reply.redirect(`${appBase()}/auth?error=missing_profile`);
+    if (!emailVerified) return reply.redirect(`${appBase()}/auth?error=email_not_verified`);
+
+    const userId = await linkIdentity({ provider: 'google', providerUserId: sub, email });
+    reply.clearCookie('oauth_state', { path: '/' });
+    reply.clearCookie('oauth_return_to', { path: '/' });
+    reply.setCookie('uid', userId, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      signed: true,
+      secure: process.env.NODE_ENV === 'production',
+      // fastify/cookie uses seconds (Set-Cookie Max-Age)
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+    return reply.redirect(`${appBase()}${returnTo}`);
+  } catch (e) {
+    req.log.warn({ route: 'oauth/google/callback', err: e }, 'id_token verification failed');
     return reply.redirect(`${appBase()}/auth?error=invalid_token`);
   }
-
-  // Verify token claims
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < now) return reply.redirect(`${appBase()}/auth?error=token_expired`);
-  if (payload.iat && payload.iat > now + 300) return reply.redirect(`${appBase()}/auth?error=token_future`);
-
-  const email = String(payload?.email ?? '').toLowerCase();
-  const emailVerified = Boolean(payload?.email_verified);
-  const sub = String(payload?.sub ?? '');
-  const aud = String(payload?.aud ?? '');
-
-  if (!email || !sub) return reply.redirect(`${appBase()}/auth?error=missing_profile`);
-  if (aud !== clientId) return reply.redirect(`${appBase()}/auth?error=aud_mismatch`);
-  if (!emailVerified) return reply.redirect(`${appBase()}/auth?error=email_not_verified`);
-
-  const userId = await linkIdentity({ provider: 'google', providerUserId: sub, email });
-  reply.clearCookie('oauth_state', { path: '/' });
-  reply.clearCookie('oauth_return_to', { path: '/' });
-  reply.setCookie('uid', userId, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    signed: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-  });
-  return reply.redirect(`${appBase()}${returnTo}`);
 });
 
 app.post('/api/logout', async (_req, reply) => {
@@ -436,7 +570,8 @@ app.addHook('preHandler', async (req, reply) => {
     !req.url.startsWith('/api/auth/oauth/') &&
     req.url !== '/api/logout'
   ) {
-    const uid = req.cookies.uid ? (req.unsignCookie(req.cookies.uid).value ?? null) : null;
+    const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
+    const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;
     if (!uid) return reply.status(401).send({ error: 'Not authenticated' });
     (req as any).userId = uid;
   }

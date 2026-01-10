@@ -4,8 +4,8 @@ import { loadEnv } from './env.js';
 
 async function main() {
   loadEnv();
-  await migrate();
   const db = await createDb();
+  await migrate(db);
 
   const limit = Number(process.env.ADMIN_LIMIT ?? 25);
 
