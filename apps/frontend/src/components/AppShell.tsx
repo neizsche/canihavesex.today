@@ -43,7 +43,7 @@ function redirectToAuth(): void {
 function SessionGate(props: { children: React.ReactNode }) {
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => apiJson<{ userId: string }>('/api/session'),
+    queryFn: () => apiJson<{ userId: string; email?: string | null }>('/api/session'),
   });
 
   React.useEffect(() => {

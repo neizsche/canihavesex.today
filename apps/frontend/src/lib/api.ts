@@ -1,10 +1,7 @@
+import { config } from './config.js';
+
 export function getApiBase(): string {
-  const env = import.meta.env as any;
-  const base = env.PUBLIC_BACKEND_BASE;
-  if (!base) {
-    throw new Error('Missing PUBLIC_BACKEND_BASE. Set it in the repo-root .env file.');
-  }
-  return String(base).replace(/\/$/, '');
+  return config.backendBase;
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}) {
@@ -39,12 +36,14 @@ export function currentReturnTo(): string {
   return current || '/';
 }
 
-export type Risk = 'HIGH' | 'MEDIUM' | 'LOW';
+export type Risk = 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
 
-export function riskBadgeVariant(risk: Risk): 'riskHigh' | 'riskMedium' | 'riskLow' {
+export function riskBadgeVariant(risk: Risk): 'riskHigh' | 'riskMedium' | 'riskLow' | 'secondary' {
   if (risk === 'HIGH') return 'riskHigh';
   if (risk === 'MEDIUM') return 'riskMedium';
-  return 'riskLow';
+  if (risk === 'LOW') return 'riskLow';
+  if (risk === 'INSUFFICIENT_DATA') return 'secondary';
+  return 'secondary';
 }
 
 export function fertilityPct(fertilityIndex: number): number {
@@ -56,7 +55,30 @@ export async function checkAuth(): Promise<boolean> {
   try {
     const res = await apiFetch('/api/session');
     return res.ok;
-  } catch {
+  } catch (error) {
+    // If backend is not available, treat as unauthenticated
+    if (config.devMode) {
+      console.warn('Backend not available for auth check:', error);
+    }
     return false;
   }
 }
+
+/**
+ * Check if the backend API is available
+ */
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${getApiBase()}/health`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return res.ok;
+  } catch (error) {
+    if (config.devMode) {
+      console.warn('Backend health check failed:', error);
+    }
+    return false;
+  }
+}
+
