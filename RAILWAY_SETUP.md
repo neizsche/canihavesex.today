@@ -133,22 +133,56 @@ A `vercel.json` file has been created in your repository root. **Update it** wit
       "source": "/api/:path*",
       "destination": "https://your-actual-railway-url.up.railway.app/api/:path*"
     }
-  ]
+  ],
+  "buildCommand": "cd apps/frontend && npm install && npm run build",
+  "outputDirectory": "apps/frontend/dist"
 }
 ```
 
-**Important**: Make sure the Railway URL includes `/api/:path*` in the destination (Vercel will forward the path).
+**Important**: 
+- Make sure the Railway URL includes `/api/:path*` in the destination (Vercel will forward the path)
+- The build settings are included in `vercel.json`, so Vercel will use them automatically
 
-## Step 7: Configure Vercel Environment Variables
+## Step 7: Configure Vercel Deployment
 
-In your Vercel project settings → **Environment Variables**, add:
+### Connect GitHub Repository
+
+1. Go to [vercel.com](https://vercel.com) and sign up/login
+2. Click **Add New** → **Project**
+3. Import your GitHub repository
+4. Vercel will auto-detect it's an Astro project
+
+### Configure Build Settings
+
+In Vercel project settings → **Settings** → **General**:
+
+- **Framework Preset**: Astro (auto-detected)
+- **Root Directory**: Leave empty (or set to `apps/frontend` if needed)
+- **Build Command**: `cd apps/frontend && npm install && npm run build`
+- **Output Directory**: `apps/frontend/dist`
+- **Install Command**: `npm install` (from repo root)
+
+**Note**: The `vercel.json` file already has build settings, so Vercel should auto-detect these.
+
+### Configure Environment Variables
+
+In Vercel project settings → **Settings** → **Environment Variables**, add:
 
 ```bash
 PUBLIC_BACKEND_BASE=https://canihavesex.today/api
 PUBLIC_APP_BASE=https://canihavesex.today
 ```
 
-**Important**: The frontend will use `/api` as the base, which Vercel will proxy to Railway.
+**Important**: 
+- The frontend will use `/api` as the base, which Vercel will proxy to Railway
+- These variables are available at build time (they're prefixed with `PUBLIC_`)
+
+### Automatic Deployments
+
+Once connected to GitHub:
+- **Every push to main/master**: Automatically deploys to production
+- **Pull requests**: Creates preview deployments
+- **Deployments**: Visible in Vercel dashboard with build logs
 
 ## Step 8: Update Frontend Config (if needed)
 
