@@ -416,7 +416,15 @@ function appBase(): string {
 }
 
 function oauthRedirectUri(provider: OauthProvider, req: any): string {
-  return `${publicBackendBase(req)}/api/auth/oauth/${provider}/callback`;
+  // publicBackendBase already includes /api if PUBLIC_BACKEND_BASE is set
+  // So we only need to add /auth/oauth/... not /api/auth/oauth/...
+  const base = publicBackendBase(req);
+  // Check if base already ends with /api, if so, don't add it again
+  if (base.endsWith('/api')) {
+    return `${base}/auth/oauth/${provider}/callback`;
+  }
+  // Otherwise, add /api for backwards compatibility
+  return `${base}/api/auth/oauth/${provider}/callback`;
 }
 
 async function ensureUserForEmail(email: string): Promise<string> {
