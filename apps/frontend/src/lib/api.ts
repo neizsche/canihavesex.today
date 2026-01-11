@@ -39,12 +39,14 @@ export function currentReturnTo(): string {
   return current || '/';
 }
 
-export type Risk = 'HIGH' | 'MEDIUM' | 'LOW';
+export type Risk = 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
 
-export function riskBadgeVariant(risk: Risk): 'riskHigh' | 'riskMedium' | 'riskLow' {
+export function riskBadgeVariant(risk: Risk): 'riskHigh' | 'riskMedium' | 'riskLow' | 'secondary' {
   if (risk === 'HIGH') return 'riskHigh';
   if (risk === 'MEDIUM') return 'riskMedium';
-  return 'riskLow';
+  if (risk === 'LOW') return 'riskLow';
+  if (risk === 'INSUFFICIENT_DATA') return 'secondary';
+  return 'secondary';
 }
 
 export function fertilityPct(fertilityIndex: number): number {

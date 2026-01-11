@@ -10,6 +10,7 @@ import type { Db } from './db.js';
 import { migrate } from './migrate.js';
 import type { Cycle, DailyLog } from './types.js';
 import { calculateRisk, fertilityIndexForLog, updateCycleState } from './fertilityEngine.js';
+import { appendRawLog, fertilityIndexCompatFromPayload, runEngineV2 } from './engineV2.js';
 import { createRateLimitMiddleware } from './rateLimiter.js';
 import { loadEnv } from './env.js';
 
@@ -625,7 +626,13 @@ app.get('/api/session', async (req, reply) => {
   // This route is protected by the /api/* auth preHandler below.
   // If unauthenticated, the preHandler will return 401.
   const userId = (req as any).userId as string | undefined;
-  return reply.send({ userId });
+  if (!userId) return reply.send({ userId: null, email: null });
+  const rows = await db.query<any>(
+    db.paramStyle === 'postgres' ? 'select email from users where id=$1 limit 1' : 'select email from users where id=? limit 1',
+    [userId]
+  );
+  const email = rows[0]?.email ? String(rows[0].email) : null;
+  return reply.send({ userId, email });
 });
 
 async function getCycleForDate(db: Db, userId: string, isoDate: string): Promise<Cycle | null> {
@@ -677,6 +684,19 @@ const LogDayBody = z.object({
   bleeding: z.enum(['none', 'spotting', 'light', 'heavy']),
   temperature: z.number().nullable().optional(),
   lhTest: z.enum(['positive', 'negative', 'notTaken']),
+  // phase-1: optional extensions (no screen changes required)
+  sex: z.boolean().optional(),
+  sleepHours: z.number().nullable().optional(),
+  alcohol: z.boolean().optional(),
+  illness: z.boolean().optional(),
+  stress: z.number().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  // optional quality flags
+  fever: z.boolean().optional(),
+  lateNight: z.boolean().optional(),
+  measuredLate: z.boolean().optional(),
+  semenExposure: z.boolean().optional(),
+  infection: z.boolean().optional(),
 });
 
 app.post('/api/log-day', async (req, reply) => {
@@ -689,66 +709,59 @@ app.post('/api/log-day', async (req, reply) => {
     }
 
     const now = new Date().toISOString();
-    const { date, mucusType, sensation, bleeding, temperature, lhTest } = parsed.data;
+    const {
+      date,
+      mucusType,
+      sensation,
+      bleeding,
+      temperature,
+      lhTest,
+      sex,
+      sleepHours,
+      alcohol,
+      illness,
+      stress,
+      notes,
+      fever,
+      lateNight,
+      measuredLate,
+      semenExposure,
+      infection,
+    } = parsed.data;
 
     // Avoid logging sensitive health signals.
     app.log.info({ route: '/api/log-day', userId, date }, 'log-day');
 
     try {
-      // Determine which cycle this log belongs to:
-      // - If bleeding indicates a new period start, create/find a cycle starting on `date`.
-      // - Otherwise, attach to the most recent cycle whose start_date <= `date`.
-      const isPeriodStart = bleeding === 'light' || bleeding === 'heavy';
-      const cycle = isPeriodStart
-        ? await ensureCycleStartingOn(db, userId, date)
-        : (await getCycleForDate(db, userId, date)) ?? (await ensureCycleStartingOn(db, userId, date));
+      // Append-only raw log event (new source of truth)
+      await appendRawLog(db, {
+        userId,
+        date,
+        payload: {
+          mucusType,
+          sensation,
+          bleeding,
+          temperature: temperature ?? null,
+          lhTest,
+          sex,
+          sleepHours: sleepHours ?? null,
+          alcohol,
+          illness,
+          stress: stress ?? null,
+          notes: notes ?? null,
+          fever,
+          lateNight,
+          measuredLate,
+          semenExposure,
+          infection,
+        },
+      });
 
-      // Insert/update daily log
-      const logId = randomUUID();
-      await db.query(
-        db.paramStyle === 'postgres'
-          ? `insert into daily_logs
-              (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-             values
-              ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,0,0,$10)
-             on conflict (user_id, date) do update set
-              cycle_id = excluded.cycle_id,
-              mucus_type = excluded.mucus_type,
-              sensation = excluded.sensation,
-              bleeding = excluded.bleeding,
-              temperature = excluded.temperature,
-              lh_test = excluded.lh_test`
-          : `insert into daily_logs
-              (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-             values
-              (?,?,?,?,?,?,?,?,?,0,0,0,?)
-             on conflict(user_id, date) do update set
-              cycle_id=excluded.cycle_id,
-              mucus_type=excluded.mucus_type,
-              sensation=excluded.sensation,
-              bleeding=excluded.bleeding,
-              temperature=excluded.temperature,
-              lh_test=excluded.lh_test`,
-        [logId, userId, cycle.id, date, mucusType, sensation, bleeding, temperature ?? null, lhTest, now]
-      );
+      // Recompute and persist engine results for today (deterministic, versioned).
+      // This also maintains daily_logs + cycles compat fields under the hood.
+      const engine = await runEngineV2(db, { userId, asOfDate: date });
 
-      // Update cycle state based on new data
-      const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
-      const updated = updateCycleState({ cycle, logsInCycle });
-
-      app.log.info(
-        { route: '/api/log-day', userId, cycleId: cycle.id, state: updated.state, peakDate: updated.peakDate, tempShift: updated.tempShiftConfirmedDate },
-        'cycle updated'
-      );
-
-      await db.query(
-        db.paramStyle === 'postgres'
-          ? 'update cycles set state=$1, peak_date=$2, temp_shift_confirmed_date=$3 where id=$4'
-          : 'update cycles set state=?, peak_date=?, temp_shift_confirmed_date=? where id=?',
-        [updated.state, updated.peakDate, updated.tempShiftConfirmedDate, cycle.id]
-      );
-
-      return reply.send({ ok: true, cycleState: updated.state });
+      return reply.send({ ok: true, cycleState: 'UPDATED', engineVersion: 'v2' });
 
     } catch (dbError) {
       req.log.error({ route: '/api/log-day', userId, dbError, date }, 'database operation failed');
@@ -768,44 +781,13 @@ app.get('/api/today', async (req, reply) => {
     const today = new Date().toISOString().slice(0, 10);
 
     try {
-      const cycle = await getCurrentCycle(db, userId);
-      const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
-
-      const updated = updateCycleState({ cycle, logsInCycle });
-
-      const todayLog = logsInCycle.find((l) => l.date === today) ?? null;
-      const fertilityIndexToday = todayLog ? fertilityIndexForLog(todayLog) : 0;
-
-      const yesterday = isoDateOffset(-1);
-      const yesterdayLog = logsInCycle.find((l) => l.date === yesterday) ?? null;
-      const lhPositiveCarryover = yesterdayLog?.lhTest === 'positive';
-
-      const risk = calculateRisk({
-        cycleState: updated.state,
-        todayLog,
-        fertilityIndexToday,
-        tempShiftConfirmed: updated.tempShiftConfirmedDate !== null,
-        lhPositiveCarryover,
-      });
-
-      app.log.info(
-        {
-          route: '/api/today',
-          userId,
-          date: today,
-          cycleState: updated.state,
-          fertilityIndexToday,
-          risk: risk.risk,
-          peakDate: updated.peakDate,
-          tempShift: updated.tempShiftConfirmedDate,
-        },
-        'today risk calculated'
-      );
+      const engine = await runEngineV2(db, { userId, asOfDate: today });
 
       return {
         date: today,
-        risk: risk.risk,
-        explanation: risk.explanation,
+        risk: engine.publicToday.risk,
+        explanation: engine.publicToday.explanation,
+        analytics: engine.analytics,
         disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
       };
 
@@ -826,12 +808,27 @@ app.get('/api/chart', async (req, reply) => {
     const userId = (req as any).userId as string;
 
     try {
-      const cycle = await getCurrentCycle(db, userId);
+      const today = new Date().toISOString().slice(0, 10);
+      const engine = await runEngineV2(db, { userId, asOfDate: today });
+      const cycleId = engine.output.cycle_id;
+
+      const cycleRows = await db.query<any>(
+        db.paramStyle === 'postgres'
+          ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where id=$1 limit 1'
+          : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where id=? limit 1',
+        [cycleId]
+      );
+      const cycle = (cycleRows[0] as Cycle) ?? (await getCurrentCycle(db, userId));
       const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
-      const updated = updateCycleState({ cycle, logsInCycle });
+
+      const riskByDate = new Map<string, 'HIGH' | 'MEDIUM' | 'LOW'>();
+      for (const r of engine.output.daily_risks) {
+        const rr = (r.risk === 'VERY_HIGH' ? 'HIGH' : r.risk) as 'HIGH' | 'MEDIUM' | 'LOW';
+        riskByDate.set(r.date, rr);
+      }
 
       app.log.info(
-        { route: '/api/chart', userId, cycleId: cycle.id, days: logsInCycle.length, state: updated.state },
+        { route: '/api/chart', userId, cycleId: cycle.id, days: logsInCycle.length, state: cycle.state },
         'chart data calculated'
       );
 
@@ -840,20 +837,10 @@ app.get('/api/chart', async (req, reply) => {
         .map((l) => {
           try {
             const idx = fertilityIndexForLog(l);
-            const yesterday = isoDateFrom(l.date, -1);
-            const y = logsInCycle.find((x) => x.date === yesterday) ?? null;
-            const lhPositiveCarryover = y?.lhTest === 'positive';
-            const r = calculateRisk({
-              cycleState: updated.state,
-              todayLog: l,
-              fertilityIndexToday: idx,
-              tempShiftConfirmed: updated.tempShiftConfirmedDate !== null,
-              lhPositiveCarryover,
-            });
             return {
               date: l.date,
               fertilityIndex: idx,
-              risk: r.risk,
+              risk: riskByDate.get(l.date) ?? ('HIGH' as const),
               temperature: l.temperature,
               lhTest: l.lhTest,
             };
@@ -873,10 +860,11 @@ app.get('/api/chart', async (req, reply) => {
         cycle: {
           id: cycle.id,
           startDate: cycle.startDate,
-          state: updated.state,
-          peakDate: updated.peakDate,
-          tempShiftConfirmedDate: updated.tempShiftConfirmedDate,
+          state: cycle.state,
+          peakDate: cycle.peakDate,
+          tempShiftConfirmedDate: cycle.tempShiftConfirmedDate,
         },
+        analytics: engine.analytics,
         days,
         disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
       };

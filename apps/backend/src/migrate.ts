@@ -45,6 +45,77 @@ export async function migrate(db: Db) {
       unique(user_id, date)
     );
 
+    -- Append-only raw input events (source of truth)
+    create table if not exists raw_logs (
+      id text primary key,
+      user_id text not null,
+      date text not null,
+      payload_json text not null,
+      source text not null default 'app',
+      created_at text not null
+    );
+
+    -- Latest normalized day snapshot (recomputable; safe to overwrite)
+    create table if not exists normalized_days (
+      id text primary key,
+      user_id text not null,
+      date text not null,
+      cycle_start_date text not null,
+      cycle_day_index integer not null,
+      has_log integer not null default 0,
+      bleeding text,
+      mucus_type text,
+      sensation text,
+      temperature real,
+      lh_test text,
+      -- phase 1: additional raw fields (optional in UI today)
+      sex integer,
+      sleep_hours real,
+      illness integer,
+      stress integer,
+      notes text,
+      updated_at text not null,
+      unique(user_id, date)
+    );
+
+    -- Versioned engine output + trace (never overwrite)
+    create table if not exists engine_results (
+      id text primary key,
+      user_id text not null,
+      cycle_id text not null,
+      cycle_start_date text not null,
+      as_of_date text not null,
+      engine_version text not null,
+      parameter_version text not null,
+      input_hash text not null,
+      output_json text not null,
+      created_at text not null
+    );
+
+    create table if not exists engine_traces (
+      id text primary key,
+      engine_result_id text not null,
+      trace_json text not null,
+      created_at text not null
+    );
+
+    -- phase 2+: personalization + feedback scaffolding
+    create table if not exists user_personal_model (
+      user_id text primary key,
+      mean_ovulation_day real,
+      mean_luteal_length real,
+      updated_at text not null
+    );
+
+    create table if not exists user_feedback (
+      id text primary key,
+      user_id text not null,
+      date text not null,
+      type text not null,
+      payload_json text,
+      created_at text not null
+    );
+
     -- Critical performance indexes
     create index if not exists idx_users_email on users(email);
     create index if not exists idx_cycles_user_start_date on cycles(user_id, start_date desc);
@@ -53,5 +124,11 @@ export async function migrate(db: Db) {
     create index if not exists idx_daily_logs_cycle_date on daily_logs(cycle_id, date asc);
     create index if not exists idx_daily_logs_user_cycle on daily_logs(user_id, cycle_id);
     create index if not exists idx_user_identities_user on user_identities(user_id);
+
+    create index if not exists idx_raw_logs_user_date_created on raw_logs(user_id, date asc, created_at asc);
+    create index if not exists idx_normalized_days_user_cycle_date on normalized_days(user_id, cycle_start_date, date asc);
+    create index if not exists idx_engine_results_user_cycle_asof on engine_results(user_id, cycle_id, as_of_date desc, created_at desc);
+    create index if not exists idx_engine_traces_result on engine_traces(engine_result_id);
+    create index if not exists idx_feedback_user_date on user_feedback(user_id, date desc);
   `);
 }

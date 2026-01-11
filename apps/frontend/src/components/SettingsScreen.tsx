@@ -9,6 +9,7 @@ import { Separator } from './ui/separator';
 
 export function SettingsScreen() {
   const queryClient = useQueryClient();
+  const session = queryClient.getQueryData<{ userId: string; email?: string | null }>(['session']) ?? null;
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<'muted' | 'danger' | 'ok'>('muted');
   const [sessionState, setSessionState] = React.useState<'signedIn' | 'signedOut'>('signedIn');
@@ -128,6 +129,13 @@ export function SettingsScreen() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {session?.email ? (
+            <div className="rounded-xl border bg-muted/20 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{session.email}</div>
+            </div>
+          ) : null}
+
           {sessionState !== 'signedIn' ? (
             <Button asChild className="h-11" disabled={busy}>
               <a href={`/auth?returnTo=${encodeURIComponent(currentReturnTo())}`}>
