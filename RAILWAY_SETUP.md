@@ -13,11 +13,23 @@ Since frontend and backend are on the same domain, cookies work perfectly with `
 ## Step 1: Set Up Supabase Database
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
-2. In **Settings** → **Database**, copy the **URI** connection string
-3. Replace `[YOUR-PASSWORD]` with your database password:
-   ```
-   postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
-   ```
+2. In **Settings** → **Database**, you'll see connection strings
+3. **Important**: Use the **Connection Pooling** connection string (not the direct URI)
+   - Look for **Connection Pooling** section
+   - Select **Transaction** mode (recommended for Railway)
+   - Copy the connection string that looks like:
+     ```
+     postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+     ```
+   - Or use the **Session** mode if Transaction doesn't work:
+     ```
+     postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+     ```
+
+**Why Connection Pooling?**
+- Railway may have IPv6 connectivity issues with Supabase's direct connection
+- Connection pooling uses IPv4 and is more reliable for serverless/container deployments
+- Better performance and connection management
 
 ## Step 2: Configure Google OAuth
 
@@ -40,13 +52,29 @@ Since frontend and backend are on the same domain, cookies work perfectly with `
    - **Root Directory**: Set to `apps/backend`
    - Railway will auto-detect Node.js
 
+### Configure Build Settings
+
+1. Go to your service → **Settings** → **Build** section
+2. **Custom Build Command**: 
+   - If **Root Directory** is set to `apps/backend`: Use `npm run build`
+   - If **Root Directory** is set to repo root (`.`): Use `npm run build --workspace=apps/backend`
+   
+   The build command compiles TypeScript to JavaScript in the `dist/` folder.
+3. **Start Command**: Railway should auto-detect `npm start`, which runs `node dist/index.js`
+4. **Watch Paths** (optional): Set to trigger redeployments when backend files change:
+   ```
+   apps/backend/**
+   ```
+5. **Metal Build Environment** (optional): You can enable the new Metal build environment for faster builds (toggle in settings)
+
 ## Step 4: Configure Railway Environment Variables
 
 In Railway, go to your service → **Variables** tab and add:
 
 ```bash
-# Database (from Step 1)
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+# Database (from Step 1 - use Connection Pooling URL!)
+# Use the Connection Pooling URL from Supabase (Transaction mode, port 6543)
+DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
 
 # OAuth (from Step 2)
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -180,6 +208,30 @@ If `PUBLIC_BACKEND_BASE` is set to `https://canihavesex.today/api`, the frontend
 **Fix**: 
 - Verify Google OAuth redirect URI is: `https://canihavesex.today/api/auth/oauth/google/callback`
 - Check Railway `PUBLIC_BACKEND_BASE` is set to `https://canihavesex.today/api`
+
+### Issue: Database Connection Error (ENETUNREACH / IPv6)
+
+**Error**: `Error: connect ENETUNREACH 2406:da1a:...:5432`
+
+**Cause**: Railway is trying to connect to Supabase using IPv6, which may not be supported.
+
+**Fix**:
+1. **Use Supabase Connection Pooling** (Recommended):
+   - Go to Supabase Dashboard → **Settings** → **Database**
+   - Scroll to **Connection Pooling** section
+   - Copy the **Transaction** mode connection string (port 6543)
+   - Use this URL in Railway `DATABASE_URL` instead of the direct URI
+   - Format: `postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres`
+
+2. **Alternative - Force IPv4** (if pooling doesn't work):
+   - In Supabase, get the direct connection string
+   - Replace the hostname with the IPv4 address (you may need to resolve DNS)
+   - Or use Supabase's **Session** mode pooler (port 5432)
+
+3. **Verify Connection String**:
+   - Should start with `postgresql://`
+   - Should use `.pooler.supabase.com` domain (not `db.xxx.supabase.co`)
+   - Port should be `6543` (Transaction) or `5432` (Session)
 
 ## Benefits of This Setup
 
