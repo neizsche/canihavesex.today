@@ -55,7 +55,7 @@ function yesNo(v: boolean): string {
 export function ChartScreen() {
   const chartQuery = useQuery({
     queryKey: ['chart'],
-    queryFn: () => apiJson<ChartData>('/api/chart'),
+    queryFn: () => apiJson<ChartData>('/chart'),
   });
 
   const loading = chartQuery.isLoading;

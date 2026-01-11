@@ -37,7 +37,7 @@ export function SettingsScreen() {
     }
   }
 
-  // This screen is rendered inside AppShell's SessionGate, so an extra /api/session probe is redundant.
+  // This screen is rendered inside AppShell's SessionGate, so an extra /session probe is redundant.
 
   function openAbout(view: 'about' | 'privacy' | 'terms' | 'how' | 'limits' | 'disclaimer') {
     setAboutView(view);
@@ -54,7 +54,7 @@ export function SettingsScreen() {
     setStatusTone('muted');
     setStatus('Resetting…');
     try {
-      const res = await apiFetch('/api/reset-cycle', { method: 'POST' });
+      const res = await apiFetch('/reset-cycle', { method: 'POST' });
       if (res.status === 401) {
         location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
@@ -75,7 +75,7 @@ export function SettingsScreen() {
     setStatusTone('muted');
     setStatus('Deleting…');
     try {
-      const res = await apiFetch('/api/delete-all-data', { method: 'POST' });
+      const res = await apiFetch('/delete-all-data', { method: 'POST' });
       if (res.status === 401) {
         location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
@@ -95,7 +95,7 @@ export function SettingsScreen() {
     setStatusTone('muted');
     setStatus('Signing out…');
     try {
-      const res = await apiFetch('/api/logout', { method: 'POST' });
+      const res = await apiFetch('/logout', { method: 'POST' });
       setStatusTone(res.ok ? 'ok' : 'danger');
       setStatus(res.ok ? 'Signed out.' : 'Sign out failed.');
       setBusy(false);

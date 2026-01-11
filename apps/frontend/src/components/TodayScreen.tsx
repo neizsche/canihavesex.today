@@ -99,12 +99,12 @@ function keyReasons(analytics: NonNullable<TodayData['analytics']>): string[] {
 export function TodayScreen() {
   const todayQuery = useQuery({
     queryKey: ['today'],
-    queryFn: () => apiJson<TodayData>('/api/today'),
+    queryFn: () => apiJson<TodayData>('/today'),
   });
 
   const chartQuery = useQuery({
     queryKey: ['chart'],
-    queryFn: () => apiJson<ChartData>('/api/chart'),
+    queryFn: () => apiJson<ChartData>('/chart'),
     enabled: todayQuery.isSuccess,
   });
 

@@ -23,7 +23,7 @@ export function AuthForm() {
   }, []);
 
   function startGoogleOauth() {
-    const url = `${apiBase}/api/auth/oauth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
+    const url = `${apiBase}/auth/oauth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
     location.href = url;
   }
 
@@ -31,7 +31,7 @@ export function AuthForm() {
     let cancelled = false;
     async function probe() {
       try {
-        const res = await fetch(`${apiBase}/api/session`, { credentials: 'include' });
+        const res = await fetch(`${apiBase}/session`, { credentials: 'include' });
         if (cancelled) return;
         if (res.status !== 401) {
           location.href = returnTo;

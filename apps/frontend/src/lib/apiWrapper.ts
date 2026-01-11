@@ -59,21 +59,21 @@ export async function isBackendAvailable(): Promise<boolean> {
  * Get today's risk data
  */
 export async function getTodayData(): Promise<TodayData> {
-  return await apiJson('/api/today');
+  return await apiJson('/today');
 }
 
 /**
  * Get chart data
  */
 export async function getChartData(): Promise<ChartData> {
-  return await apiJson('/api/chart');
+  return await apiJson('/chart');
 }
 
 /**
  * Log daily data
  */
 export async function logDayData(data: any): Promise<{ ok: boolean }> {
-  return await apiJson('/api/log-day', {
+  return await apiJson('/log-day', {
     method: 'POST',
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
@@ -84,7 +84,7 @@ export async function logDayData(data: any): Promise<{ ok: boolean }> {
  * Reset cycle
  */
 export async function resetCycle(): Promise<{ ok: boolean }> {
-  return await apiJson('/api/reset-cycle', {
+  return await apiJson('/reset-cycle', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -94,7 +94,7 @@ export async function resetCycle(): Promise<{ ok: boolean }> {
  * Delete all user data
  */
 export async function deleteAllData(): Promise<{ ok: boolean }> {
-  return await apiJson('/api/delete-all-data', {
+  return await apiJson('/delete-all-data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -104,7 +104,7 @@ export async function deleteAllData(): Promise<{ ok: boolean }> {
  * Get user session
  */
 export async function getUserSession(): Promise<{ userId: string | null; email: string | null }> {
-  return await apiJson('/api/session');
+  return await apiJson('/session');
 }
 
 /**
@@ -118,7 +118,7 @@ export async function isAuthenticated(): Promise<boolean> {
  * Logout
  */
 export async function logout(): Promise<void> {
-  await apiJson('/api/logout', {
+  await apiJson('/logout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });

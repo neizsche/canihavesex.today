@@ -53,7 +53,7 @@ export function fertilityPct(fertilityIndex: number): number {
 
 export async function checkAuth(): Promise<boolean> {
   try {
-    const res = await apiFetch('/api/session');
+    const res = await apiFetch('/session');
     return res.ok;
   } catch (error) {
     // If backend is not available, treat as unauthenticated

@@ -23,7 +23,7 @@ export function LogScreen() {
   const [bleeding, setBleeding] = React.useState<Bleeding>('none');
   const [lhTest, setLhTest] = React.useState<LhTest>('notTaken');
 
-  // Optional/context fields supported by backend (/api/log-day)
+  // Optional/context fields supported by backend (/log-day)
   const [sex, setSex] = React.useState(false);
   const [sleepHours, setSleepHours] = React.useState<string>(''); // optional number
   const [alcohol, setAlcohol] = React.useState(false);
@@ -72,7 +72,7 @@ export function LogScreen() {
     };
 
     try {
-      const res = await apiFetch('/api/log-day', {
+      const res = await apiFetch('/log-day', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),

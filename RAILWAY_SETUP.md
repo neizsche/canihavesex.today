@@ -243,6 +243,30 @@ If `PUBLIC_BACKEND_BASE` is set to `https://canihavesex.today/api`, the frontend
 - Verify Google OAuth redirect URI is: `https://canihavesex.today/api/auth/oauth/google/callback`
 - Check Railway `PUBLIC_BACKEND_BASE` is set to `https://canihavesex.today/api`
 
+### Issue: OAuth "client was not found" (401: invalid_client)
+
+**Error**: `Access blocked: Authorization Error - The OAuth client was not found`
+
+**Fix**: See [OAUTH_TROUBLESHOOTING.md](./OAUTH_TROUBLESHOOTING.md) for detailed steps.
+
+**Quick fixes**:
+1. **Verify Railway environment variables**:
+   - `GOOGLE_CLIENT_ID` must be set (should end with `.apps.googleusercontent.com`)
+   - `GOOGLE_CLIENT_SECRET` must be set
+   - No extra spaces or quotes
+
+2. **Check Google Cloud Console**:
+   - Go to **APIs & Services** → **Credentials**
+   - Verify Client ID matches Railway `GOOGLE_CLIENT_ID`
+   - **Authorized redirect URIs** must include: `https://canihavesex.today/api/auth/oauth/google/callback`
+
+3. **OAuth Consent Screen**:
+   - Go to **APIs & Services** → **OAuth consent screen**
+   - Must be configured (app name, email, etc.)
+   - Add your email as a test user if app is in testing mode
+
+4. **Redeploy Railway** after updating environment variables
+
 ### Issue: Database Connection Error (ENETUNREACH / IPv6)
 
 **Error**: `Error: connect ENETUNREACH 2406:da1a:...:5432`
