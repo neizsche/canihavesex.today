@@ -14,7 +14,8 @@ export const config = {
       if (import.meta.env.DEV) {
         return 'http://localhost:1299';
       }
-      return 'https://api.canihavesex.today';
+      // Default to /api (proxied through Vercel to Railway)
+      return '/api';
     }
 
     return String(base).replace(/\/$/, '');

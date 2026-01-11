@@ -123,7 +123,7 @@ app.get('/health', async (req, reply) => {
   }
 });
 
-app.get('/admin', async (req, reply) => {
+app.get('/api/admin', async (req, reply) => {
   if (!adminToken) return reply.status(404).send('Not found');
   const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
   if (token !== adminToken) return reply.status(401).send('Unauthorized');
@@ -137,14 +137,14 @@ app.get('/admin', async (req, reply) => {
     <h1>Admin</h1>
     <p>Send <code>x-admin-token</code> header with your token.</p>
     <ul>
-      <li><code>GET /admin/users</code></li>
-      <li><code>GET /admin/cycles</code></li>
-      <li><code>GET /admin/logs?limit=50</code></li>
+      <li><code>GET /api/admin/users</code></li>
+      <li><code>GET /api/admin/cycles</code></li>
+      <li><code>GET /api/admin/logs?limit=50</code></li>
     </ul>
   </body></html>`);
 });
 
-app.get('/admin/users', async (req, reply) => {
+app.get('/api/admin/users', async (req, reply) => {
   if (!adminToken) return reply.status(404).send({ error: 'Not found' });
   const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
   if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
@@ -157,7 +157,7 @@ app.get('/admin/users', async (req, reply) => {
   return reply.send({ users: rows });
 });
 
-app.get('/admin/cycles', async (req, reply) => {
+app.get('/api/admin/cycles', async (req, reply) => {
   if (!adminToken) return reply.status(404).send({ error: 'Not found' });
   const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
   if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
@@ -170,7 +170,7 @@ app.get('/admin/cycles', async (req, reply) => {
   return reply.send({ cycles: rows });
 });
 
-app.get('/admin/logs', async (req, reply) => {
+app.get('/api/admin/logs', async (req, reply) => {
   if (!adminToken) return reply.status(404).send({ error: 'Not found' });
   const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
   if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
@@ -214,6 +214,7 @@ app.addHook('preHandler', async (req, reply) => {
   if (
     req.url.startsWith('/api/') &&
     !req.url.startsWith('/api/auth/oauth/') &&
+    !req.url.startsWith('/api/admin/') &&
     req.url !== '/api/logout'
   ) {
     const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
@@ -494,11 +495,14 @@ app.get('/api/auth/oauth/:provider/start', async (req, reply) => {
   if (!clientId) return reply.status(500).send({ error: 'GOOGLE_CLIENT_ID not configured' });
 
   const state = randomUUID();
+  // Support cross-domain cookies when frontend and backend are on different domains
+  const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
+  const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
   const oauthCookieBase = {
     path: '/',
     httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
+    sameSite,
+    secure,
   };
   reply.setCookie('oauth_state', state, oauthCookieBase);
   reply.setCookie('oauth_return_to', returnTo, oauthCookieBase);
@@ -574,12 +578,18 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
     const userId = await linkIdentity({ provider: 'google', providerUserId: sub, email });
     reply.clearCookie('oauth_state', { path: '/' });
     reply.clearCookie('oauth_return_to', { path: '/' });
+    
+    // Support cross-domain cookies when frontend and backend are on different domains
+    // Set COOKIE_SAMESITE=none for cross-domain, or leave unset/default to 'lax' for same-domain
+    const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
+    const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
+    
     reply.setCookie('uid', userId, {
       path: '/',
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite,
       signed: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure,
       // fastify/cookie uses seconds (Set-Cookie Max-Age)
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
@@ -593,11 +603,13 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
 app.post('/api/logout', async (_req, reply) => {
   // Be extra defensive: some browsers can be finicky about deleting cookies if attributes differ.
   // Overwrite with an expired cookie (maxAge=0 + expires) and also attempt clearCookie with/without signing.
+  const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
+  const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
   const base = {
     path: '/',
     httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
+    sameSite,
+    secure,
   };
 
   // Overwrite (signed)

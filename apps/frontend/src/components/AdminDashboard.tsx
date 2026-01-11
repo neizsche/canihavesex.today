@@ -115,9 +115,9 @@ export function AdminDashboard() {
     setStatus('Loading…');
     try {
       const [u, c, l] = await Promise.all([
-        adminFetch<{ users: AdminUser[] }>('/admin/users'),
-        adminFetch<{ cycles: AdminCycle[] }>('/admin/cycles'),
-        adminFetch<{ logs: AdminLog[] }>('/admin/logs?limit=200'),
+        adminFetch<{ users: AdminUser[] }>('/api/admin/users'),
+        adminFetch<{ cycles: AdminCycle[] }>('/api/admin/cycles'),
+        adminFetch<{ logs: AdminLog[] }>('/api/admin/logs?limit=200'),
       ]);
 
       setUsers(Array.isArray(u.users) ? u.users : []);

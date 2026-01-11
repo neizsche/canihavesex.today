@@ -16,7 +16,9 @@ Create a `.env` file in this directory with the following variables:
 
 ```bash
 # Backend API URL (required)
-PUBLIC_BACKEND_BASE=https://api.canihavesex.today
+# For production with Vercel proxy: use /api (relative path)
+# For direct backend: use full URL
+PUBLIC_BACKEND_BASE=/api
 
 # Google Analytics (optional)
 PUBLIC_GA_TRACKING_ID=your_tracking_id
@@ -84,7 +86,7 @@ The frontend connects directly to the Fastify backend API:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PUBLIC_BACKEND_BASE` | `https://api.canihavesex.today` | Backend API URL |
+| `PUBLIC_BACKEND_BASE` | `/api` (production) or `http://localhost:1299` (dev) | Backend API URL |
 | `PUBLIC_GA_TRACKING_ID` | - | Google Analytics tracking ID |
 | `PUBLIC_APP_NAME` | `"Can I Have Sex Today"` | App display name |
 | `PUBLIC_APP_BASE` | `https://canihavesex.today` | Frontend base URL |

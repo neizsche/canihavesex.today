@@ -27,6 +27,10 @@ Every screen shows the disclaimer:
 - `apps/backend` Fastify API + fertility engine
 - `apps/frontend` Astro UI (Today / Log / Chart / Settings)
 
+## Deployment
+
+See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for deployment instructions using Railway + Vercel.
+
 ## Run locally
 
 1. Install deps (workspace root):
@@ -63,12 +67,16 @@ If you want the frontend to talk to a different backend URL, set:
 
 ## API endpoints
 
-- `POST /api/auth` – sets a cookie session for a given email (MVP auth)
+- `GET /api/session` – get current session
+- `GET /api/auth/oauth/google/start` – start Google OAuth flow
+- `GET /api/auth/oauth/google/callback` – OAuth callback
+- `POST /api/logout` – logout
 - `POST /api/log-day` – save a daily log
-- `GET /api/today` – returns today’s risk + explanation
+- `GET /api/today` – returns today's risk + explanation
 - `GET /api/chart` – returns current cycle timeline + per-day risk/index
 - `POST /api/reset-cycle` – create a new cycle starting today
 - `POST /api/delete-all-data` – delete cycles + logs for current user
+- `GET /api/admin/*` – admin endpoints (requires x-admin-token header)
 
 ## Data model (MVP)
 
