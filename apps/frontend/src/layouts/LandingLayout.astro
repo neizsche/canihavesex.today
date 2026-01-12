@@ -1,5 +1,6 @@
 ---
 const { title } = Astro.props;
+import { SpeedInsights } from '@vercel/speed-insights/astro';
 import '../styles/globals.css';
 ---
 
@@ -59,5 +60,6 @@ import '../styles/globals.css';
         </div>
       </div>
     </footer>
+    <SpeedInsights />
   </body>
 </html>
