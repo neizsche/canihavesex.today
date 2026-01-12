@@ -4,8 +4,8 @@ const showBranding = Astro.props.showBranding ?? true;
 const showNav = Astro.props.showNav ?? true;
 const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md';
 import { BottomNav } from '../components/BottomNav';
-import { Analytics } from '@vercel/analytics/astro';
-import { SpeedInsights } from '@vercel/speed-insights/astro';
+import Analytics from '@vercel/analytics/astro';
+import SpeedInsights from '@vercel/speed-insights/astro';
 import '../styles/globals.css';
 
 const mainPaddingBottom = showNav ? 'pb-28' : 'pb-6';
