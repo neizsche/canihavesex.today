@@ -2,7 +2,23 @@ import * as React from 'react';
 import { Button } from './ui/button';
 import { checkAuth } from '../lib/api';
 import { AuthModal } from './AuthModal';
-import { Shield, Feather, CheckCircle } from 'lucide-react';
+import { Shield, Feather, CheckCircle, Check, Minus } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+
+const coreFeatures = [
+  { name: 'Daily logging', free: true, pro: true },
+  { name: 'Today’s risk & explanation', free: true, pro: true },
+  { name: 'Current cycle view', free: true, pro: true },
+  { name: 'Core conservative logic', free: true, pro: true },
+];
+
+const premiumFeatures = [
+  { name: 'Cycle history', free: false, pro: true },
+  { name: 'Partner view', free: false, pro: true },
+  { name: 'Try to conceive mode', free: false, pro: true },
+  { name: 'Export & summaries', free: false, pro: true },
+  { name: 'Custom conservatism', free: false, pro: true },
+];
 
 export function LandingPage() {
   React.useEffect(() => {
@@ -56,79 +72,143 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Why Today */}
-      <section className="px-6 py-16 bg-stone-50/50">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100 text-stone-700">
-              <Shield size={24} strokeWidth={1.5} />
+      {/* How it works */}
+      <section id="how-it-works" className="px-6 py-24 md:py-32 bg-stone-50/40 border-y border-stone-100">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-semibold text-center mb-16 text-gray-900">
+            Keep it simple
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-4xl mx-auto">
+            <div className="flex flex-col items-center text-center gap-4">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-stone-200 text-stone-600 font-semibold text-lg shadow-sm">1</span>
+              <h3 className="text-lg font-medium text-gray-900">Log signs</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">Track temperature and daily signs in a few taps.</p>
             </div>
-            <h3 className="text-lg font-medium text-gray-900">Private by design</h3>
-            <p className="text-stone-500 leading-relaxed">Your data stays yours. No ads. No selling. No funny business.</p>
-          </div>
-          <div className="flex flex-col items-center gap-4">
-            <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100 text-stone-700">
-              <Feather size={24} strokeWidth={1.5} />
+
+            <div className="flex flex-col items-center text-center gap-4">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-stone-200 text-stone-600 font-semibold text-lg shadow-sm">2</span>
+              <h3 className="text-lg font-medium text-gray-900">See status</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">Get a clear fertile or non-fertile result immediately.</p>
             </div>
-            <h3 className="text-lg font-medium text-gray-900">Simple and reliable</h3>
-            <p className="text-stone-500 leading-relaxed">Based on the symptothermal method, a well-known and studied approach.</p>
-          </div>
-          <div className="flex flex-col items-center gap-4">
-            <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100 text-stone-700">
-              <CheckCircle size={24} strokeWidth={1.5} />
+
+            <div className="flex flex-col items-center text-center gap-4">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-stone-200 text-stone-600 font-semibold text-lg shadow-sm">3</span>
+              <h3 className="text-lg font-medium text-gray-900">Decide</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">It’s your body. You stay in control of your choices.</p>
             </div>
-            <h3 className="text-lg font-medium text-gray-900">Built with care</h3>
-            <p className="text-stone-500 leading-relaxed">A cheeky name, serious thinking. Made by a small, independent team.</p>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="px-6 py-24 max-w-3xl mx-auto">
-        <h2 className="text-2xl md:text-3xl font-semibold text-center mb-16 text-gray-900">
-          How it works
-        </h2>
-        <div className="space-y-12">
-
-          <div className="flex gap-6 items-start md:items-center">
-            <span className="flex-none flex items-center justify-center w-10 h-10 rounded-full bg-stone-100 text-stone-600 font-semibold text-lg">1</span>
-            <div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">Log signs</h3>
-              <p className="text-gray-500 leading-relaxed">Track temperature and daily signs in a few taps.</p>
-            </div>
+      {/* Mission Section */}
+      <section id="mission" className="px-6 py-24 md:py-32 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-20 max-w-2xl mx-auto">
+            <h2 className="text-3xl font-semibold text-gray-900 mb-4">Built with care.</h2>
+            <p className="text-lg text-stone-500 italic">
+              Focused on privacy, clarity, and reliability.
+            </p>
           </div>
 
-          <div className="flex gap-6 items-start md:items-center">
-            <span className="flex-none flex items-center justify-center w-10 h-10 rounded-full bg-stone-100 text-stone-600 font-semibold text-lg">2</span>
-            <div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">See today’s status</h3>
-              <div className="text-gray-500 leading-relaxed">
-                Get a simple result:
-                <ul className="mt-2 space-y-1 list-disc list-inside text-stone-600/80 pl-2">
-                  <li>Fertile period</li>
-                  <li>Not fertile period</li>
-                  <li>Uncertain period</li>
-                </ul>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-8 bg-stone-50/50 rounded-3xl border border-stone-100 flex flex-col items-center text-center gap-6">
+              <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100 text-stone-700">
+                <Shield size={24} strokeWidth={1.5} />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Private by design</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">No ads, no tracking. Your health data remains strictly yours.</p>
+              </div>
+            </div>
+            <div className="p-8 bg-stone-50/50 rounded-3xl border border-stone-100 flex flex-col items-center text-center gap-6">
+              <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100 text-stone-700">
+                <Feather size={24} strokeWidth={1.5} />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Simple and reliable</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">Based on the symptothermal method, a well-known and studied approach.</p>
+              </div>
+            </div>
+            <div className="p-8 bg-stone-50/50 rounded-3xl border border-stone-100 flex flex-col items-center text-center gap-6">
+              <div className="p-3 bg-white rounded-2xl shadow-sm border border-stone-100 text-stone-700">
+                <CheckCircle size={24} strokeWidth={1.5} />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Built with care</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">A cheeky name, serious thinking. Made by a small, independent team.</p>
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="flex gap-6 items-start md:items-center">
-            <span className="flex-none flex items-center justify-center w-10 h-10 rounded-full bg-stone-100 text-stone-600 font-semibold text-lg">3</span>
-            <div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">Decide</h3>
-              <p className="text-gray-500 leading-relaxed">It’s your body. You stay in control.</p>
-            </div>
+      {/* Pricing / Comparison */}
+      <section id="pricing" className="px-6 py-24 md:py-32 bg-stone-50/40 border-t border-stone-100">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-4">
+              Compare variants
+            </h2>
+            <p className="text-stone-500">
+              Pick the version that fits your needs.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-sm max-w-3xl mx-auto">
+            <Table>
+              <TableHeader className="bg-stone-50/50">
+                <TableRow className="hover:bg-transparent border-stone-100">
+                  <TableHead className="py-6 pl-8 text-sm font-medium uppercase tracking-wider text-stone-400 w-1/2">Features</TableHead>
+                  <TableHead className="py-6 text-center text-gray-900 font-semibold">Free</TableHead>
+                  <TableHead className="py-6 text-center text-gray-900 font-semibold italic">Pro</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {coreFeatures.map((f) => (
+                  <TableRow key={f.name} className="border-stone-100">
+                    <TableCell className="py-4 pl-8 text-stone-600 font-medium text-sm md:text-base">{f.name}</TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-5 w-5 text-green-500 mx-auto" strokeWidth={3} />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-5 w-5 text-green-500 mx-auto" strokeWidth={3} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {premiumFeatures.map((f) => (
+                  <TableRow key={f.name} className="border-stone-100">
+                    <TableCell className="py-4 pl-8 text-stone-600 font-medium text-sm md:text-base">{f.name}</TableCell>
+                    <TableCell className="text-center">
+                      <Minus className="h-4 w-4 text-stone-200 mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-5 w-5 text-stone-900 mx-auto" strokeWidth={2} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {/* CTA Row */}
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableCell className="py-8 pl-8"></TableCell>
+                  <TableCell className="py-8 px-4 text-center">
+                    <Button variant="outline" size="sm" className="rounded-full px-6" onClick={openAuth}>
+                      Start free
+                    </Button>
+                  </TableCell>
+                  <TableCell className="py-8 px-4 text-center">
+                    <span className="text-xs text-stone-400 font-semibold uppercase tracking-widest">Soon</span>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </section>
 
       {/* Footer & Disclaimer */}
-      <footer className="px-6 py-12 border-t border-stone-100 text-center bg-stone-50/30">
-        <div className="max-w-md mx-auto space-y-6">
-          <p className="text-sm text-stone-500 leading-relaxed">
-            This is not medical advice. It’s a simple tool to help you think more clearly.
-          </p>
+      <footer className="px-6 py-8 border-t border-stone-100 text-center bg-white">
+        <div className="max-w-md mx-auto">
+          {/* Footer content removed per user request */}
         </div>
       </footer>
     </div>
