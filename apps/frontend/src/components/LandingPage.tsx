@@ -5,8 +5,6 @@ import { AuthModal } from './AuthModal';
 import { Shield, Feather, CheckCircle } from 'lucide-react';
 
 export function LandingPage() {
-  const [authModalOpen, setAuthModalOpen] = React.useState(false);
-
   React.useEffect(() => {
     let cancelled = false;
 
@@ -28,13 +26,17 @@ export function LandingPage() {
     };
   }, []);
 
+  const openAuth = () => {
+    window.dispatchEvent(new CustomEvent('auth:open'));
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-stone-200">
 
       {/* Hero */}
       <section className="px-6 pt-32 pb-24 md:pt-48 md:pb-32 text-center max-w-2xl mx-auto">
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-gray-900 mb-6">
-          Stop guessing your cycle.
+          Clarity for your intimate decisions.
         </h1>
         <p className="text-xl md:text-2xl text-gray-600 mb-8 font-medium">
           A simple fertility awareness app.
@@ -47,7 +49,7 @@ export function LandingPage() {
           <Button
             size="lg"
             className="h-12 px-8 text-base font-medium rounded-full bg-stone-900 text-white hover:bg-stone-800 transition-all shadow-sm hover:shadow-md"
-            onClick={() => setAuthModalOpen(true)}
+            onClick={openAuth}
           >
             Start tracking
           </Button>
@@ -129,12 +131,6 @@ export function LandingPage() {
           </p>
         </div>
       </footer>
-
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        returnTo="/app#/today"
-      />
     </div>
   );
 }

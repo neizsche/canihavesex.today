@@ -1,6 +1,7 @@
 ---
 const { title } = Astro.props;
 import SpeedInsights from '@vercel/speed-insights/astro';
+import { LandingHeader } from '../components/LandingHeader';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
@@ -12,24 +13,12 @@ import '../styles/globals.css';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title ? `${title} | can i have sex today` : 'can i have sex today'}</title>
+    <title>{title ? `${title} | Daily Fertility Made Simple` : 'Daily Fertility Made Simple'}</title>
     <meta name="theme-color" content="#ffffff" />
   </head>
   <body class="bg-white text-gray-900 font-sans">
     <!-- Header -->
-    <header class="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md transition-all">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <a href="/" class="text-base font-medium tracking-wide text-gray-900 hover:text-gray-600 transition-colors">
-          can i have sex today
-        </a>
-        <a
-          href="/auth"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 text-white text-sm font-normal rounded hover:bg-slate-800"
-        >
-          Log in
-        </a>
-      </div>
-    </header>
+    <LandingHeader client:load />
 
     <main>
       <slot />
