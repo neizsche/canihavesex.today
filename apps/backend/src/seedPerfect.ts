@@ -23,8 +23,8 @@ function parseArgValue(args: string[], name: string): string | null {
   return v;
 }
 
-function p(dbParamStyle: 'postgres' | 'sqlite', n: number): string {
-  return dbParamStyle === 'postgres' ? `$${n}` : '?';
+function p(n: number): string {
+  return `$${n}`;
 }
 
 export async function seedPerfect() {
@@ -42,13 +42,13 @@ export async function seedPerfect() {
 
   // Email is the key: create user if missing, otherwise reuse existing id.
   const existing = await db.query<{ id: string }>(
-    `select id from users where email = ${p(db.paramStyle, 1)} limit 1`,
+    `select id from users where email = ${p(1)} limit 1`,
     [email]
   );
   const userId = existing[0]?.id ?? randomUUID();
   if (!existing[0]?.id) {
     await db.query(
-      `insert into users (id, email, created_at) values (${p(db.paramStyle, 1)}, ${p(db.paramStyle, 2)}, ${p(db.paramStyle, 3)})`,
+      `insert into users (id, email, created_at) values (${p(1)}, ${p(2)}, ${p(3)})`,
       [userId, email, now]
     );
   }
@@ -58,27 +58,15 @@ export async function seedPerfect() {
   const startDate = isoDateFrom(isoToday(), -20);
 
   // Optional: give a personal model so calendar prior is stable.
-  if (db.paramStyle === 'postgres') {
-    await db.query(
-      `insert into user_personal_model (user_id, mean_ovulation_day, mean_luteal_length, updated_at)
-       values (${p(db.paramStyle, 1)}, 14.0, 14.0, ${p(db.paramStyle, 2)})
-       on conflict (user_id) do update set
-         mean_ovulation_day=excluded.mean_ovulation_day,
-         mean_luteal_length=excluded.mean_luteal_length,
-         updated_at=excluded.updated_at`,
-      [userId, now]
-    );
-  } else {
-    await db.query(
-      `insert into user_personal_model (user_id, mean_ovulation_day, mean_luteal_length, updated_at)
-       values (${p(db.paramStyle, 1)}, 14.0, 14.0, ${p(db.paramStyle, 2)})
-       on conflict(user_id) do update set
-         mean_ovulation_day=excluded.mean_ovulation_day,
-         mean_luteal_length=excluded.mean_luteal_length,
-         updated_at=excluded.updated_at`,
-      [userId, now]
-    );
-  }
+  await db.query(
+    `insert into user_personal_model (user_id, mean_ovulation_day, mean_luteal_length, updated_at)
+     values (${p(1)}, 14.0, 14.0, ${p(2)})
+     on conflict (user_id) do update set
+       mean_ovulation_day=excluded.mean_ovulation_day,
+       mean_luteal_length=excluded.mean_luteal_length,
+       updated_at=excluded.updated_at`,
+    [userId, now]
+  );
 
   // “Perfect” logging: full coverage, one LH+, one eggwhite peak, and a clear BBT shift.
   // Requirements for BBT confirmation in CIHS:
@@ -118,7 +106,7 @@ export async function seedPerfect() {
 
   // Idempotency: if you re-run with the same email/user, replace prior seeded logs.
   await db.query(
-    `delete from raw_logs where user_id = ${p(db.paramStyle, 1)} and source = ${p(db.paramStyle, 2)}`,
+    `delete from raw_logs where user_id = ${p(1)} and source = ${p(2)}`,
     [userId, 'seedPerfect']
   );
 
@@ -147,7 +135,7 @@ export async function seedPerfect() {
     };
     await db.query(
       `insert into raw_logs (id, user_id, date, payload_json, source, created_at)
-       values (${p(db.paramStyle, 1)}, ${p(db.paramStyle, 2)}, ${p(db.paramStyle, 3)}, ${p(db.paramStyle, 4)}, ${p(db.paramStyle, 5)}, ${p(db.paramStyle, 6)})`,
+       values (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)})`,
       [id, userId, date, JSON.stringify(payload), 'seedPerfect', createdAt]
     );
   }

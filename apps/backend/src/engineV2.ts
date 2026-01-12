@@ -416,9 +416,7 @@ export async function appendRawLog(db: Db, params: { userId: string; date: IsoDa
   const id = randomUUID();
   const now = new Date().toISOString();
   await db.query(
-    db.paramStyle === 'postgres'
-      ? 'insert into raw_logs (id, user_id, date, payload_json, source, created_at) values ($1,$2,$3,$4,$5,$6)'
-      : 'insert into raw_logs (id, user_id, date, payload_json, source, created_at) values (?,?,?,?,?,?)',
+    'insert into raw_logs (id, user_id, date, payload_json, source, created_at) values ($1,$2,$3,$4,$5,$6)',
     [id, params.userId, params.date, JSON.stringify(params.payload ?? {}), params.source ?? 'app', now]
   );
   return id;
@@ -426,9 +424,7 @@ export async function appendRawLog(db: Db, params: { userId: string; date: IsoDa
 
 async function getRawLogEvents(db: Db, userId: string): Promise<Array<{ date: IsoDate; payload: RawLogPayloadV1; createdAt: string }>> {
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select date, payload_json as "payloadJson", created_at as "createdAt" from raw_logs where user_id=$1 order by date asc, created_at asc'
-      : 'select date, payload_json as payloadJson, created_at as createdAt from raw_logs where user_id=? order by date asc, created_at asc',
+    'select date, payload_json as "payloadJson", created_at as "createdAt" from raw_logs where user_id=$1 order by date asc, created_at asc',
     [userId]
   );
   return (rows as any[]).map((r) => ({
@@ -492,18 +488,14 @@ function buildNormalizedDays(args: { latestByDate: Map<IsoDate, RawLogPayloadV1>
 
 async function ensureCycle(db: Db, params: { userId: string; cycleStartDate: IsoDate }): Promise<{ id: string; startDate: IsoDate }> {
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select id, start_date as "startDate" from cycles where user_id=$1 and start_date=$2 order by created_at desc limit 1'
-      : 'select id, start_date as startDate from cycles where user_id=? and start_date=? order by created_at desc limit 1',
+    'select id, start_date as "startDate" from cycles where user_id=$1 and start_date=$2 order by created_at desc limit 1',
     [params.userId, params.cycleStartDate]
   );
   if (rows[0]?.id) return { id: String(rows[0].id), startDate: params.cycleStartDate };
   const id = randomUUID();
   const now = new Date().toISOString();
   await db.query(
-    db.paramStyle === 'postgres'
-      ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-      : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+    'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
     [id, params.userId, params.cycleStartDate, 'INFERTILE_PRE', null, null, now]
   );
   return { id, startDate: params.cycleStartDate };
@@ -513,45 +505,25 @@ async function upsertNormalizedDay(db: Db, userId: string, d: NormalizedDay): Pr
   const now = new Date().toISOString();
   const id = sha256Hex(`${userId}:${d.date}`);
   await db.query(
-    db.paramStyle === 'postgres'
-      ? `insert into normalized_days
-          (id, user_id, date, cycle_start_date, cycle_day_index, has_log, bleeding, mucus_type, sensation, temperature, lh_test, sex, sleep_hours, illness, stress, notes, updated_at)
-         values
-          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-         on conflict (user_id, date) do update set
-          cycle_start_date=excluded.cycle_start_date,
-          cycle_day_index=excluded.cycle_day_index,
-          has_log=excluded.has_log,
-          bleeding=excluded.bleeding,
-          mucus_type=excluded.mucus_type,
-          sensation=excluded.sensation,
-          temperature=excluded.temperature,
-          lh_test=excluded.lh_test,
-          sex=excluded.sex,
-          sleep_hours=excluded.sleep_hours,
-          illness=excluded.illness,
-          stress=excluded.stress,
-          notes=excluded.notes,
-          updated_at=excluded.updated_at`
-      : `insert into normalized_days
-          (id, user_id, date, cycle_start_date, cycle_day_index, has_log, bleeding, mucus_type, sensation, temperature, lh_test, sex, sleep_hours, illness, stress, notes, updated_at)
-         values
-          (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-         on conflict(user_id, date) do update set
-          cycle_start_date=excluded.cycle_start_date,
-          cycle_day_index=excluded.cycle_day_index,
-          has_log=excluded.has_log,
-          bleeding=excluded.bleeding,
-          mucus_type=excluded.mucus_type,
-          sensation=excluded.sensation,
-          temperature=excluded.temperature,
-          lh_test=excluded.lh_test,
-          sex=excluded.sex,
-          sleep_hours=excluded.sleep_hours,
-          illness=excluded.illness,
-          stress=excluded.stress,
-          notes=excluded.notes,
-          updated_at=excluded.updated_at`,
+    `insert into normalized_days
+      (id, user_id, date, cycle_start_date, cycle_day_index, has_log, bleeding, mucus_type, sensation, temperature, lh_test, sex, sleep_hours, illness, stress, notes, updated_at)
+     values
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+     on conflict (user_id, date) do update set
+      cycle_start_date=excluded.cycle_start_date,
+      cycle_day_index=excluded.cycle_day_index,
+      has_log=excluded.has_log,
+      bleeding=excluded.bleeding,
+      mucus_type=excluded.mucus_type,
+      sensation=excluded.sensation,
+      temperature=excluded.temperature,
+      lh_test=excluded.lh_test,
+      sex=excluded.sex,
+      sleep_hours=excluded.sleep_hours,
+      illness=excluded.illness,
+      stress=excluded.stress,
+      notes=excluded.notes,
+      updated_at=excluded.updated_at`,
     [
       id,
       userId,
@@ -581,35 +553,20 @@ async function upsertDailyLogCompat(db: Db, userId: string, cycleId: string, d: 
   const now = new Date().toISOString();
   const logId = randomUUID();
   await db.query(
-    db.paramStyle === 'postgres'
-      ? `insert into daily_logs
-          (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-         values
-          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-         on conflict (user_id, date) do update set
-          cycle_id = excluded.cycle_id,
-          mucus_type = excluded.mucus_type,
-          sensation = excluded.sensation,
-          bleeding = excluded.bleeding,
-          temperature = excluded.temperature,
-          lh_test = excluded.lh_test,
-          sick = excluded.sick,
-          bad_sleep = excluded.bad_sleep,
-          alcohol = excluded.alcohol`
-      : `insert into daily_logs
-          (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-         values
-          (?,?,?,?,?,?,?,?,?,?,?,?,?)
-         on conflict(user_id, date) do update set
-          cycle_id=excluded.cycle_id,
-          mucus_type=excluded.mucus_type,
-          sensation=excluded.sensation,
-          bleeding=excluded.bleeding,
-          temperature=excluded.temperature,
-          lh_test=excluded.lh_test,
-          sick=excluded.sick,
-          bad_sleep=excluded.bad_sleep,
-          alcohol=excluded.alcohol`,
+    `insert into daily_logs
+      (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
+     values
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     on conflict (user_id, date) do update set
+      cycle_id = excluded.cycle_id,
+      mucus_type = excluded.mucus_type,
+      sensation = excluded.sensation,
+      bleeding = excluded.bleeding,
+      temperature = excluded.temperature,
+      lh_test = excluded.lh_test,
+      sick = excluded.sick,
+      bad_sleep = excluded.bad_sleep,
+      alcohol = excluded.alcohol`,
     [
       logId,
       userId,
@@ -630,9 +587,7 @@ async function upsertDailyLogCompat(db: Db, userId: string, cycleId: string, d: 
 
 async function getPersonalModel(db: Db, userId: string): Promise<{ meanLutealLength: number; meanCycleLength: number }> {
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select mean_luteal_length as "meanLutealLength" from user_personal_model where user_id=$1'
-      : 'select mean_luteal_length as meanLutealLength from user_personal_model where user_id=?',
+    'select mean_luteal_length as "meanLutealLength" from user_personal_model where user_id=$1',
     [userId]
   );
   const meanLutealLength = typeof rows[0]?.meanLutealLength === 'number' ? Number(rows[0].meanLutealLength) : 14;
@@ -777,21 +732,14 @@ async function storeEngineResult(db: Db, args: {
   const traceId = randomUUID();
   const now = new Date().toISOString();
   await db.query(
-    db.paramStyle === 'postgres'
-      ? `insert into engine_results
-          (id, user_id, cycle_id, cycle_start_date, as_of_date, engine_version, parameter_version, input_hash, output_json, created_at)
-         values
-          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-      : `insert into engine_results
-          (id, user_id, cycle_id, cycle_start_date, as_of_date, engine_version, parameter_version, input_hash, output_json, created_at)
-         values
-          (?,?,?,?,?,?,?,?,?,?)`,
+    `insert into engine_results
+      (id, user_id, cycle_id, cycle_start_date, as_of_date, engine_version, parameter_version, input_hash, output_json, created_at)
+     values
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [id, args.userId, args.cycleId, args.cycleStartDate, args.asOfDate, ENGINE_VERSION, PARAMETER_VERSION, args.inputHash, JSON.stringify(args.output), now]
   );
   await db.query(
-    db.paramStyle === 'postgres'
-      ? 'insert into engine_traces (id, engine_result_id, trace_json, created_at) values ($1,$2,$3,$4)'
-      : 'insert into engine_traces (id, engine_result_id, trace_json, created_at) values (?,?,?,?)',
+    'insert into engine_traces (id, engine_result_id, trace_json, created_at) values ($1,$2,$3,$4)',
     [traceId, id, JSON.stringify(args.trace ?? {}), now]
   );
   return { engineResultId: id };
@@ -799,9 +747,7 @@ async function storeEngineResult(db: Db, args: {
 
 export async function getLatestEngineResult(db: Db, params: { userId: string; cycleId: string; asOfDate: IsoDate }): Promise<EngineOutput | null> {
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select output_json as "outputJson", engine_version as "engineVersion" from engine_results where user_id=$1 and cycle_id=$2 and as_of_date=$3 order by created_at desc limit 1'
-      : 'select output_json as outputJson, engine_version as engineVersion from engine_results where user_id=? and cycle_id=? and as_of_date=? order by created_at desc limit 1',
+    'select output_json as "outputJson", engine_version as "engineVersion" from engine_results where user_id=$1 and cycle_id=$2 and as_of_date=$3 order by created_at desc limit 1',
     [params.userId, params.cycleId, params.asOfDate]
   );
   if (!rows[0]?.outputJson) return null;
@@ -877,9 +823,7 @@ export async function runEngineV2(
 
   // Update cycles compat fields (state/peak/temp shift)
   await db.query(
-    db.paramStyle === 'postgres'
-      ? 'update cycles set state=$1, peak_date=$2, temp_shift_confirmed_date=$3 where id=$4'
-      : 'update cycles set state=?, peak_date=?, temp_shift_confirmed_date=? where id=?',
+    'update cycles set state=$1, peak_date=$2, temp_shift_confirmed_date=$3 where id=$4',
     [built.derived.cycleState, built.derived.peakDate, built.derived.tempShiftConfirmedDate, cycleId]
   );
 

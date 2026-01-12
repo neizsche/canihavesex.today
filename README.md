@@ -20,7 +20,7 @@ Every screen shows the disclaimer:
 
 - Frontend: Astro (mobile-first minimal UI)
 - Backend: Node.js (Fastify) + TypeScript
-- DB: SQLite for dev (default), Postgres via `DATABASE_URL`
+- DB: PostgreSQL (required via `DATABASE_URL`)
 
 ## Repo layout
 
@@ -33,37 +33,43 @@ See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for deployment instructions using Rai
 
 ## Run locally
 
-1. Install deps (workspace root):
+See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for complete local development setup.
 
-```bash
-npm install
-```
+### Quick Start
 
-2. Create env file (copy example):
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-```bash
-cp .env.example .env
-```
+2. **Set up environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env and fill in your values (DATABASE_URL, GOOGLE_CLIENT_ID, etc.)
+   ```
 
-3. Run backend (with seed data):
+3. **Run backend**:
+   ```bash
+   npm run dev:backend
+   ```
+   Backend runs on `http://localhost:1299`
 
-```bash
-SEED=1 npm run dev -w apps/backend
-```
+4. **Run frontend** (in a new terminal):
+   ```bash
+   npm run dev:frontend
+   ```
+   Frontend runs on `http://localhost:3112`
 
-Backend runs on `http://127.0.0.1:1299`.
+5. **Or run both together**:
+   ```bash
+   npm run dev
+   ```
 
-4. Run frontend:
+### Important Notes
 
-```bash
-npm run dev -w apps/frontend
-```
-
-Frontend runs on `http://localhost:3112`.
-
-If you want the frontend to talk to a different backend URL, set:
-
-- `PUBLIC_BACKEND_BASE` (e.g. `http://127.0.0.1:1299`)
+- **PostgreSQL is required**: Set `DATABASE_URL` in `.env` (use Supabase Connection Pooling URL)
+- **OAuth setup**: Add `http://localhost:1299/api/auth/oauth/google/callback` to Google OAuth redirect URIs
+- **Environment variables**: See `.env.example` for all required variables
 
 ## API endpoints
 

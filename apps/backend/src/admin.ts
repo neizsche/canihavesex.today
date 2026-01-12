@@ -10,23 +10,17 @@ async function main() {
   const limit = Number(process.env.ADMIN_LIMIT ?? 25);
 
   const users = await db.query<{ id: string; email: string; created_at?: string; createdAt?: string }>(
-    db.paramStyle === 'postgres'
-      ? 'select id, email, created_at as "createdAt" from users order by created_at desc limit $1'
-      : 'select id, email, created_at as createdAt from users order by created_at desc limit ?',
+    'select id, email, created_at as "createdAt" from users order by created_at desc limit $1',
     [limit]
   );
 
   const cycles = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles order by created_at desc limit $1'
-      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles order by created_at desc limit ?',
+    'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles order by created_at desc limit $1',
     [limit]
   );
 
   const logs = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", cycle_id as "cycleId", date, mucus_type as "mucusType", sensation, bleeding, temperature, lh_test as "lhTest", created_at as "createdAt" from daily_logs order by date desc limit $1'
-      : 'select id, user_id as userId, cycle_id as cycleId, date, mucus_type as mucusType, sensation, bleeding, temperature, lh_test as lhTest, created_at as createdAt from daily_logs order by date desc limit ?',
+    'select id, user_id as "userId", cycle_id as "cycleId", date, mucus_type as "mucusType", sensation, bleeding, temperature, lh_test as "lhTest", created_at as "createdAt" from daily_logs order by date desc limit $1',
     [limit]
   );
 

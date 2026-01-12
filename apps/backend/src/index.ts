@@ -150,9 +150,7 @@ app.get('/api/admin/users', async (req, reply) => {
   if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
 
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select id, email, created_at as "createdAt" from users order by created_at desc limit 100'
-      : 'select id, email, created_at as createdAt from users order by created_at desc limit 100'
+    'select id, email, created_at as "createdAt" from users order by created_at desc limit 100'
   );
   return reply.send({ users: rows });
 });
@@ -163,9 +161,7 @@ app.get('/api/admin/cycles', async (req, reply) => {
   if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
 
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles order by created_at desc limit 200'
-      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles order by created_at desc limit 200'
+    'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles order by created_at desc limit 200'
   );
   return reply.send({ cycles: rows });
 });
@@ -179,9 +175,7 @@ app.get('/api/admin/logs', async (req, reply) => {
   const limit = Math.max(1, Math.min(500, Number(limitRaw ?? 50)));
 
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", cycle_id as "cycleId", date, mucus_type as "mucusType", sensation, bleeding, temperature, lh_test as "lhTest", created_at as "createdAt" from daily_logs order by date desc limit $1'
-      : 'select id, user_id as userId, cycle_id as cycleId, date, mucus_type as mucusType, sensation, bleeding, temperature, lh_test as lhTest, created_at as createdAt from daily_logs order by date desc limit ?',
+    'select id, user_id as "userId", cycle_id as "cycleId", date, mucus_type as "mucusType", sensation, bleeding, temperature, lh_test as "lhTest", created_at as "createdAt" from daily_logs order by date desc limit $1',
     [limit]
   );
   return reply.send({ logs: rows });
@@ -430,25 +424,21 @@ function oauthRedirectUri(provider: OauthProvider, req: any): string {
 async function ensureUserForEmail(email: string): Promise<string> {
   const now = new Date().toISOString();
   const existing = await db.query<{ id: string }>(
-    db.paramStyle === 'postgres' ? 'select id from users where email = $1' : 'select id from users where email = ?',
+    'select id from users where email = $1',
     [email]
   );
   const userId = existing[0]?.id ?? randomUUID();
 
   if (!existing[0]) {
     await db.query(
-      db.paramStyle === 'postgres'
-        ? 'insert into users (id, email, created_at) values ($1, $2, $3)'
-        : 'insert into users (id, email, created_at) values (?, ?, ?)',
+      'insert into users (id, email, created_at) values ($1, $2, $3)',
       [userId, email, now]
     );
 
     const cycleId = randomUUID();
     const startDate = now.slice(0, 10);
     await db.query(
-      db.paramStyle === 'postgres'
-        ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-        : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+      'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
       [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
     );
   }
@@ -464,9 +454,7 @@ async function linkIdentity(params: {
   const now = new Date().toISOString();
 
   const existing = await db.query<{ user_id: string }>(
-    db.paramStyle === 'postgres'
-      ? 'select user_id as "user_id" from user_identities where provider = $1 and provider_user_id = $2'
-      : 'select user_id as user_id from user_identities where provider = ? and provider_user_id = ?',
+    'select user_id as "user_id" from user_identities where provider = $1 and provider_user_id = $2',
     [params.provider, params.providerUserId]
   );
 
@@ -475,9 +463,7 @@ async function linkIdentity(params: {
   const userId = await ensureUserForEmail(params.email);
   const identityId = randomUUID();
   await db.query(
-    db.paramStyle === 'postgres'
-      ? 'insert into user_identities (id, user_id, provider, provider_user_id, email, created_at) values ($1,$2,$3,$4,$5,$6)'
-      : 'insert into user_identities (id, user_id, provider, provider_user_id, email, created_at) values (?,?,?,?,?,?)',
+    'insert into user_identities (id, user_id, provider, provider_user_id, email, created_at) values ($1,$2,$3,$4,$5,$6)',
     [identityId, userId, params.provider, params.providerUserId, params.email, now]
   );
   return userId;
@@ -648,7 +634,7 @@ app.get('/api/session', async (req, reply) => {
   const userId = (req as any).userId as string | undefined;
   if (!userId) return reply.send({ userId: null, email: null });
   const rows = await db.query<any>(
-    db.paramStyle === 'postgres' ? 'select email from users where id=$1 limit 1' : 'select email from users where id=? limit 1',
+    'select email from users where id=$1 limit 1',
     [userId]
   );
   const email = rows[0]?.email ? String(rows[0].email) : null;
@@ -657,9 +643,7 @@ app.get('/api/session', async (req, reply) => {
 
 async function getCycleForDate(db: Db, userId: string, isoDate: string): Promise<Cycle | null> {
   const rows = await db.query<Cycle>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 and start_date <= $2 order by start_date desc, created_at desc limit 1'
-      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? and start_date <= ? order by start_date desc, created_at desc limit 1',
+    'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 and start_date <= $2 order by start_date desc, created_at desc limit 1',
     [userId, isoDate]
   );
   return rows[0] ?? null;
@@ -667,9 +651,7 @@ async function getCycleForDate(db: Db, userId: string, isoDate: string): Promise
 
 async function getCycleStartingOn(db: Db, userId: string, isoDate: string): Promise<Cycle | null> {
   const rows = await db.query<Cycle>(
-    db.paramStyle === 'postgres'
-      ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 and start_date = $2 order by created_at desc limit 1'
-      : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? and start_date = ? order by created_at desc limit 1',
+    'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 and start_date = $2 order by created_at desc limit 1',
     [userId, isoDate]
   );
   return rows[0] ?? null;
@@ -681,9 +663,7 @@ async function ensureCycleStartingOn(db: Db, userId: string, isoDate: string): P
   const now = new Date().toISOString();
   const cycleId = randomUUID();
   await db.query(
-    db.paramStyle === 'postgres'
-      ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-      : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+    'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
     [cycleId, userId, isoDate, 'INFERTILE_PRE', null, null, now]
   );
   return {
@@ -833,9 +813,7 @@ app.get('/api/chart', async (req, reply) => {
       const cycleId = engine.output.cycle_id;
 
       const cycleRows = await db.query<any>(
-        db.paramStyle === 'postgres'
-          ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where id=$1 limit 1'
-          : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where id=? limit 1',
+        'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where id=$1 limit 1',
         [cycleId]
       );
       const cycle = (cycleRows[0] as Cycle) ?? (await getCurrentCycle(db, userId));
@@ -910,9 +888,7 @@ app.post('/api/reset-cycle', async (req, reply) => {
 
     try {
       await db.query(
-        db.paramStyle === 'postgres'
-          ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-          : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+        'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
         [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
       );
 
@@ -939,24 +915,10 @@ app.post('/api/delete-all-data', async (req, reply) => {
 
     try {
       // Delete in correct order to maintain referential integrity
-      await db.query(
-        db.paramStyle === 'postgres' ? 'delete from daily_logs where user_id=$1' : 'delete from daily_logs where user_id=?',
-        [userId]
-      );
-      await db.query(
-        db.paramStyle === 'postgres' ? 'delete from cycles where user_id=$1' : 'delete from cycles where user_id=?',
-        [userId]
-      );
-      await db.query(
-        db.paramStyle === 'postgres'
-          ? 'delete from user_identities where user_id=$1'
-          : 'delete from user_identities where user_id=?',
-        [userId]
-      );
-      await db.query(
-        db.paramStyle === 'postgres' ? 'delete from users where id=$1' : 'delete from users where id=?',
-        [userId]
-      );
+      await db.query('delete from daily_logs where user_id=$1', [userId]);
+      await db.query('delete from cycles where user_id=$1', [userId]);
+      await db.query('delete from user_identities where user_id=$1', [userId]);
+      await db.query('delete from users where id=$1', [userId]);
 
       req.log.warn({ route: '/api/delete-all-data', userId }, 'all user data deleted');
       return reply.send({ ok: true });
@@ -985,9 +947,7 @@ try {
 async function getCurrentCycle(db: Db, userId: string): Promise<Cycle> {
   try {
     const rows = await db.query<Cycle>(
-      db.paramStyle === 'postgres'
-        ? 'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 order by start_date desc, created_at desc limit 1'
-        : 'select id, user_id as userId, start_date as startDate, state, peak_date as peakDate, temp_shift_confirmed_date as tempShiftConfirmedDate, created_at as createdAt from cycles where user_id = ? order by start_date desc, created_at desc limit 1',
+      'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where user_id = $1 order by start_date desc, created_at desc limit 1',
       [userId]
     );
     if (!rows[0]) {
@@ -997,9 +957,7 @@ async function getCurrentCycle(db: Db, userId: string): Promise<Cycle> {
       const cycleId = randomUUID();
 
       await db.query(
-        db.paramStyle === 'postgres'
-          ? 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)'
-          : 'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values (?,?,?,?,?,?,?)',
+        'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
         [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
       );
 
@@ -1026,41 +984,23 @@ async function getLogsInCycle(
 ): Promise<DailyLog[]> {
   try {
     const rows = await db.query<any>(
-      db.paramStyle === 'postgres'
-        ? `select
-            id,
-            user_id as "userId",
-            cycle_id as "cycleId",
-            date,
-            mucus_type as "mucusType",
-            sensation,
-            bleeding,
-            temperature,
-            lh_test as "lhTest",
-            sick,
-            bad_sleep as "badSleep",
-            alcohol,
-            created_at as "createdAt"
-           from daily_logs
-           where user_id = $1 and cycle_id = $2
-           order by date asc`
-        : `select
-            id,
-            user_id as userId,
-            cycle_id as cycleId,
-            date,
-            mucus_type as mucusType,
-            sensation,
-            bleeding,
-            temperature,
-            lh_test as lhTest,
-            sick,
-            bad_sleep as badSleep,
-            alcohol,
-            created_at as createdAt
-           from daily_logs
-           where user_id = ? and cycle_id = ?
-           order by date asc`,
+      `select
+        id,
+        user_id as "userId",
+        cycle_id as "cycleId",
+        date,
+        mucus_type as "mucusType",
+        sensation,
+        bleeding,
+        temperature,
+        lh_test as "lhTest",
+        sick,
+        bad_sleep as "badSleep",
+        alcohol,
+        created_at as "createdAt"
+       from daily_logs
+       where user_id = $1 and cycle_id = $2
+       order by date asc`,
       [userId, cycleId]
     );
 
