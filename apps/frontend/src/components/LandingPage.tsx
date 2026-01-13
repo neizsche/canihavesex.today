@@ -169,10 +169,10 @@ export function LandingPage() {
                   <TableRow key={f.name} className="border-stone-100">
                     <TableCell className="py-3 md:py-4 pl-4 md:pl-8 text-stone-600 font-medium text-xs md:text-base">{f.name}</TableCell>
                     <TableCell className="text-center px-2">
-                      <Check className="h-4 w-4 md:h-5 md:w-5 text-green-500 mx-auto" strokeWidth={3} />
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-red-600 mx-auto" strokeWidth={3} />
                     </TableCell>
                     <TableCell className="text-center px-2">
-                      <Check className="h-4 w-4 md:h-5 md:w-5 text-green-500 mx-auto" strokeWidth={3} />
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-red-600 mx-auto" strokeWidth={3} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -183,7 +183,7 @@ export function LandingPage() {
                       <Minus className="h-3 w-3 md:h-4 md:w-4 text-stone-200 mx-auto" />
                     </TableCell>
                     <TableCell className="text-center px-2">
-                      <Check className="h-4 w-4 md:h-5 md:w-5 text-stone-900 mx-auto" strokeWidth={2} />
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-stone-400 mx-auto" strokeWidth={2} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -195,7 +195,7 @@ export function LandingPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm font-semibold"
+                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm font-semibold border-red-600 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
                       onClick={openAuth}
                     >
                       Start free
@@ -211,12 +211,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Footer & Disclaimer */}
-      <footer className="px-6 py-8 border-t border-stone-100 text-center bg-white">
-        <div className="max-w-md mx-auto">
-          {/* Footer content removed per user request */}
-        </div>
-      </footer>
     </div>
   );
 }

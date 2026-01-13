@@ -9,7 +9,7 @@ import '@fontsource/outfit/600.css';
 import '@fontsource/outfit/700.css';
 import '@fontsource/outfit/800.css';
 import '../styles/globals.css';
-import { SITE_TITLE, APP_DESCRIPTION, APP_KEYWORDS, FOOTER_NOTE, BRAND, CONTACT_EMAIL } from '../lib/siteConfig';
+import { SITE_TITLE, APP_DESCRIPTION, APP_KEYWORDS, BRAND, CONTACT_EMAIL } from '../lib/siteConfig';
 ---
 
 <!doctype html>
@@ -66,9 +66,6 @@ import { SITE_TITLE, APP_DESCRIPTION, APP_KEYWORDS, FOOTER_NOTE, BRAND, CONTACT_
             <a href="/terms" class="hover:text-gray-900 transition-colors">Terms</a>
             <a href={`mailto:${CONTACT_EMAIL}`} class="hover:text-gray-900 transition-colors">Contact</a>
           </div>
-        </div>
-        <div class="mt-8 pt-6 border-t border-gray-50 text-center">
-            <p class="text-xs text-gray-400">{FOOTER_NOTE}</p>
         </div>
       </div>
     </footer>
