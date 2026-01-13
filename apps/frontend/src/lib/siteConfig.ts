@@ -19,7 +19,8 @@ export const HERO = {
         HIGHLIGHT: "fertility awareness",
         AFTER: " app."
     },
-    DESCRIPTION: "Log your cycle. See today’s status. That’s it."
+    DESCRIPTION: "Log your cycle. See today’s status. That’s it.",
+    PRIVACY_NOTE: "Your data stays yours. No tracking. No ads."
 };
 
 export const LEGAL_TITLES = {

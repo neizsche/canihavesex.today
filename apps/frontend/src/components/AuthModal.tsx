@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { X, ShieldCheck } from 'lucide-react';
 
 import { Button } from './ui/button';
 import { getApiBase } from '../lib/api';
+import { BRAND, HERO } from '../lib/siteConfig';
 
 type StatusTone = 'muted' | 'danger';
 
@@ -49,32 +50,40 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl border border-gray-100 relative">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl border border-stone-100 relative overflow-hidden">
+
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="absolute right-4 top-4 h-8 w-8 p-0 text-gray-400 hover:text-gray-900 hover:bg-transparent transition-colors"
+          className="absolute right-4 top-4 h-8 w-8 p-0 text-stone-300 hover:text-stone-900 hover:bg-stone-50 transition-colors rounded-full"
           onClick={onClose}
         >
           <X className="h-5 w-5" />
         </Button>
 
-        <div className="text-center space-y-6 pt-2">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
-              Welcome back
-            </h2>
-            <p className="mt-2 text-stone-500">
-              Sign in to continue
-            </p>
+        <div className="text-center space-y-8">
+          <div className="flex flex-col items-center gap-4">
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="w-16 h-16 mix-blend-multiply"
+            />
+            <div>
+              <div className="text-xl font-outfit tracking-tighter text-slate-950 mb-1">
+                {BRAND.PREFIX}<span className="text-red-600 font-extrabold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
+              </div>
+              <p className="mt-2 text-stone-500 font-medium">
+                {HERO.SUBTITLE.BEFORE}{HERO.SUBTITLE.HIGHLIGHT}{HERO.SUBTITLE.AFTER}
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4">
             <Button
               type="button"
-              className="w-full h-12 text-base font-medium bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"
+              className="w-full h-12 text-base font-medium bg-white text-gray-900 border border-stone-200 hover:bg-stone-50 hover:border-stone-300 shadow-sm transition-all rounded-full"
               onClick={() => {
                 setBusy(true);
                 setStatus('');
@@ -92,18 +101,18 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
             </Button>
           </div>
 
-          <p className="text-xs text-stone-400 max-w-xs mx-auto leading-relaxed">
-            By continuing, you agree to our{' '}
-            <a href="/terms" className="text-stone-600 hover:text-stone-900 underline underline-offset-2">Terms</a>
-            {' '}and{' '}
-            <a href="/privacy" className="text-stone-600 hover:text-stone-900 underline underline-offset-2">Privacy Policy</a>.
-          </p>
+          <div className="bg-stone-50/50 rounded-2xl p-4 border border-stone-100 flex items-start gap-3 text-left">
+            <ShieldCheck className="h-5 w-5 text-stone-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-stone-500 leading-relaxed font-medium">
+              {HERO.PRIVACY_NOTE}
+            </p>
+          </div>
 
           {status ? (
             <div
               className={
                 statusTone === 'danger'
-                  ? 'text-sm text-red-600 bg-red-50 p-3 rounded-md'
+                  ? 'text-sm text-red-600 bg-red-50 p-3 rounded-xl'
                   : 'text-sm text-stone-500'
               }
               role="status"

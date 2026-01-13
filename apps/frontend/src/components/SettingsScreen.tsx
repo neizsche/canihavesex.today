@@ -57,7 +57,7 @@ export function SettingsScreen() {
     try {
       const res = await apiFetch('/reset-cycle', { method: 'POST' });
       if (res.status === 401) {
-        location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
+        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
       }
       setStatusTone(res.ok ? 'ok' : 'danger');
@@ -78,7 +78,7 @@ export function SettingsScreen() {
     try {
       const res = await apiFetch('/delete-all-data', { method: 'POST' });
       if (res.status === 401) {
-        location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
+        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
       }
       setStatusTone(res.ok ? 'ok' : 'danger');
@@ -139,7 +139,7 @@ export function SettingsScreen() {
 
           {sessionState !== 'signedIn' ? (
             <Button asChild className="h-11" disabled={busy}>
-              <a href={`/auth?returnTo=${encodeURIComponent(currentReturnTo())}`}>
+              <a href={`/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`}>
                 <LogIn className="mr-2 h-4 w-4" />
                 Sign in
               </a>

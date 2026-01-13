@@ -37,7 +37,7 @@ function SignedInRoutes(props: { route: RouteKey }) {
 
 function redirectToAuth(): void {
   const rt = currentReturnTo();
-  window.location.href = `/auth?returnTo=${encodeURIComponent(rt)}`;
+  window.location.href = `/?openAuth=true&returnTo=${encodeURIComponent(rt)}`;
 }
 
 function SessionGate(props: { children: React.ReactNode }) {

@@ -17,7 +17,7 @@ export function AppPageGuard({ children }: AppPageGuardProps) {
         if (!cancelled) {
           setIsAuthenticated(auth);
           if (!auth) {
-            window.location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
+            window.location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
           }
         }
       } catch {

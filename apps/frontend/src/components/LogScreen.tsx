@@ -80,7 +80,7 @@ export function LogScreen() {
 
       if (res.status === 401) {
         setStatusTone('danger');
-        location.href = `/auth?returnTo=${encodeURIComponent(currentReturnTo())}`;
+        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
         setBusy(false);
         return;
       }
@@ -424,13 +424,12 @@ export function LogScreen() {
                   {statusTone === 'ok' && <CheckCircle className="h-4 w-4 text-green-600" />}
                   {statusTone === 'danger' && <AlertCircle className="h-4 w-4 text-red-600" />}
                   <span
-                    className={`text-sm ${
-                      statusTone === 'danger'
+                    className={`text-sm ${statusTone === 'danger'
                         ? 'text-red-600'
                         : statusTone === 'ok'
                           ? 'text-green-600'
                           : 'text-muted-foreground'
-                    }`}
+                      }`}
                     role="status"
                   >
                     {status}

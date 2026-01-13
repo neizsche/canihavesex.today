@@ -6,6 +6,12 @@ export function LandingHeader() {
     const [authOpen, setAuthOpen] = React.useState(false);
 
     React.useEffect(() => {
+        // Auto-open modal if directed with openAuth=true
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('openAuth') === 'true') {
+            setAuthOpen(true);
+        }
+
         const handleAuthOpen = () => setAuthOpen(true);
         window.addEventListener('auth:open', handleAuthOpen);
         return () => window.removeEventListener('auth:open', handleAuthOpen);
