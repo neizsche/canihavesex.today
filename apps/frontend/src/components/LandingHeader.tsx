@@ -35,7 +35,7 @@ export function LandingHeader() {
                         onClick={() => setAuthOpen(true)}
                         className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-slate-700 text-white text-xs md:text-sm font-semibold rounded hover:bg-slate-800 transition-colors shrink-0 shadow-sm"
                     >
-                        Log in
+                        Sign in
                     </button>
                 </div>
             </header>

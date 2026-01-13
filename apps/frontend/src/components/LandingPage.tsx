@@ -62,7 +62,7 @@ export function LandingPage() {
           {HERO.DESCRIPTION}
         </p>
 
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-8">
           <Button
             size="lg"
             className="h-12 px-8 text-base font-medium rounded-full bg-stone-900 text-white hover:bg-stone-800 transition-all shadow-sm hover:shadow-md"
@@ -70,6 +70,23 @@ export function LandingPage() {
           >
             Start tracking
           </Button>
+
+          <div className="flex flex-wrap justify-center items-center gap-x-5 gap-y-3 text-xs md:text-sm font-medium text-stone-400">
+            <span className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-600" strokeWidth={3} />
+              Free by default.
+            </span>
+            <div className="hidden md:block w-1 h-1 rounded-full bg-stone-200" />
+            <span className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-600" strokeWidth={3} />
+              No ads.
+            </span>
+            <div className="hidden md:block w-1 h-1 rounded-full bg-stone-200" />
+            <span className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-600" strokeWidth={3} />
+              No tracking.
+            </span>
+          </div>
         </div>
       </section>
 
