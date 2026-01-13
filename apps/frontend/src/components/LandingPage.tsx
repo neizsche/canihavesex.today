@@ -50,12 +50,12 @@ export function LandingPage() {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-stone-200">
 
       {/* Hero */}
-      <section className="px-6 pt-32 pb-24 md:pt-48 md:pb-32 text-center max-w-2xl mx-auto">
-        <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-gray-900 mb-6">
+      <section className="px-6 pt-32 pb-24 md:pt-48 md:pb-32 text-center max-w-4xl mx-auto">
+        <h1 className="text-5xl md:text-8xl font-bold tracking-tight text-slate-950 mb-8 leading-[1.05] bg-clip-text text-transparent bg-gradient-to-b from-slate-950 to-slate-700">
           Clarity for your intimate decisions.
         </h1>
-        <p className="text-xl md:text-2xl text-gray-600 mb-8 font-medium">
-          A simple fertility awareness app.
+        <p className="text-xl md:text-2xl text-slate-600 mb-8 font-medium tracking-tight">
+          A simple <span className="text-red-600">fertility awareness</span> app.
         </p>
         <p className="text-lg md:text-xl text-gray-500 mb-12 font-normal leading-relaxed">
           Log your cycle. See today’s status. That’s it.
@@ -158,45 +158,50 @@ export function LandingPage() {
             <Table>
               <TableHeader className="bg-stone-50/50">
                 <TableRow className="hover:bg-transparent border-stone-100">
-                  <TableHead className="py-6 pl-8 text-sm font-medium uppercase tracking-wider text-stone-400 w-1/2">Features</TableHead>
-                  <TableHead className="py-6 text-center text-gray-900 font-semibold">Free</TableHead>
-                  <TableHead className="py-6 text-center text-gray-900 font-semibold italic">Pro</TableHead>
+                  <TableHead className="py-4 md:py-6 pl-4 md:pl-8 text-[10px] md:text-sm font-medium uppercase tracking-wider text-stone-400 w-1/2">Features</TableHead>
+                  <TableHead className="py-4 md:py-6 text-center text-gray-900 font-semibold text-sm md:text-base">Free</TableHead>
+                  <TableHead className="py-4 md:py-6 text-center text-gray-900 font-semibold text-sm md:text-base italic">Pro</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {coreFeatures.map((f) => (
                   <TableRow key={f.name} className="border-stone-100">
-                    <TableCell className="py-4 pl-8 text-stone-600 font-medium text-sm md:text-base">{f.name}</TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-5 w-5 text-green-500 mx-auto" strokeWidth={3} />
+                    <TableCell className="py-3 md:py-4 pl-4 md:pl-8 text-stone-600 font-medium text-xs md:text-base">{f.name}</TableCell>
+                    <TableCell className="text-center px-2">
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-green-500 mx-auto" strokeWidth={3} />
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-5 w-5 text-green-500 mx-auto" strokeWidth={3} />
+                    <TableCell className="text-center px-2">
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-green-500 mx-auto" strokeWidth={3} />
                     </TableCell>
                   </TableRow>
                 ))}
                 {premiumFeatures.map((f) => (
                   <TableRow key={f.name} className="border-stone-100">
-                    <TableCell className="py-4 pl-8 text-stone-600 font-medium text-sm md:text-base">{f.name}</TableCell>
-                    <TableCell className="text-center">
-                      <Minus className="h-4 w-4 text-stone-200 mx-auto" />
+                    <TableCell className="py-3 md:py-4 pl-4 md:pl-8 text-stone-600 font-medium text-xs md:text-base">{f.name}</TableCell>
+                    <TableCell className="text-center px-2">
+                      <Minus className="h-3 w-3 md:h-4 md:w-4 text-stone-200 mx-auto" />
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-5 w-5 text-stone-900 mx-auto" strokeWidth={2} />
+                    <TableCell className="text-center px-2">
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-stone-900 mx-auto" strokeWidth={2} />
                     </TableCell>
                   </TableRow>
                 ))}
 
                 {/* CTA Row */}
                 <TableRow className="hover:bg-transparent border-none">
-                  <TableCell className="py-8 pl-8"></TableCell>
-                  <TableCell className="py-8 px-4 text-center">
-                    <Button variant="outline" size="sm" className="rounded-full px-6" onClick={openAuth}>
+                  <TableCell className="py-6 md:py-8 pl-4 md:pl-8"></TableCell>
+                  <TableCell className="py-6 md:py-8 px-2 text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm border-red-600 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors font-semibold"
+                      onClick={openAuth}
+                    >
                       Start free
                     </Button>
                   </TableCell>
-                  <TableCell className="py-8 px-4 text-center">
-                    <span className="text-xs text-stone-400 font-semibold uppercase tracking-widest">Soon</span>
+                  <TableCell className="py-6 md:py-8 px-2 text-center">
+                    <span className="text-[10px] md:text-xs text-stone-400 font-semibold uppercase tracking-widest">Soon</span>
                   </TableCell>
                 </TableRow>
               </TableBody>

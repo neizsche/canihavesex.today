@@ -20,6 +20,7 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title ?? 'Today'}</title>
     <meta name="theme-color" content="#0b0b0f" />
+    <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       (() => {
@@ -45,7 +46,7 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     {showBranding ? (
       <header class="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div class={`mx-auto flex ${maxWidthClass} items-center justify-between px-4 py-3`}>
-          <a href={brandHref} class="text-sm font-semibold tracking-tight text-foreground">canihavesex.today</a>
+          <a href={brandHref} class="text-sm font-semibold tracking-tight text-foreground">canihave<span class="text-red-600 font-bold">sex</span>.today</a>
           <div class="text-xs text-muted-foreground">Informational only</div>
         </div>
       </header>

@@ -12,14 +12,21 @@ export function LandingHeader() {
 
     return (
         <>
-            <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md transition-all">
-                <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-                    <a href="/" className="text-base font-medium tracking-wide text-gray-900 hover:text-gray-600 transition-colors">
-                        can i have sex today
+            <header className="sticky top-0 z-50 border-b border-gray-100 bg-white transition-all">
+                <div className="mx-auto flex max-w-5xl items-center justify-between px-4 md:px-6 py-4 md:py-6">
+                    <a href="/" className="flex items-center gap-2 md:gap-4 group">
+                        <img
+                            src="/logo.png"
+                            alt="Logo"
+                            className="w-12 md:w-16 group-hover:scale-105 transition-transform duration-200 mix-blend-multiply"
+                        />
+                        <span className="text-xl md:text-2xl tracking-tighter text-slate-950 group-hover:text-slate-800 transition-colors font-outfit">
+                            canihave<span className="text-red-600 font-extrabold font-outfit">sex</span>.today
+                        </span>
                     </a>
                     <button
                         onClick={() => setAuthOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 text-white text-sm font-normal rounded hover:bg-slate-800 transition-colors"
+                        className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-slate-700 text-white text-xs md:text-sm font-semibold rounded hover:bg-slate-800 transition-colors shrink-0 shadow-sm"
                     >
                         Log in
                     </button>
