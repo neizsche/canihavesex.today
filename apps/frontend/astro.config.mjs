@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
+import sitemap from '@astrojs/sitemap';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +40,8 @@ const frontendPort = Number(env.FRONTEND_PORT || 3000);
 const frontendPreviewPort = Number(env.FRONTEND_PREVIEW_PORT || frontendPort);
 
 export default defineConfig({
-  integrations: [react()],
+  site: 'https://canihavesex.today',
+  integrations: [react(), sitemap()],
   devToolbar: {
     enabled: false,
   },

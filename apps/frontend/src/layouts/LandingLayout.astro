@@ -16,9 +16,33 @@ import '../styles/globals.css';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title ? `${title} | Daily Fertility Made Simple` : 'Daily Fertility Made Simple'}</title>
+    
+    <!-- Primary Meta Tags -->
+    <title>{title ? `${title} | Daily Fertility Made Simple` : 'canihavesex.today | Daily Fertility Made Simple'}</title>
+    <meta name="title" content={title ? `${title} | canihavesex.today` : 'canihavesex.today | Daily Fertility Made Simple'} />
+    <meta name="description" content="A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy." />
+    <meta name="keywords" content="fertility awareness, symptothermal method, cycle tracking, ovulation tracker, private fertility app, canihavesex.today" />
+    <meta name="author" content="canihavesex.today" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://canihavesex.today/" />
+    <meta property="og:title" content={title ? `${title} | canihavesex.today` : 'canihavesex.today | Daily Fertility Made Simple'} />
+    <meta property="og:description" content="A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy." />
+    <meta property="og:image" content="https://canihavesex.today/logo.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://canihavesex.today/" />
+    <meta property="twitter:title" content={title ? `${title} | canihavesex.today` : 'canihavesex.today | Daily Fertility Made Simple'} />
+    <meta property="twitter:description" content="A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy." />
+    <meta property="twitter:image" content="https://canihavesex.today/logo.png" />
+
+    <!-- Theme & Icons -->
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="canonical" href="https://canihavesex.today/" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
   </head>
   <body class="bg-white text-gray-900 font-sans">
     <!-- Header -->

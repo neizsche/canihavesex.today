@@ -55,7 +55,7 @@ export function LandingPage() {
           Clarity for your intimate decisions.
         </h1>
         <p className="text-xl md:text-2xl text-slate-600 mb-8 font-medium tracking-tight">
-          A simple <span className="text-red-600">fertility awareness</span> app.
+          A simple fertility awareness app.
         </p>
         <p className="text-lg md:text-xl text-gray-500 mb-12 font-normal leading-relaxed">
           Log your cycle. See today’s status. That’s it.
@@ -194,7 +194,7 @@ export function LandingPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm border-red-600 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors font-semibold"
+                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm font-semibold"
                       onClick={openAuth}
                     >
                       Start free
