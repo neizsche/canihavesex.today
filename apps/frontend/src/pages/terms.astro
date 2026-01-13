@@ -1,5 +1,6 @@
 ---
 import LandingLayout from '../layouts/LandingLayout.astro';
+import { BRAND, CONTACT_EMAIL } from '../lib/siteConfig';
 ---
 
 <LandingLayout title="Terms">
@@ -12,7 +13,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
 
       <section>
         <h2 class="text-2xl font-semibold text-gray-900 mb-4">What this tool is</h2>
-        <p>canihave<span class="text-red-600 font-bold">sex</span>.today is an informational tool to help you understand your fertility based on the data you enter.</p>
+        <p>{BRAND.PREFIX}<span class="text-red-600 font-bold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX} is an informational tool to help you understand your fertility based on the data you enter.</p>
       </section>
 
       <section>

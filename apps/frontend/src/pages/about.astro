@@ -1,5 +1,6 @@
 ---
 import LandingLayout from '../layouts/LandingLayout.astro';
+import { BRAND } from '../lib/siteConfig';
 ---
 
 <LandingLayout title="About">
@@ -8,7 +9,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
     
     <div class="prose prose-lg text-gray-600 space-y-8 leading-relaxed">
       <p>
-        canihave<span class="text-red-600 font-bold">sex</span>.today is a small, independent tool for fertility awareness.
+        {BRAND.PREFIX}<span class="text-red-600 font-bold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX} is a small, independent tool for fertility awareness.
       </p>
 
       <p>
@@ -42,7 +43,7 @@ import LandingLayout from '../layouts/LandingLayout.astro';
       </p>
 
       <p class="pt-8 border-t border-gray-100 mt-12">
-        canihave<span class="text-red-600 font-bold">sex</span>.today is built and maintained by a small independent team.
+        {BRAND.PREFIX}<span class="text-red-600 font-bold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX} is built and maintained by a small independent team.
       </p>
     </div>
   </div>

@@ -9,6 +9,7 @@ import '@fontsource/outfit/600.css';
 import '@fontsource/outfit/700.css';
 import '@fontsource/outfit/800.css';
 import '../styles/globals.css';
+import { SITE_TITLE, APP_DESCRIPTION, APP_KEYWORDS, FOOTER_NOTE, BRAND, CONTACT_EMAIL } from '../lib/siteConfig';
 ---
 
 <!doctype html>
@@ -18,25 +19,25 @@ import '../styles/globals.css';
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     
     <!-- Primary Meta Tags -->
-    <title>{title ? `${title} | Daily Fertility Made Simple` : 'canihavesex.today | Daily Fertility Made Simple'}</title>
-    <meta name="title" content={title ? `${title} | canihavesex.today` : 'canihavesex.today | Daily Fertility Made Simple'} />
-    <meta name="description" content="A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy." />
-    <meta name="keywords" content="fertility awareness, symptothermal method, cycle tracking, ovulation tracker, private fertility app, canihavesex.today" />
-    <meta name="author" content="canihavesex.today" />
+    <title>{SITE_TITLE}</title>
+    <meta name="title" content={SITE_TITLE} />
+    <meta name="description" content={APP_DESCRIPTION} />
+    <meta name="keywords" content={APP_KEYWORDS} />
+    <meta name="author" content={BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX} />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://canihavesex.today/" />
-    <meta property="og:title" content={title ? `${title} | canihavesex.today` : 'canihavesex.today | Daily Fertility Made Simple'} />
-    <meta property="og:description" content="A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy." />
-    <meta property="og:image" content="https://canihavesex.today/logo.png" />
+    <meta property="og:url" content={"https://" + BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX + "/"} />
+    <meta property="og:title" content={SITE_TITLE} />
+    <meta property="og:description" content={APP_DESCRIPTION} />
+    <meta property="og:image" content={"https://" + BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX + "/logo.png"} />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://canihavesex.today/" />
-    <meta property="twitter:title" content={title ? `${title} | canihavesex.today` : 'canihavesex.today | Daily Fertility Made Simple'} />
-    <meta property="twitter:description" content="A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy." />
-    <meta property="twitter:image" content="https://canihavesex.today/logo.png" />
+    <meta property="twitter:url" content={"https://" + BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX + "/"} />
+    <meta property="twitter:title" content={SITE_TITLE} />
+    <meta property="twitter:description" content={APP_DESCRIPTION} />
+    <meta property="twitter:image" content={"https://" + BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX + "/logo.png"} />
 
     <!-- Theme & Icons -->
     <meta name="theme-color" content="#ffffff" />
@@ -45,14 +46,14 @@ import '../styles/globals.css';
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="canonical" href="https://canihavesex.today/" />
+    <link rel="canonical" href={"https://" + BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX + "/"} />
     <link rel="sitemap" href="/sitemap-index.xml" />
   </head>
-  <body class="bg-white text-gray-900 font-sans">
+  <body class="bg-white text-gray-900 font-sans flex flex-col min-h-screen">
     <!-- Header -->
     <LandingHeader client:load />
 
-    <main>
+    <main class="flex-grow">
       <slot />
     </main>
 
@@ -63,11 +64,11 @@ import '../styles/globals.css';
             <a href="/about" class="hover:text-gray-900 transition-colors">About</a>
             <a href="/privacy" class="hover:text-gray-900 transition-colors">Privacy</a>
             <a href="/terms" class="hover:text-gray-900 transition-colors">Terms</a>
-            <a href="mailto:support@canihavesex.today" class="hover:text-gray-900 transition-colors">Contact</a>
+            <a href={`mailto:${CONTACT_EMAIL}`} class="hover:text-gray-900 transition-colors">Contact</a>
           </div>
         </div>
         <div class="mt-8 pt-6 border-t border-gray-50 text-center">
-            <p class="text-xs text-gray-400">Built with care for your privacy.</p>
+            <p class="text-xs text-gray-400">{FOOTER_NOTE}</p>
         </div>
       </div>
     </footer>

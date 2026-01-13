@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Trash2, RotateCcw, LogIn, LogOut, Sun, Moon } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { BRAND, CONTACT_EMAIL, LEGAL_TITLES } from '../lib/siteConfig';
 
 import { apiFetch, currentReturnTo } from '../lib/api';
 import { Button } from './ui/button';
@@ -230,20 +231,19 @@ export function SettingsScreen() {
         </CardHeader>
         <CardContent className="space-y-2">
           <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('about')} disabled={busy}>
-            About
+            {LEGAL_TITLES.ABOUT}
           </Button>
           <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('privacy')} disabled={busy}>
-            Privacy
+            {LEGAL_TITLES.PRIVACY}
           </Button>
           <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('terms')} disabled={busy}>
-            Terms
+            {LEGAL_TITLES.TERMS}
           </Button>
-
           <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('how')} disabled={busy}>
-            How this works
+            {LEGAL_TITLES.HOW}
           </Button>
           <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('limits')} disabled={busy}>
-            What this app can and can’t do
+            {LEGAL_TITLES.LIMITS}
           </Button>
           <Button
             type="button"
@@ -252,7 +252,7 @@ export function SettingsScreen() {
             onClick={() => openAbout('disclaimer')}
             disabled={busy}
           >
-            Medical disclaimer
+            {LEGAL_TITLES.DISCLAIMER}
           </Button>
         </CardContent>
       </Card>
@@ -268,16 +268,16 @@ export function SettingsScreen() {
               <div className="text-sm text-muted-foreground">About & legal</div>
               <div className="text-base font-semibold">
                 {aboutView === 'about'
-                  ? 'About'
+                  ? LEGAL_TITLES.ABOUT
                   : aboutView === 'privacy'
-                    ? 'Privacy'
+                    ? LEGAL_TITLES.PRIVACY
                     : aboutView === 'terms'
-                      ? 'Terms'
+                      ? LEGAL_TITLES.TERMS
                       : aboutView === 'how'
-                        ? 'How this works'
+                        ? LEGAL_TITLES.HOW
                         : aboutView === 'limits'
-                          ? 'What this app can and can’t do'
-                          : 'Medical disclaimer'}
+                          ? LEGAL_TITLES.LIMITS
+                          : LEGAL_TITLES.DISCLAIMER}
               </div>
             </div>
             <Button type="button" variant="outline" className="h-9" onClick={closeAbout}>
@@ -290,7 +290,7 @@ export function SettingsScreen() {
               <>
                 <p className="text-foreground">We don’t guess. We read your body.</p>
                 <p>
-                  canihavesex.today is a signal-based fertility awareness tool. It summarizes your logged observations and
+                  {BRAND.PREFIX}<span className="text-red-500 font-bold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX} is a signal-based fertility awareness tool. It summarizes your logged observations and
                   stays conservative.
                 </p>
                 <ul className="list-disc space-y-1 pl-5">
@@ -300,8 +300,8 @@ export function SettingsScreen() {
                 </ul>
                 <p>
                   Contact:{' '}
-                  <a href="mailto:support@canihavesex.today" className="underline underline-offset-4">
-                    support@canihavesex.today
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="underline underline-offset-4">
+                    {CONTACT_EMAIL}
                   </a>
                 </p>
               </>

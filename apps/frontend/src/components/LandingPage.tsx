@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Button } from './ui/button';
 import { checkAuth } from '../lib/api';
 import { AuthModal } from './AuthModal';
+import { HERO } from '../lib/siteConfig';
 import { Shield, Feather, CheckCircle, Check, Minus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
@@ -52,13 +53,13 @@ export function LandingPage() {
       {/* Hero */}
       <section className="px-6 pt-32 pb-24 md:pt-48 md:pb-32 text-center max-w-4xl mx-auto">
         <h1 className="text-5xl md:text-8xl font-bold tracking-tight text-slate-950 mb-8 leading-[1.05] bg-clip-text text-transparent bg-gradient-to-b from-slate-950 to-slate-700">
-          Clarity for your intimate decisions.
+          {HERO.TITLE}
         </h1>
         <p className="text-xl md:text-2xl text-slate-600 mb-8 font-medium tracking-tight">
-          A simple fertility awareness app.
+          {HERO.SUBTITLE.BEFORE}<span className="text-red-600">{HERO.SUBTITLE.HIGHLIGHT}</span>{HERO.SUBTITLE.AFTER}
         </p>
         <p className="text-lg md:text-xl text-gray-500 mb-12 font-normal leading-relaxed">
-          Log your cycle. See today’s status. That’s it.
+          {HERO.DESCRIPTION}
         </p>
 
         <div className="flex justify-center">

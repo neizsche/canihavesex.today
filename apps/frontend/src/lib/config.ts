@@ -1,7 +1,4 @@
-/**
- * Frontend Configuration
- * Environment variables and app settings
- */
+import { APP_NAME } from './siteConfig';
 
 export const config = {
   // Backend API
@@ -22,7 +19,7 @@ export const config = {
   })(),
 
   // App settings
-  appName: 'Can I Have Sex Today',
+  appName: APP_NAME,
   appBase: (() => {
     const env = import.meta.env as any;
     return env.PUBLIC_APP_BASE || 'https://canihavesex.today';

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { AuthModal } from './AuthModal';
+import { BRAND } from '../lib/siteConfig';
 
 export function LandingHeader() {
     const [authOpen, setAuthOpen] = React.useState(false);
@@ -21,7 +22,7 @@ export function LandingHeader() {
                             className="w-12 md:w-16 group-hover:scale-105 transition-transform duration-200 mix-blend-multiply"
                         />
                         <span className="text-xl md:text-2xl tracking-tighter text-slate-950 group-hover:text-slate-800 transition-colors font-outfit">
-                            canihave<span className="text-red-600 font-extrabold font-outfit">sex</span>.today
+                            {BRAND.PREFIX}<span className="text-red-600 font-extrabold font-outfit">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
                         </span>
                     </a>
                     <button
