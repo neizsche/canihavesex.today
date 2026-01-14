@@ -5,11 +5,12 @@ export type Db = {
   paramStyle: 'postgres';
   query<T = any>(sql: string, params?: any[]): Promise<T[]>;
   exec(sql: string): Promise<void>;
+  transaction<T>(callback: (txDb: Db) => Promise<T>): Promise<T>;
 };
 
 export async function createDb(): Promise<Db> {
   const url = process.env.DATABASE_URL;
-  
+
   if (!url) {
     throw new Error(
       'DATABASE_URL is required. ' +
@@ -95,5 +96,45 @@ export async function createDb(): Promise<Db> {
         client.release();
       }
     },
+    async transaction<T>(callback: (txDb: Db) => Promise<T>): Promise<T> {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const txDb: Db = {
+          kind: 'postgres',
+          paramStyle: 'postgres',
+          async query<R>(sql: string, params: any[] = []) {
+            const res = await client.query(sql, params);
+            return res.rows as R[];
+          },
+          async exec(sql: string) {
+            await client.query(sql);
+          },
+          async transaction<R>(cb: (nestedTx: Db) => Promise<R>): Promise<R> {
+            // Support nested transactions via SAVEPOINT
+            const savepointId = `sp_${Math.random().toString(36).substring(2, 9)}`;
+            await client.query(`SAVEPOINT ${savepointId}`);
+            try {
+              const result = await cb(this);
+              await client.query(`RELEASE SAVEPOINT ${savepointId}`);
+              return result;
+            } catch (err) {
+              await client.query(`ROLLBACK TO SAVEPOINT ${savepointId}`);
+              throw err;
+            }
+          }
+        };
+
+        const result = await callback(txDb);
+        await client.query('COMMIT');
+        return result;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
   };
 }

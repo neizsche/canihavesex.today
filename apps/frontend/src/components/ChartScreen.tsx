@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Calendar as CalendarIcon, TrendingUp, Info, AlertTriangle, ChevronDown, Clock } from 'lucide-react';
-import { addDays, format, isAfter, isBefore, parseISO, startOfDay, startOfWeek, subWeeks } from 'date-fns';
+import { addDays, format, isAfter, isBefore, parseISO, startOfDay } from 'date-fns';
+import { useCalendarGrid } from './hooks/useCalendarGrid';
 import { useQuery } from '@tanstack/react-query';
 
 import { apiJson, fertilityPct, type Risk, riskBadgeVariant } from '../lib/api';
@@ -92,9 +93,7 @@ export function ChartScreen() {
           </CardHeader>
           <CardContent className="space-y-4">
             {(() => {
-              const today = startOfDay(new Date());
-              const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-              const start = subWeeks(weekStart, 4);
+              const { days, today, start } = useCalendarGrid();
               const cycleStart = parseISO(data.cycle.startDate);
               const todayIso = format(today, 'yyyy-MM-dd');
               const windowStart =
@@ -113,36 +112,6 @@ export function ChartScreen() {
 
               const loggedByDate = new Map<string, ChartDay>();
               for (const d of data.days) loggedByDate.set(d.date, d);
-
-              const days: (Date | null)[] = [];
-              let currentDate = new Date(start);
-
-              // Generate days with month boundary logic
-              while (days.length < 35 && currentDate <= today) {
-                const currentMonth = currentDate.getMonth();
-                const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-
-                // If we're at the start of a new month and not the first month, add empty cells to align to next row
-                if (days.length > 0 && currentMonth !== start.getMonth() && currentDate.getDay() !== 1) {
-                  const daysToNextWeek = (8 - currentDate.getDay()) % 7 || 7;
-                  for (let i = 0; i < daysToNextWeek - 1 && days.length < 35; i++) {
-                    days.push(null); // Empty cell for month break
-                  }
-                }
-
-                // Add the days of the current week
-                const weekDays = [];
-                for (let i = 0; i < 7; i++) {
-                  const weekDay = addDays(currentWeekStart, i);
-                  if (weekDay <= today && days.length < 35) {
-                    days.push(weekDay);
-                    currentDate = addDays(weekDay, 1);
-                  }
-                }
-
-                // Move to next week
-                currentDate = addDays(currentWeekStart, 7);
-              }
 
               const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 

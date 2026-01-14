@@ -2,8 +2,22 @@ import { randomUUID, createHash } from 'node:crypto';
 import type { LogRepository, RawLog } from './repositories/LogRepository.js';
 import type { EngineRepository, EngineResult, EngineTrace } from './repositories/EngineRepository.js';
 import type { CycleRepository } from './repositories/CycleRepository.js';
-import { fertilityIndexForLog } from './fertilityEngine.js';
 import { run_engine as runCihsEngine, type Day as CihsDay, type Personal as CihsPersonal, explain_state as explainCihsState } from './cihsEngine.js';
+import type { DailyLog } from './types.js';
+
+export function fertilityIndexForLog(log: Pick<DailyLog, 'mucusType' | 'sensation'>): number {
+  const mucusBase: Record<DailyLog['mucusType'], number> = {
+    dry: 0,
+    sticky: 2,
+    creamy: 4,
+    watery: 6,
+    eggwhite: 8,
+  };
+
+  let idx = mucusBase[log.mucusType];
+  if (log.sensation === 'slippery') idx = Math.max(idx, 7);
+  return idx;
+}
 
 type IsoDate = string; // yyyy-mm-dd
 

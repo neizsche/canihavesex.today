@@ -2,7 +2,7 @@ import * as React from 'react';
 import { CalendarDays, Droplets, Save, Thermometer, TestTube2, Heart, Moon, AlertCircle, ChevronDown, CheckCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { apiFetch, apiJson, currentReturnTo } from '../lib/api';
+import { apiFetch, apiJson, currentReturnTo, UnauthorizedError } from '../lib/api';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
@@ -74,31 +74,16 @@ export function LogScreen() {
     };
 
     try {
-      const res = await apiFetch('/api/log-day', {
+      const data = await apiJson<any>('/api/log-day', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (res.status === 401) {
-        setStatusTone('danger');
-        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
-        setBusy(false);
-        return;
-      }
-
-      if (!res.ok) {
-        setStatusTone('danger');
-        setStatus('Save failed.');
-        setBusy(false);
-        return;
-      }
-
       // ✨ Invalidate queries to trigger automatic refetch on Today and Chart screens
       await queryClient.invalidateQueries({ queryKey: ['chart'] });
 
       // Direct cache update from valid response payload (0-latency transition)
-      const data = await res.json();
       if (data.today) {
         queryClient.setQueryData(['today'], data.today);
       } else {
@@ -116,9 +101,14 @@ export function LogScreen() {
       } else {
         window.location.href = '/app#/today';
       }
-    } catch {
-      setStatusTone('danger');
-      setStatus('Network error.');
+    } catch (err: any) {
+      if (err instanceof UnauthorizedError || err?.status === 401) {
+        setStatusTone('danger');
+        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
+      } else {
+        setStatusTone('danger');
+        setStatus('Network error.');
+      }
       setBusy(false);
     }
   }
