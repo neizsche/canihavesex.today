@@ -179,4 +179,12 @@ Return:
 - `LOW` only if:
   - `cycleState == INFERTILE_POST`
 
-Safety rule: if anything is uncertain, the engine defaults to **fertile** (never false safety).
+
+## Contributing
+
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for details on how to contribute to this project.
+
+## License
+
+All rights reserved.
+

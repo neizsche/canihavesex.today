@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "seed:perfect": "tsx src/seedPerfect.ts"
+    "seed:perfect": "tsx src/seedPerfect.ts",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@fastify/cookie": "^10.0.0",
@@ -19,7 +21,13 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "pino-pretty": "^13.0.0",
+    "prettier": "^3.7.4",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
