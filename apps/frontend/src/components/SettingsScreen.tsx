@@ -55,7 +55,7 @@ export function SettingsScreen() {
     setStatusTone('muted');
     setStatus('Resetting…');
     try {
-      const res = await apiFetch('/reset-cycle', { method: 'POST' });
+      const res = await apiFetch('/api/reset-cycle', { method: 'POST' });
       if (res.status === 401) {
         location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
@@ -76,7 +76,7 @@ export function SettingsScreen() {
     setStatusTone('muted');
     setStatus('Deleting…');
     try {
-      const res = await apiFetch('/delete-all-data', { method: 'POST' });
+      const res = await apiFetch('/api/delete-all-data', { method: 'POST' });
       if (res.status === 401) {
         location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
         return;
@@ -96,7 +96,7 @@ export function SettingsScreen() {
     setStatusTone('muted');
     setStatus('Signing out…');
     try {
-      const res = await apiFetch('/logout', { method: 'POST' });
+      const res = await apiFetch('/api/logout', { method: 'POST' });
       setStatusTone(res.ok ? 'ok' : 'danger');
       setStatus(res.ok ? 'Signed out.' : 'Sign out failed.');
       setBusy(false);

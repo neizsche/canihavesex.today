@@ -1,7 +1,5 @@
 import * as React from 'react';
 import { Button } from './ui/button';
-import { checkAuth } from '../lib/api';
-import { AuthModal } from './AuthModal';
 import { HERO } from '../lib/siteConfig';
 import { Shield, Feather, CheckCircle, Check, Minus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -22,27 +20,6 @@ const premiumFeatures = [
 ];
 
 export function LandingPage() {
-  React.useEffect(() => {
-    let cancelled = false;
-
-    async function check() {
-      try {
-        const isAuthenticated = await checkAuth();
-        if (!cancelled && isAuthenticated) {
-          window.location.href = '/app#/today';
-        }
-      } catch {
-        // Ignore - stay on landing page
-      }
-    }
-
-    void check();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const openAuth = () => {
     window.dispatchEvent(new CustomEvent('auth:open'));
   };

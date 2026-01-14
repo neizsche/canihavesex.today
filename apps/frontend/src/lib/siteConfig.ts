@@ -1,6 +1,6 @@
 export const SITE_TITLE = "Daily Fertility Made Simple";
 export const APP_NAME = "Can I Have Sex Today";
-export const APP_DESCRIPTION = "A simple, private fertility awareness app. Log your cycle, see today's status, and understand your fertility with clarity and privacy.";
+export const APP_DESCRIPTION = "A simple, private fertility awareness app.";
 export const APP_KEYWORDS = "fertility awareness, symptothermal method, cycle tracking, ovulation tracker, private fertility app, canihavesex.today";
 
 export const BRAND = {

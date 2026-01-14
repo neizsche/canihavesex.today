@@ -28,16 +28,16 @@ const app = Fastify({
     level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
     ...(shouldPrettyLog
       ? {
-          transport: {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'SYS:standard',
-              ignore: 'pid,hostname',
-              singleLine: true,
-            },
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname',
+            singleLine: true,
           },
-        }
+        },
+      }
       : {}),
   },
   disableRequestLogging: true,
@@ -209,7 +209,8 @@ app.addHook('preHandler', async (req, reply) => {
     req.url.startsWith('/api/') &&
     !req.url.startsWith('/api/auth/oauth/') &&
     !req.url.startsWith('/api/admin/') &&
-    req.url !== '/api/logout'
+    req.url !== '/api/logout' &&
+    req.url !== '/api/session/check'
   ) {
     const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
     const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;
@@ -572,12 +573,12 @@ app.get('/api/auth/oauth/:provider/callback', async (req, reply) => {
     const userId = await linkIdentity({ provider: 'google', providerUserId: sub, email });
     reply.clearCookie('oauth_state', { path: '/' });
     reply.clearCookie('oauth_return_to', { path: '/' });
-    
+
     // Support cross-domain cookies when frontend and backend are on different domains
     // Set COOKIE_SAMESITE=none for cross-domain, or leave unset/default to 'lax' for same-domain
     const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
     const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
-    
+
     reply.setCookie('uid', userId, {
       path: '/',
       httpOnly: true,
@@ -639,6 +640,30 @@ app.get('/api/session', async (req, reply) => {
   );
   const email = rows[0]?.email ? String(rows[0].email) : null;
   return reply.send({ userId, email });
+});
+
+// Unauthenticated session check endpoint
+// Returns whether the current request has a valid session without requiring auth
+app.get('/api/session/check', async (req, reply) => {
+  const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
+  const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;
+
+  if (!uid) {
+    return reply.send({ authenticated: false });
+  }
+
+  // Verify the user still exists in the database
+  try {
+    const rows = await db.query<any>(
+      'select id from users where id=$1 limit 1',
+      [uid]
+    );
+    const authenticated = rows.length > 0;
+    return reply.send({ authenticated });
+  } catch (error) {
+    req.log.error({ error, userId: uid }, 'session check database error');
+    return reply.send({ authenticated: false });
+  }
 });
 
 async function getCycleForDate(db: Db, userId: string, isoDate: string): Promise<Cycle | null> {

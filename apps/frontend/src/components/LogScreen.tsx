@@ -72,7 +72,7 @@ export function LogScreen() {
     };
 
     try {
-      const res = await apiFetch('/log-day', {
+      const res = await apiFetch('/api/log-day', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
@@ -425,10 +425,10 @@ export function LogScreen() {
                   {statusTone === 'danger' && <AlertCircle className="h-4 w-4 text-red-600" />}
                   <span
                     className={`text-sm ${statusTone === 'danger'
-                        ? 'text-red-600'
-                        : statusTone === 'ok'
-                          ? 'text-green-600'
-                          : 'text-muted-foreground'
+                      ? 'text-red-600'
+                      : statusTone === 'ok'
+                        ? 'text-green-600'
+                        : 'text-muted-foreground'
                       }`}
                     role="status"
                   >

@@ -41,38 +41,52 @@ This guide helps you set up local development while your production app is deplo
 
 ## Step 3: Set Up Environment Variables
 
-1. Copy the example environment file:
+The app uses environment-specific configuration files:
+- **`.env.development`** - Auto-loaded in development mode
+- **`.env.production`** - Template for production (set in hosting platform)
+- **`.env`** - Your local secrets (overrides environment files)
+
+### Setup Instructions
+
+1. Copy the example file to create your local secrets file:
    ```bash
    cp .env.example .env
    ```
 
-2. Edit `.env` and fill in your values:
+2. Edit `.env` and add your secrets:
+   ```bash
+   # OAuth credentials (from Step 2)
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   
+   # Security (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+   COOKIE_SECRET=your_very_long_random_secret_minimum_32_characters
+   
+   # Optional: Admin token for /api/admin endpoints
+   # ADMIN_TOKEN=your_admin_token_here
+   
+   # Optional: Override any development defaults from .env.development
+   # DATABASE_URL=postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+   ```
 
-```bash
-# Database (from Step 1)
-DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+3. **That's it!** The `.env.development` file already has all the development configuration:
+   - Local URLs (localhost:3112 for frontend, localhost:1299 for backend)
+   - Debug logging enabled
+   - SQLite database for quick local testing
+   
+   You only need to add your secrets to `.env`.
 
-# OAuth (from Step 2)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+### Environment File Loading
 
-# Security (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-COOKIE_SECRET=your_very_long_random_secret_minimum_32_characters
+The app automatically loads the correct configuration based on `NODE_ENV`:
 
-# Frontend URL (for CORS)
-FRONTEND_URL=http://localhost:3112
-
-# Public URLs (for OAuth redirects)
-PUBLIC_BACKEND_BASE=http://localhost:1299
-PUBLIC_APP_BASE=http://localhost:3112
-
-# Environment
-NODE_ENV=development
-
-# Optional: Logging
-LOG_LEVEL=debug
-PRETTY_LOGS=1
 ```
+NODE_ENV=development → loads .env.development, then .env
+NODE_ENV=production  → loads .env.production, then .env
+```
+
+Platform env vars always take precedence over file-based config.
+
 
 ## Step 4: Install Dependencies
 
@@ -95,10 +109,13 @@ npm run dev
 
 The backend will:
 - Start on `http://localhost:1299`
-- Load environment variables from `.env` file
-- Connect to your PostgreSQL database
+- **Auto-load `.env.development`** (confirmed in console)
+- Load your secrets from `.env` file
+- Connect to your PostgreSQL database (or SQLite if not configured)
 - Run database migrations automatically
 - Enable hot-reload with `tsx watch`
+- Show "🚀 Backend starting in DEVELOPMENT mode" in the console
+
 
 ## Step 6: Run Frontend Locally
 
@@ -114,8 +131,10 @@ npm run dev
 
 The frontend will:
 - Start on `http://localhost:3112`
-- Connect to local backend at `http://localhost:1299` (default)
+- Connect to local backend at `http://localhost:1299` (from `.env.development`)
 - Enable hot-reload
+- Show "🎨 Frontend running in DEVELOPMENT mode" in browser console
+
 
 ## Step 7: Run Both Together
 
@@ -166,30 +185,40 @@ This creates a test user with perfect cycle data for testing.
 
 ## Environment Variables Reference
 
-### Required for Backend
+### Environment File Structure
 
-- `DATABASE_URL` - PostgreSQL connection string
+- **`.env.development`** - Development defaults (auto-loaded, committed to git)
+- **`.env.production`** - Production template (not used locally, reference only)
+- **`.env`** - Your local secrets (never committed, overrides above files)
+
+### Required Secrets (add to `.env`)
+
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret  
 - `COOKIE_SECRET` - Random 32+ character string for cookie signing
 
-### Optional for Backend
+### Development Defaults (from `.env.development`)
 
-- `PORT` - Backend port (default: 1299)
-- `HOST` - Backend host (default: 0.0.0.0)
-- `LOG_LEVEL` - Logging level (default: debug in dev)
-- `PRETTY_LOGS` - Enable pretty logging (default: 1 in dev)
-- `ADMIN_TOKEN` - Admin access token
-- `FRONTEND_URL` - Frontend URL for CORS (default: http://localhost:3112)
-- `PUBLIC_BACKEND_BASE` - Public backend URL (default: http://localhost:1299)
-- `PUBLIC_APP_BASE` - Public app URL (default: http://localhost:3112)
+These are pre-configured for local development:
+
+- `NODE_ENV=development`
+- `PUBLIC_BACKEND_BASE=http://localhost:1299`
+- `PUBLIC_APP_BASE=http://localhost:3112`
+- `FRONTEND_URL=http://localhost:3112`
+- `BACKEND_PORT=1299`
+- `FRONTEND_PORT=3112`
+- `LOG_LEVEL=debug`
+- `PRETTY_LOGS=1`
+- `SQLITE_PATH=dev.db`
+
+You can override any of these in your local `.env` file if needed.
 
 ### Frontend Environment Variables
 
-The frontend reads from `.env` file in the repo root. Variables prefixed with `PUBLIC_` are available in the browser:
+Frontend variables must be prefixed with `PUBLIC_` to be available in the browser:
 
-- `PUBLIC_BACKEND_BASE` - Backend API URL (default: http://localhost:1299 in dev)
-- `PUBLIC_APP_BASE` - App base URL (default: http://localhost:3112)
+- `PUBLIC_BACKEND_BASE` - Backend API URL
+- `PUBLIC_APP_BASE` - App base URL
 
 ## Troubleshooting
 
@@ -232,21 +261,29 @@ The frontend reads from `.env` file in the repo root. Variables prefixed with `P
 4. **Check logs**: Backend logs show database queries and errors
 5. **Hot reload**: Both frontend and backend support hot reload
 
-## Switching Between Local and Production
+## Switching Between Environments
 
-### Working Locally
+The app automatically switches based on `NODE_ENV`:
+
+### Development (Local)
+```bash
+NODE_ENV=development  # Auto-loads .env.development
+```
 - Backend: `http://localhost:1299`
 - Frontend: `http://localhost:3112`
-- Database: Your Supabase dev database
+- Database: SQLite (`dev.db`) or PostgreSQL if configured
+- Logging: Debug level, pretty printed
 
-### Testing Production
-- Backend: Railway deployment
-- Frontend: Vercel deployment
-- Database: Production Supabase database
+### Production (Deployed)
+```bash
+NODE_ENV=production  # Auto-loads .env.production
+```
+- Backend: Railway deployment (e.g., `https://api.canihavesex.today`)
+- Frontend: Vercel deployment (e.g., `https://canihavesex.today`)
+- Database: Production PostgreSQL
+- Logging: Info level, JSON format
 
-You can switch by:
-- **Local**: Use `.env` file with localhost URLs
-- **Production**: Deploy to Railway/Vercel with production environment variables
+**No manual toggling needed!** Just set `NODE_ENV` and the correct config loads automatically.
 
 ## Next Steps
 

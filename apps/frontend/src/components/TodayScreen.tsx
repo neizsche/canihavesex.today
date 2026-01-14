@@ -99,12 +99,12 @@ function keyReasons(analytics: NonNullable<TodayData['analytics']>): string[] {
 export function TodayScreen() {
   const todayQuery = useQuery({
     queryKey: ['today'],
-    queryFn: () => apiJson<TodayData>('/today'),
+    queryFn: () => apiJson<TodayData>('/api/today'),
   });
 
   const chartQuery = useQuery({
     queryKey: ['chart'],
-    queryFn: () => apiJson<ChartData>('/chart'),
+    queryFn: () => apiJson<ChartData>('/api/chart'),
     enabled: todayQuery.isSuccess,
   });
 
@@ -113,11 +113,11 @@ export function TodayScreen() {
     todayQuery.data ??
     (todayQuery.isError
       ? {
-          date: new Date().toISOString().slice(0, 10),
-          risk: 'HIGH',
-          explanation: 'Network error — cannot determine risk. Assume fertile.',
-          disclaimer: '',
-        }
+        date: new Date().toISOString().slice(0, 10),
+        risk: 'HIGH',
+        explanation: 'Network error — cannot determine risk. Assume fertile.',
+        disclaimer: '',
+      }
       : { date: new Date().toISOString().slice(0, 10), risk: 'HIGH', explanation: '', disclaimer: '' });
 
   const chart = chartQuery.isError ? null : chartQuery.data ?? null;

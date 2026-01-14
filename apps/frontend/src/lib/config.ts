@@ -11,8 +11,8 @@ export const config = {
       if (import.meta.env.DEV) {
         return 'http://localhost:1299';
       }
-      // Default to /api (proxied through Vercel to Railway)
-      return '/api';
+      // Default to empty string - paths already include /api/, and Vercel proxies /api/* to Railway
+      return '';
     }
 
     return String(base).replace(/\/$/, '');
@@ -37,3 +37,10 @@ export const config = {
 } as const;
 
 export type Config = typeof config;
+
+// Log environment information in development
+if (config.isDevelopment) {
+  console.log('🎨 Frontend running in DEVELOPMENT mode');
+  console.log(`   Frontend URL: ${config.appBase}`);
+  console.log(`   Backend URL: ${config.backendBase}`);
+}

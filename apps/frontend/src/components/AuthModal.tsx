@@ -21,7 +21,7 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
   const apiBase = React.useMemo(() => getApiBase(), []);
 
   function startGoogleOauth() {
-    const url = `${apiBase}/auth/oauth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
+    const url = `${apiBase}/api/auth/oauth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
     location.href = url;
   }
 
@@ -29,19 +29,27 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
     if (!isOpen) return;
 
     let cancelled = false;
-    async function probe() {
+    async function checkSession() {
       try {
-        const res = await fetch(`${apiBase}/session`, { credentials: 'include' });
+        // Check session without auth requirement
+        const res = await fetch(`${apiBase}/api/session/check`, { credentials: 'include' });
         if (cancelled) return;
-        if (res.status !== 401) {
-          onClose();
-          location.href = returnTo;
+
+        // If we get a successful response and user is authenticated, redirect to app
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            onClose();
+            location.href = returnTo;
+          }
         }
-      } catch {
-        // ignore
+        // If not authenticated (401 or authenticated: false), stay on modal to show login
+      } catch (err) {
+        // Network error or backend unavailable - stay on modal
+        console.warn('Session check failed:', err);
       }
     }
-    void probe();
+    void checkSession();
     return () => {
       cancelled = true;
     };

@@ -20,21 +20,38 @@ function parseAndMergeDotenv(raw: string) {
 }
 
 /**
- * Loads a single repo-root `.env` file (if present).
+ * Loads environment variables from repo-root `.env` files.
  *
- * This keeps configuration unified for the monorepo, while still allowing
- * platform-provided env vars to win.
+ * Loading order (later files override earlier ones):
+ * 1. .env.{NODE_ENV} (e.g., .env.development or .env.production)
+ * 2. .env (generic fallback for local overrides)
+ *
+ * Platform-provided env vars always take precedence over file-based config.
  */
 export function loadEnv() {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
 
   // apps/backend/src -> repo root
-  const repoEnvPath = path.resolve(__dirname, '..', '..', '..', '.env');
-  if (!fs.existsSync(repoEnvPath)) return;
+  const repoRoot = path.resolve(__dirname, '..', '..', '..');
 
-  const raw = fs.readFileSync(repoEnvPath, 'utf8');
-  parseAndMergeDotenv(raw);
+  // Determine environment
+  const nodeEnv = process.env.NODE_ENV || 'development';
+
+  // Load environment-specific file first (.env.development or .env.production)
+  const envSpecificPath = path.join(repoRoot, `.env.${nodeEnv}`);
+  if (fs.existsSync(envSpecificPath)) {
+    const raw = fs.readFileSync(envSpecificPath, 'utf8');
+    parseAndMergeDotenv(raw);
+    console.log(`✓ Loaded environment config from .env.${nodeEnv}`);
+  }
+
+  // Load generic .env as fallback/override
+  const genericEnvPath = path.join(repoRoot, '.env');
+  if (fs.existsSync(genericEnvPath)) {
+    const raw = fs.readFileSync(genericEnvPath, 'utf8');
+    parseAndMergeDotenv(raw);
+  }
 
   // Convenience aliases to keep a single naming convention in the monorepo env.
   // (Backend code uses PORT/HOST; allow BACKEND_PORT/BACKEND_HOST too.)
@@ -43,6 +60,12 @@ export function loadEnv() {
   }
   if ((!process.env.HOST || process.env.HOST === '') && process.env.BACKEND_HOST) {
     process.env.HOST = process.env.BACKEND_HOST;
+  }
+
+  // Log environment info
+  console.log(`🚀 Backend starting in ${nodeEnv.toUpperCase()} mode`);
+  if (process.env.PUBLIC_BACKEND_BASE) {
+    console.log(`   Backend URL: ${process.env.PUBLIC_BACKEND_BASE}`);
   }
 }
 
