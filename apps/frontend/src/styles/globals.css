@@ -4,82 +4,153 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    --background: #f2f2f7;
+    /* App-wide background color */
+    --foreground: #000000;
+    /* Default text and icon color */
 
     --color-risk-high: #C94A4A;
+    /* High fertility risk accent */
     --color-risk-medium: #C28B1E;
+    /* Medium fertility risk accent */
     --color-risk-low: #3F8F5F;
-    --color-bg: #ffffff;
-    --color-text-primary: #111827;
-    --color-text-muted: #6B7280;
+    /* Low fertility risk accent */
+    --color-bg: #f2f2f7;
+    /* Legacy/fallback background */
+    --color-text-primary: #000000;
+    /* Primary text */
+    --color-text-muted: #636366;
+    /* De-emphasized text */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card: #ffffff;
+    /* Card/Section background */
+    --card-foreground: #000000;
+    /* Text inside cards */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover: #ffffff;
+    /* Modal/Sheet background */
+    --popover-foreground: #000000;
+    /* Text inside popovers */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: #f2f2f7;
+    /* Subtle element background */
+    --muted-foreground: #636366;
+    /* Metadata/Placeholder text */
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 47.4% 11.2%;
+    --border: transparent;
+    /* No visible outer border (Inset Grouped) */
+    --input: #e5e5ea;
+    /* Form input border */
+    --ring: #007AFF;
+    /* Apple Blue focus accent */
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: #000000;
+    /* Brand primary action color */
+    --primary-foreground: #ffffff;
+    /* Text on primary actions */
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: #f2f2f7;
+    /* Secondary button background */
+    --secondary-foreground: #000000;
+    /* Text on secondary actions */
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: #ff3b30;
+    /* Destructive action color */
+    --destructive-foreground: #ffffff;
+    /* Text on destructive actions */
 
     --radius: 14px;
+    /* Core UI rounding radius */
 
-    /* Risk tones (muted) */
-    --risk-high: 0 72% 45%;
-    --risk-high-bg: 0 72% 96%;
-    --risk-medium: 36 92% 40%;
-    --risk-medium-bg: 36 92% 95%;
-    --risk-low: 142 71% 35%;
-    --risk-low-bg: 142 71% 95%;
+    /* Fertility Risk Tones */
+    --risk-high: #c62121;
+    --risk-high-bg: #fef2f2;
+    --risk-medium: #c47c0b;
+    --risk-medium-bg: #fffbeb;
+    --risk-low: #166534;
+    --risk-low-bg: #f0fdf4;
+
+    /* Viewport Scaling Defaults (Medium) */
+    --scale-factor: 1;
+    --row-h: 3rem;
+    --inset-gap: 1.25rem;
+    --font-scale: 1;
+    --vh-offset: 0px;
+  }
+
+  /* Small Screen Scaling - More aggressive for tight layouts */
+  [data-scale="small"] {
+    --scale-factor: 0.85;
+    --row-h: 2.5rem;
+    --inset-gap: 0.5rem;
+    --font-scale: 0.9;
+    --radius: 12px;
+  }
+
+  /* Large Screen Scaling - More generous spacing */
+  [data-scale="large"] {
+    --scale-factor: 1.15;
+    --row-h: 3.5rem;
+    --inset-gap: 2rem;
+    --font-scale: 1.1;
+  }
+
+  @media (max-height: 720px) {
+    :root {
+      --radius: 12px;
+    }
   }
 
   .dark {
-    --background: 222.2 47.4% 6.5%;
-    --foreground: 210 40% 98%;
+    --background: #000000;
+    /* Dark mode app background */
+    --foreground: #FFFFFF;
+    /* Primary text color */
 
-    --card: 222.2 47.4% 9%;
-    --card-foreground: 210 40% 98%;
+    --card: #1C1C1E;
+    /* Section/Card background */
+    --card-foreground: #FFFFFF;
+    /* Text on sections/cards */
 
-    --popover: 222.2 47.4% 9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: #2C2C2E;
+    /* Modal/Sheet background */
+    --popover-foreground: #FFFFFF;
+    /* Text on popovers */
 
-    --muted: 217.2 32.6% 14%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: #1C1C1E;
+    /* Subtle element background */
+    --muted-foreground: #8E8E93;
+    /* Secondary label color */
 
-    --border: 217.2 32.6% 18%;
-    --input: 217.2 32.6% 18%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: transparent;
+    /* No visible outer border (Inset Grouped) */
+    --input: #38383A;
+    /* Form field border */
+    --ring: #0A84FF;
+    /* System blue focus accent */
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: #FFFFFF;
+    /* Primary action background */
+    --primary-foreground: #000000;
+    /* Primary action text */
 
-    --secondary: 217.2 32.6% 14%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: #1C1C1E;
+    /* Secondary action background */
+    --secondary-foreground: #FFFFFF;
+    /* Secondary action text */
 
-    --destructive: 0 62% 42%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: #FF453A;
+    /* System red (Dark Mode) */
+    --destructive-foreground: #FFFFFF;
+    /* Destructive text */
 
-    /* Risk tones (muted) */
-    --risk-high: 0 72% 60%;
-    --risk-high-bg: 0 35% 14%;
-    --risk-medium: 36 92% 55%;
-    --risk-medium-bg: 36 40% 14%;
-    --risk-low: 142 60% 55%;
-    --risk-low-bg: 142 35% 14%;
+    /* Dark Mode Risk Tones */
+    --risk-high: #FF453A;
+    --risk-high-bg: #2C1414;
+    --risk-medium: #FF9F0A;
+    --risk-medium-bg: #2C2010;
+    --risk-low: #32D74B;
+    --risk-low-bg: #102414;
   }
 
   html {
@@ -98,5 +169,76 @@
 
   ::selection {
     background: hsl(var(--muted));
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Standard Icon Sizes */
+  .icon-xs {
+    @apply w-3.5 h-3.5;
+  }
+
+  .icon-sm {
+    @apply w-4 h-4;
+  }
+
+  .icon-md {
+    @apply w-5 h-5;
+  }
+
+  .icon-lg {
+    @apply w-6 h-6;
+  }
+
+  .icon-xl {
+    @apply w-8 h-8;
+  }
+
+  .icon-2xl {
+    @apply w-12 h-12;
+  }
+
+  /* Short Screen Adjustments */
+  @media (max-height: 720px) {
+    .short-hide {
+      @apply hidden;
+    }
+
+    .short-p-narrow {
+      @apply px-4;
+    }
+
+    .short-py-narrow {
+      @apply py-2;
+    }
+
+    .short-tight {
+      @apply tracking-tight leading-tight;
+    }
+
+    .short-text-xs {
+      @apply text-[10px];
+    }
+
+    .short-text-sm {
+      @apply text-[13px];
+    }
+
+    .short-text-base {
+      @apply text-[15px];
+    }
+
+    .short-text-lg {
+      @apply text-[17px];
+    }
   }
 }

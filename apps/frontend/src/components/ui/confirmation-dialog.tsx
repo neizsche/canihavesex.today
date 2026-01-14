@@ -30,7 +30,7 @@ export function ConfirmationDialog({
                 <Button
                     type="button"
                     className={`w-full h-12 text-base font-medium border shadow-sm transition-all rounded-full ${variant === 'danger'
-                        ? 'bg-red-50 text-red-700 border-red-100 hover:bg-red-100 hover:border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900'
+                        ? 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100 hover:border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900'
                         : 'bg-background text-foreground border-border hover:bg-muted'
                         }`}
                     onClick={() => {

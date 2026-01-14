@@ -2,6 +2,7 @@ import { createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import type { UserRepository } from './repositories/UserRepository.js';
 import type { CycleRepository } from './repositories/CycleRepository.js';
+import type { PreferencesRepository } from './repositories/PreferencesRepository.js';
 
 export type OauthProvider = 'google' | 'apple';
 
@@ -177,6 +178,7 @@ export function oauthRedirectUri(provider: OauthProvider, req: any): string {
 export async function ensureUserForEmail(
     userRepository: UserRepository,
     cycleRepository: CycleRepository,
+    preferencesRepository: PreferencesRepository,
     email: string
 ): Promise<string> {
     const now = new Date().toISOString();
@@ -189,6 +191,9 @@ export async function ensureUserForEmail(
             email,
             created_at: now,
         });
+
+        // Create default preferences with dark theme
+        await preferencesRepository.createDefault(userId);
 
         const cycleId = randomUUID();
         const startDate = now.slice(0, 10);
@@ -209,6 +214,7 @@ export async function ensureUserForEmail(
 export async function linkIdentity(
     userRepository: UserRepository,
     cycleRepository: CycleRepository,
+    preferencesRepository: PreferencesRepository,
     params: {
         provider: OauthProvider;
         providerUserId: string;
@@ -221,7 +227,7 @@ export async function linkIdentity(
 
     if (existing) return existing.user_id;
 
-    const userId = await ensureUserForEmail(userRepository, cycleRepository, params.email);
+    const userId = await ensureUserForEmail(userRepository, cycleRepository, preferencesRepository, params.email);
     const identityId = randomUUID();
 
     await userRepository.createIdentity({

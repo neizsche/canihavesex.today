@@ -34,7 +34,7 @@ export function ActionModal({
                     className="absolute right-4 top-4 h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors rounded-full"
                     onClick={onClose}
                 >
-                    <X className="h-5 w-5" />
+                    <X className="icon-md" />
                 </Button>
 
                 <div className="text-center space-y-8">
@@ -47,7 +47,7 @@ export function ActionModal({
                         />
                         <div>
                             <div className="text-xl font-outfit tracking-tighter text-foreground mb-1">
-                                {BRAND.PREFIX}<span className="text-red-600 font-extrabold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
+                                {BRAND.PREFIX}<span className="text-rose-500 font-extrabold italic">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
                             </div>
                             {title && (
                                 <div className="mt-2 text-muted-foreground font-medium text-base">
@@ -65,7 +65,7 @@ export function ActionModal({
                     {/* Privacy Footer */}
                     {!hidePrivacyFooter && (
                         <div className="bg-muted/30 rounded-2xl p-4 border border-border/50 flex items-start gap-3 text-left">
-                            <ShieldCheck className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                            <ShieldCheck className="icon-md text-muted-foreground shrink-0 mt-0.5" />
                             <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                                 {HERO.PRIVACY_NOTE}
                             </p>

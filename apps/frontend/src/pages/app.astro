@@ -3,7 +3,7 @@ import AppLayout from '../layouts/AppLayout.astro';
 import { AppShell } from '../components/AppShell';
 ---
 
-<AppLayout title="App" showNav={false}>
+<AppLayout title="App" showBranding={false} showNav={false} maxWidthClass="w-full !px-0 !pt-0 !pb-0 !mx-0">
   <AppShell client:only="react" />
 </AppLayout>
 

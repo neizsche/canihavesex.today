@@ -1,517 +1,354 @@
+
 import * as React from 'react';
-import { Trash2, RotateCcw, LogIn, LogOut, Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Trash2, RotateCcw, LogOut, Info, Shield, Scale, HelpCircle, FileText, X, CheckCircle2, ChevronRight } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { BRAND, CONTACT_EMAIL, LEGAL_TITLES } from '../lib/siteConfig';
+import { cn } from '../lib/utils';
 
-import { apiFetch, currentReturnTo } from '../lib/api';
+import { apiJson } from '../lib/api';
+import { updateCacheFromMutation, type MutationResponse } from '../lib/cacheUtils';
 import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Separator } from './ui/separator';
-import { ConfirmationDialog } from './ui/confirmation-dialog';
+import { Header } from './Header';
+import { InsetGroup } from './ui/inset-group';
+import { ActionSheet, type ActionSheetAction } from './ui/action-sheet';
+import { HelpScreen } from './HelpScreen';
 
-type ConfirmAction = 'reset' | 'deleteData' | 'deleteAccount' | null;
+type ConfirmAction = 'reset' | 'delete-all' | 'delete-account' | null;
 
 export function SettingsScreen() {
-  const queryClient = useQueryClient();
-  const session = queryClient.getQueryData<{ userId: string; email?: string | null }>(['session']) ?? null;
-  const [status, setStatus] = React.useState<string>('');
-  const [statusTone, setStatusTone] = React.useState<'muted' | 'danger' | 'ok'>('muted');
-  const [sessionState, setSessionState] = React.useState<'signedIn' | 'signedOut'>('signedIn');
-  const [busy, setBusy] = React.useState(false);
-  const [confirmAction, setConfirmAction] = React.useState<ConfirmAction>(null);
-  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
-    try {
-      const stored = localStorage.getItem('theme');
-      return stored === 'dark' ? 'dark' : 'light';
-    } catch {
-      return 'light';
+    const queryClient = useQueryClient();
+    const [confirmAction, setConfirmAction] = React.useState<ConfirmAction>(null);
+    const [busy, setBusy] = React.useState(false);
+    const [success, setSuccess] = React.useState<{ caption: string; variant: 'success' | 'destructive' } | null>(null);
+    const [activeLegal, setActiveLegal] = React.useState<'about' | 'privacy' | 'terms' | 'how' | 'limits' | 'disclaimer' | null>(null);
+    const [view, setView] = React.useState<'main' | 'help'>('main');
+
+    const session = queryClient.getQueryData<{ userId: string; email?: string | null }>(['session']) ?? null;
+
+    const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+        if (typeof window === 'undefined') return 'dark'; // Default to dark
+        return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    });
+
+    // Fetch user preferences on mount
+    React.useEffect(() => {
+        if (!session?.userId) return;
+
+        async function fetchPreferences() {
+            try {
+                const response = await apiJson<{ theme: 'light' | 'dark' }>('/api/preferences');
+                const newTheme = response.theme || 'dark';
+                setTheme(newTheme);
+                document.documentElement.classList.toggle('dark', newTheme === 'dark');
+                localStorage.setItem('theme', newTheme);
+            } catch (err) {
+                // Fallback to dark mode if API fails
+                console.error('Failed to fetch preferences:', err);
+            }
+        }
+
+        fetchPreferences();
+    }, [session?.userId]);
+
+    async function toggleTheme() {
+        const next = theme === 'dark' ? 'light' : 'dark';
+        setTheme(next);
+        document.documentElement.classList.toggle('dark', next === 'dark');
+        localStorage.setItem('theme', next);
+
+        // Persist to backend if logged in
+        if (session?.userId) {
+            try {
+                await apiJson('/api/preferences', {
+                    method: 'PATCH',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ theme: next })
+                });
+            } catch (err) {
+                console.error('Failed to save theme preference:', err);
+            }
+        }
     }
-  });
-  const aboutDialogRef = React.useRef<HTMLDialogElement | null>(null);
-  const [aboutView, setAboutView] = React.useState<'about' | 'privacy' | 'terms' | 'how' | 'limits' | 'disclaimer'>(
-    'about'
-  );
 
-  function applyTheme(next: 'light' | 'dark') {
-    setTheme(next);
-    try {
-      localStorage.setItem('theme', next);
-      document.documentElement.classList.toggle('dark', next === 'dark');
-    } catch {
-      // ignore
+    async function executeResetCycle() {
+        setBusy(true);
+        try {
+            const data = await apiJson<MutationResponse>('/api/reset-cycle', { method: 'POST' });
+
+            // Update cache with response data - no refetch needed
+            updateCacheFromMutation(queryClient, data);
+
+            setConfirmAction(null);
+            setSuccess({ caption: 'Cycle Reset', variant: 'success' });
+            setTimeout(() => setSuccess(null), 1000);
+        } catch (err) {
+            alert('Could not reset cycle. Please try again.');
+        }
+        setBusy(false);
     }
-  }
 
-  // This screen is rendered inside AppShell's SessionGate, so an extra /session probe is redundant.
+    async function executeDeleteAllData() {
+        setBusy(true);
+        try {
+            const data = await apiJson<MutationResponse>('/api/delete-all-data', { method: 'POST' });
 
-  function openAbout(view: 'about' | 'privacy' | 'terms' | 'how' | 'limits' | 'disclaimer') {
-    setAboutView(view);
-    aboutDialogRef.current?.showModal();
-  }
+            // Update cache with response data - no refetch needed
+            updateCacheFromMutation(queryClient, data);
 
-  function closeAbout() {
-    aboutDialogRef.current?.close();
-  }
-
-  async function executeResetCycle() {
-    setBusy(true);
-    setStatusTone('muted');
-    setStatus('Resetting…');
-    try {
-      const res = await apiFetch('/api/reset-cycle', { method: 'POST' });
-      if (res.status === 401) {
-        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
-        return;
-      }
-
-      if (res.ok) {
-        // Invalidate queries to refresh Today and Chart screens
-        await queryClient.invalidateQueries({ queryKey: ['today'] });
-        await queryClient.invalidateQueries({ queryKey: ['chart'] });
-
-        setStatusTone('ok');
-        setStatus('Cycle reset.');
+            setConfirmAction(null);
+            setSuccess({ caption: 'Data Deleted', variant: 'destructive' });
+            setTimeout(() => setSuccess(null), 1000);
+        } catch (err) {
+            alert('Could not delete data. Please try again.');
+        }
         setBusy(false);
-
-        // Navigate to Today to show the updated state
-        setTimeout(() => {
-          window.location.hash = '#/today';
-        }, 500);
-      } else {
-        setStatusTone('danger');
-        setStatus('Reset failed.');
-        setBusy(false);
-      }
-    } catch {
-      setStatusTone('danger');
-      setStatus('Network error.');
-      setBusy(false);
     }
-  }
 
-  async function executeDeleteAllData() {
-    setBusy(true);
-    setStatusTone('muted');
-    setStatus('Deleting…');
-    try {
-      const res = await apiFetch('/api/delete-all-data', { method: 'POST' });
-      if (res.status === 401) {
-        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
-        return;
-      }
-
-      if (res.ok) {
-        // Completely clear cache to force refetch with fresh data
-        queryClient.clear();
-
-        setStatusTone('ok');
-        setStatus('All data deleted.');
-        setBusy(false);
-
-        // Navigate to Today to show the updated state
-        setTimeout(() => {
-          window.location.hash = '#/today';
-        }, 500);
-      } else {
-        setStatusTone('danger');
-        setStatus('Delete failed.');
-        setBusy(false);
-      }
-    } catch {
-      setStatusTone('danger');
-      setStatus('Network error.');
-      setBusy(false);
+    async function executeDeleteAccount() {
+        setBusy(true);
+        try {
+            await apiJson('/api/delete-account', { method: 'POST' });
+            setConfirmAction(null);
+            setSuccess({ caption: 'Account Deleted', variant: 'destructive' });
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+        } catch (err) {
+            alert('Could not delete account. Please try again.');
+            setBusy(false);
+            setConfirmAction(null);
+        }
     }
-  }
 
-  async function executeDeleteAccount() {
-    setBusy(true);
-    setStatusTone('muted');
-    setStatus('Deleting account…');
-    try {
-      const res = await apiFetch('/api/delete-account', { method: 'POST' });
-      if (res.status === 401) {
-        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
-        return;
-      }
-
-      if (res.ok) {
-        // Clear all cached data
-        queryClient.clear();
-
-        setStatusTone('ok');
-        setStatus('Account deleted.');
-        setBusy(false);
-
-        // Redirect to landing page
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
-      } else {
-        setStatusTone('danger');
-        setStatus('Delete failed.');
-        setBusy(false);
-      }
-    } catch {
-      setStatusTone('danger');
-      setStatus('Network error.');
-      setBusy(false);
+    async function handleConfirmAction() {
+        if (confirmAction === 'reset') await executeResetCycle();
+        else if (confirmAction === 'delete-all') await executeDeleteAllData();
+        else if (confirmAction === 'delete-account') await executeDeleteAccount();
     }
-  }
 
-  // Wrapper functions that trigger confirmation dialog
-  function resetCycle() {
-    setConfirmAction('reset');
-  }
-
-  function deleteAll() {
-    setConfirmAction('deleteData');
-  }
-
-  function deleteAccount() {
-    setConfirmAction('deleteAccount');
-  }
-
-  // Confirmation handlers
-  function handleConfirmAction() {
-    if (confirmAction === 'reset') executeResetCycle();
-    else if (confirmAction === 'deleteData') executeDeleteAllData();
-    else if (confirmAction === 'deleteAccount') executeDeleteAccount();
-  }
-
-  const confirmConfig = {
-    reset: {
-      title: 'Reset Cycle',
-      confirmText: 'RESET CYCLE',
-    },
-    deleteData: {
-      title: 'Delete All Data',
-      confirmText: 'DELETE ALL DATA',
-    },
-    deleteAccount: {
-      title: 'Delete Account',
-      confirmText: 'DELETE ACCOUNT',
-    },
-  };
-
-  async function logout() {
-    setBusy(true);
-    setStatusTone('muted');
-    setStatus('Signing out…');
-    try {
-      const res = await apiFetch('/api/logout', { method: 'POST' });
-      setStatusTone(res.ok ? 'ok' : 'danger');
-      setStatus(res.ok ? 'Signed out.' : 'Sign out failed.');
-      setBusy(false);
-      setSessionState('signedOut');
-      if (res.ok) {
-        // Drop any cached signed-in data so the SPA can't "feel" logged in.
-        queryClient.clear();
-        // Redirect to landing page after successful logout
-        window.location.href = '/';
-      }
-    } catch {
-      setStatusTone('danger');
-      setStatus('Network error.');
-      setBusy(false);
+    async function signout() {
+        try {
+            await fetch('/api/signout', { method: 'POST' });
+            window.location.href = '/';
+        } catch (err) {
+            alert('Signout failed. Please try again.');
+        }
     }
-  }
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-1">
-        <div className="text-sm text-muted-foreground">Settings</div>
-        <h1 className="text-2xl font-semibold tracking-tight">Preferences</h1>
-        <p className="text-sm text-muted-foreground">Minimal by design. Safety-first defaults.</p>
-      </header>
+    if (view === 'help') {
+        return <HelpScreen onBack={() => setView('main')} />;
+    }
 
-      <Card>
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-base">Account & data</CardTitle>
-          <CardDescription className="text-sm">
-            {sessionState === 'signedIn' ? 'Session active on this device.' : 'Not signed in.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {session?.email ? (
-            <div className="rounded-xl border bg-muted/20 p-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Signed in as</div>
-              <div className="mt-1 text-sm font-medium text-foreground">{session.email}</div>
-            </div>
-          ) : null}
-
-          {sessionState !== 'signedIn' ? (
-            <Button asChild className="h-11" disabled={busy}>
-              <a href={`/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`}>
-                <LogIn className="mr-2 h-4 w-4" />
-                Sign in
-              </a>
-            </Button>
-          ) : (
-            <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={logout} disabled={busy}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </Button>
-          )}
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Appearance</div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={theme === 'light' ? 'default' : 'outline'}
-                className="h-11 w-full justify-start"
-                onClick={() => applyTheme('light')}
-                disabled={busy}
-              >
-                <Sun className="mr-2 h-4 w-4" />
-                Light
-              </Button>
-              <Button
-                type="button"
-                variant={theme === 'dark' ? 'default' : 'outline'}
-                className="h-11 w-full justify-start"
-                onClick={() => applyTheme('dark')}
-                disabled={busy}
-              >
-                <Moon className="mr-2 h-4 w-4" />
-                Dark
-              </Button>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="text-sm font-medium">Data management</div>
-          <div className="text-xs text-muted-foreground">Manage your fertility data and account.</div>
-
-          <div className="space-y-3">
-            <div>
-              <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={resetCycle} disabled={busy}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Reset cycle
-              </Button>
-              <div className="mt-1.5 text-xs text-muted-foreground">Start a new cycle. Previous data remains in history.</div>
-            </div>
-
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 w-full justify-start text-destructive hover:text-destructive"
-                onClick={deleteAll}
-                disabled={busy}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete all data
-              </Button>
-              <div className="mt-1.5 text-xs text-muted-foreground">Remove all fertility data. Your account will be preserved.</div>
-            </div>
-
-            <div>
-              <Button
-                type="button"
-                variant="destructive"
-                className="h-11 w-full justify-start"
-                onClick={deleteAccount}
-                disabled={busy}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete account
-              </Button>
-              <div className="mt-1.5 text-xs text-muted-foreground">Permanently delete your account and all data.</div>
-            </div>
-          </div>
-
-          {status ? (
-            <div
-              className={
-                statusTone === 'danger'
-                  ? 'text-sm text-[hsl(var(--risk-high))]'
-                  : statusTone === 'ok'
-                    ? 'text-sm text-[hsl(var(--risk-low))]'
-                    : 'text-sm text-muted-foreground'
-              }
-              role="status"
-            >
-              {status}
-            </div>
-          ) : null}
-
-          <Separator />
-        </CardContent>
-      </Card>
-
-
-      <Card>
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-base">About & legal</CardTitle>
-          <CardDescription className="text-sm">Transparency, privacy, and usage terms.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('about')} disabled={busy}>
-            {LEGAL_TITLES.ABOUT}
-          </Button>
-          <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('privacy')} disabled={busy}>
-            {LEGAL_TITLES.PRIVACY}
-          </Button>
-          <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('terms')} disabled={busy}>
-            {LEGAL_TITLES.TERMS}
-          </Button>
-          <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('how')} disabled={busy}>
-            {LEGAL_TITLES.HOW}
-          </Button>
-          <Button type="button" variant="outline" className="h-11 w-full justify-start" onClick={() => openAbout('limits')} disabled={busy}>
-            {LEGAL_TITLES.LIMITS}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full justify-start"
-            onClick={() => openAbout('disclaimer')}
-            disabled={busy}
-          >
-            {LEGAL_TITLES.DISCLAIMER}
-          </Button>
-        </CardContent>
-      </Card>
-
-
-      <dialog
-        ref={aboutDialogRef}
-        className="w-[min(92vw,420px)] rounded-xl border bg-card p-0 text-foreground shadow-xl"
-      >
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">About & legal</div>
-              <div className="text-base font-semibold">
-                {aboutView === 'about'
-                  ? LEGAL_TITLES.ABOUT
-                  : aboutView === 'privacy'
-                    ? LEGAL_TITLES.PRIVACY
-                    : aboutView === 'terms'
-                      ? LEGAL_TITLES.TERMS
-                      : aboutView === 'how'
-                        ? LEGAL_TITLES.HOW
-                        : aboutView === 'limits'
-                          ? LEGAL_TITLES.LIMITS
-                          : LEGAL_TITLES.DISCLAIMER}
-              </div>
-            </div>
-            <Button type="button" variant="outline" className="h-9" onClick={closeAbout}>
-              Close
-            </Button>
-          </div>
-
-          <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-            {aboutView === 'about' ? (
-              <>
-                <p className="text-foreground">We don’t guess. We read your body.</p>
-                <p>
-                  {BRAND.PREFIX}<span className="text-red-500 font-bold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX} is a signal-based fertility awareness tool. It summarizes your logged observations and
-                  stays conservative.
-                </p>
-                <ul className="list-disc space-y-1 pl-5">
-                  <li>No predictions</li>
-                  <li>No tracking</li>
-                  <li>No false safety</li>
-                </ul>
-                <p>
-                  Contact:{' '}
-                  <a href={`mailto:${CONTACT_EMAIL}`} className="underline underline-offset-4">
-                    {CONTACT_EMAIL}
-                  </a>
-                </p>
-              </>
-            ) : null}
-
-            {aboutView === 'privacy' ? (
-              <>
-                <p>No analytics, no third-party sharing.</p>
-                <p>Only stores cycle logs and auth needed to run the app.</p>
-                <p>“Delete All Data” is available in Settings.</p>
-                <p>No ads, no profiling.</p>
-              </>
-            ) : null}
-
-            {aboutView === 'terms' ? (
-              <>
-                <p>This app provides fertility awareness information.</p>
-                <p>For medical decisions, consult healthcare professionals.</p>
-              </>
-            ) : null}
-
-            {aboutView === 'how' ? (
-              <>
-                <p>
-                  This app uses only your logged observations (mucus, sensation, bleeding, temperature, LH) and the
-                  current cycle state derived from those logs.
-                </p>
-                <p>
-                  Output is intentionally conservative. If data is missing or uncertain, the result should be treated as
-                  higher risk.
-                </p>
-              </>
-            ) : null}
-
-            {aboutView === 'limits' ? (
-              <ul className="list-disc space-y-1 pl-5">
-                <li>No prediction.</li>
-                <li>No calendar views or “safe days”.</li>
-                <li>No fertile window estimation.</li>
-                <li>No guarantees. If uncertain, assume fertile.</li>
-              </ul>
-            ) : null}
-
-            {aboutView === 'disclaimer' ? (
-              <>
-                <div className="space-y-4">
-                  <p className="text-foreground leading-relaxed">
-                    This app provides fertility awareness information using established natural family planning methods.
-                    It helps you track and understand your fertility patterns based on biological signs.
-                  </p>
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-foreground">Important Notes</h4>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• Not a form of birth control or contraception</li>
-                      <li>• Does not guarantee pregnancy prevention</li>
-                      <li>• Not medical advice or diagnosis</li>
-                      <li>• Results depend on correct usage</li>
-                    </ul>
-                  </div>
-
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    For medical decisions, clinical guidance, or contraception, consult qualified healthcare professionals.
-                    This tool is designed to provide information, not replace professional medical care.
-                  </p>
+    if (success) {
+        return (
+            <div className="h-full bg-background font-sans flex flex-col">
+                <Header />
+                <div className="flex-1 flex flex-col items-center justify-center min-h-0 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+                    <div className={cn(
+                        "rounded-full p-5 flex items-center justify-center shadow-sm",
+                        success.variant === 'success'
+                            ? "bg-emerald-100/80 dark:bg-emerald-900/20"
+                            : "bg-zinc-100 dark:bg-zinc-800"
+                    )}>
+                        {success.variant === 'success' ? (
+                            <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                        ) : (
+                            <Trash2 className="w-10 h-10 text-zinc-500 dark:text-zinc-400" strokeWidth={2} />
+                        )}
+                    </div>
+                    <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                        {success.caption}
+                    </h2>
                 </div>
-              </>
-            ) : null}
-          </div>
+            </div>
+        );
+    }
 
-          <div className="mt-4">
-            <Button type="button" className="h-11 w-full" onClick={closeAbout}>
-              Done
-            </Button>
-          </div>
-        </div>
-      </dialog>
+    return (
+        <>
+            <Header />
+            <div className="pb-24 pt-6 sm:pt-8">
+                <div className="max-w-md mx-auto space-y-6 sm:space-y-8">
+                    <h1 className="px-4 text-[34px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight pb-2">
+                        Settings
+                    </h1>
 
-      {/* Confirmation Dialog */}
-      {confirmAction && (
-        <ConfirmationDialog
-          isOpen={confirmAction !== null}
-          onClose={() => setConfirmAction(null)}
-          onConfirm={handleConfirmAction}
-          title={confirmConfig[confirmAction].title}
-          actionLabel={confirmConfig[confirmAction].confirmText}
-          variant={confirmAction === 'deleteAccount' ? 'danger' : 'warning'}
-        />
-      )}
-    </div>
-  );
+                    {/* Account - More Prominent (10% larger) */}
+                    <InsetGroup title="Account">
+                        <div className="space-y-0 divide-y divide-border/30">
+                            {session?.email && (
+                                <div className="px-4 py-3 sm:py-4 bg-zinc-50/50 dark:bg-zinc-900/50 text-left">
+                                    <div className="text-[10px] sm:text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-1">
+                                        Signed in as
+                                    </div>
+                                    <div className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                                        {session.email}
+                                    </div>
+                                </div>
+                            )}
+                            {session?.email ? (
+                                <button
+                                    onClick={signout}
+                                    disabled={busy}
+                                    className="w-full h-12 sm:h-14 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700 disabled:opacity-50"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-rose-500 flex items-center justify-center">
+                                            <LogOut className="icon-sm sm:icon-md text-white" />
+                                        </div>
+                                        <span className="font-normal text-base sm:text-lg text-zinc-900 dark:text-zinc-100">
+                                            Sign Out
+                                        </span>
+                                    </div>
+                                    <ChevronRight className="icon-sm sm:icon-md text-zinc-300" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => window.dispatchEvent(new Event('auth:open'))}
+                                    className="w-full h-12 sm:h-14 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-[#007aff] flex items-center justify-center">
+                                            <LogOut className="icon-sm sm:icon-md text-white" style={{ transform: 'scaleX(-1)' }} />
+                                        </div>
+                                        <span className="font-normal text-base sm:text-lg text-zinc-900 dark:text-zinc-100">
+                                            Sign In
+                                        </span>
+                                    </div>
+                                    <ChevronRight className="icon-sm sm:icon-md text-zinc-300" />
+                                </button>
+                            )}
+                        </div>
+                    </InsetGroup>
+
+                    {/* Appearance */}
+                    <InsetGroup title="Appearance">
+                        <button
+                            onClick={toggleTheme}
+                            className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-zinc-500 flex items-center justify-center">
+                                    {theme === 'dark' ? (
+                                        <Moon className="icon-sm sm:icon-md text-white" />
+                                    ) : (
+                                        <Sun className="icon-sm sm:icon-md text-white" />
+                                    )}
+                                </div>
+                                <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
+                                    {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[15px] sm:text-[17px] text-zinc-400">Switch</span>
+                                <ChevronRight className="icon-xs sm:icon-sm text-zinc-300" />
+                            </div>
+                        </button>
+                    </InsetGroup>
+
+
+
+                    {/* Data Management */}
+                    <InsetGroup title="Data Management">
+                        <div className="space-y-0 divide-y divide-border/30">
+                            <button
+                                onClick={() => setConfirmAction('reset')}
+                                disabled={busy}
+                                className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700 disabled:opacity-50"
+                            >
+                                <div className="flex items-center gap-3 text-left">
+                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-amber-500 flex items-center justify-center">
+                                        <RotateCcw className="icon-xs sm:icon-sm text-white" />
+                                    </div>
+                                    <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">Reset Cycle</div>
+                                </div>
+                                <ChevronRight className="icon-xs sm:icon-sm text-zinc-300" />
+                            </button>
+
+                            <button
+                                onClick={() => setConfirmAction('delete-all')}
+                                disabled={busy}
+                                className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700 disabled:opacity-50"
+                            >
+                                <div className="flex items-center gap-3 text-left">
+                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-rose-600 flex items-center justify-center">
+                                        <Trash2 className="icon-xs sm:icon-sm text-white" />
+                                    </div>
+                                    <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">Delete All Data</div>
+                                </div>
+                                <ChevronRight className="icon-xs sm:icon-sm text-zinc-300" />
+                            </button>
+                        </div>
+                    </InsetGroup>
+
+                    {/* Advanced */}
+                    <InsetGroup title="Advanced">
+                        <button
+                            onClick={() => setConfirmAction('delete-account')}
+                            disabled={busy}
+                            className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-rose-100 dark:hover:bg-rose-950/30 px-4 transition-all duration-200 active:bg-rose-200 dark:active:bg-rose-950/40 disabled:opacity-50"
+                        >
+                            <div className="flex items-center gap-3 text-left">
+                                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-red-600 flex items-center justify-center">
+                                    <Trash2 className="icon-xs sm:icon-sm text-white" />
+                                </div>
+                                <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">Delete Account</div>
+                            </div>
+                            <ChevronRight className="icon-xs sm:icon-sm text-rose-400/50" />
+                        </button>
+                    </InsetGroup>
+
+                    {/* Support */}
+                    <InsetGroup title="Support">
+                        <button
+                            onClick={() => setView('help')}
+                            className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-blue-500 flex items-center justify-center">
+                                    <HelpCircle className="icon-sm sm:icon-md text-white" />
+                                </div>
+                                <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">Help & Feedback</div>
+                            </div>
+                            <ChevronRight className="icon-xs sm:icon-sm text-zinc-300" />
+                        </button>
+                    </InsetGroup>
+
+                    <div className="pt-4 sm:pt-8 text-center px-4">
+                        <div className="text-[10px] sm:text-[11px] text-zinc-400 leading-relaxed font-medium">
+                            {BRAND.PREFIX}<span className="text-rose-500 text-[12px] sm:text-[13px] font-black italic">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX} <br />
+                            V2.0.0 • Made with care
+                        </div>
+                    </div>
+
+                </div>
+
+                <ActionSheet
+                    isOpen={confirmAction !== null}
+                    onClose={() => setConfirmAction(null)}
+                    title={
+                        confirmAction === 'reset'
+                            ? 'RESET CURRENT CYCLE'
+                            : confirmAction === 'delete-all'
+                                ? 'DELETE ALL HEALTH DATA'
+                                : 'DELETE ACCOUNT'
+                    }
+                    description={
+                        confirmAction === 'reset'
+                            ? 'Clear current cycle analysis. Logs remain.'
+                            : confirmAction === 'delete-all'
+                                ? 'Permanently remove all logs and history. This action cannot be undone.'
+                                : 'Permanently remove account and data. This action cannot be undone.'
+                    }
+                    actions={[
+                        {
+                            label: confirmAction === 'reset' ? 'Reset Cycle' : confirmAction === 'delete-all' ? 'Delete Data' : 'Delete Account',
+                            onClick: handleConfirmAction,
+                            isDestructive: true
+                        }
+                    ]}
+                />
+            </div>
+        </>
+    );
 }

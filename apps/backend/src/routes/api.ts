@@ -6,6 +6,7 @@ import { LogRepository } from '../repositories/LogRepository.js';
 import { EngineRepository } from '../repositories/EngineRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
+import { PreferencesRepository } from '../repositories/PreferencesRepository.js';
 import type { Db } from '../db.js';
 
 const LogDayBody = z.object({
@@ -37,10 +38,11 @@ export async function apiRoutes(
         engineRepository: EngineRepository;
         cycleRepository: CycleRepository;
         userRepository: UserRepository;
+        preferencesRepository: PreferencesRepository;
         db: Db;
     }
 ) {
-    const { logRepository, engineRepository, cycleRepository, db, userRepository } = opts;
+    const { logRepository, engineRepository, cycleRepository, db, userRepository, preferencesRepository } = opts;
 
     app.post('/api/log-day', async (req, reply) => {
         try {
@@ -262,8 +264,36 @@ export async function apiRoutes(
                     created_at: now
                 });
 
+                // Run engine to get fresh data for cache
+                const today = new Date().toISOString().slice(0, 10);
+                const engine = await runEngineV2(
+                    { logRepo: logRepository, engineRepo: engineRepository, cycleRepo: cycleRepository },
+                    { userId, asOfDate: today }
+                );
+
                 req.log.info({ route: '/api/reset-cycle', userId, cycleId }, 'cycle reset');
-                return reply.send({ ok: true });
+                return reply.send({
+                    ok: true,
+                    today: {
+                        date: today,
+                        risk: engine.publicToday.risk,
+                        explanation: engine.publicToday.explanation,
+                        analytics: engine.analytics,
+                        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+                    },
+                    chart: {
+                        cycle: {
+                            id: cycleId,
+                            startDate: startDate,
+                            state: 'INFERTILE_PRE',
+                            peakDate: null,
+                            tempShiftConfirmedDate: null,
+                        },
+                        analytics: engine.analytics,
+                        days: [],
+                        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+                    }
+                });
 
             } catch (dbError) {
                 req.log.error({ route: '/api/reset-cycle', userId, dbError }, 'database operation failed');
@@ -297,8 +327,50 @@ export async function apiRoutes(
                     await txLogRepo.deleteRawLogsByUserId(userId);
                 });
 
+                // After deletion, create a fresh cycle and return empty data for cache
+                const now = new Date().toISOString();
+                const startDate = now.slice(0, 10);
+                const cycleId = randomUUID();
+
+                await cycleRepository.create({
+                    id: cycleId,
+                    user_id: userId,
+                    start_date: startDate,
+                    state: 'INFERTILE_PRE',
+                    peak_date: null,
+                    temp_shift_confirmed_date: null,
+                    created_at: now
+                });
+
+                // Run engine to get fresh empty state
+                const engine = await runEngineV2(
+                    { logRepo: logRepository, engineRepo: engineRepository, cycleRepo: cycleRepository },
+                    { userId, asOfDate: startDate }
+                );
+
                 app.log.info({ route: '/api/delete-all-data', userId }, 'data deleted');
-                return reply.send({ ok: true });
+                return reply.send({
+                    ok: true,
+                    today: {
+                        date: startDate,
+                        risk: engine.publicToday.risk,
+                        explanation: engine.publicToday.explanation,
+                        analytics: engine.analytics,
+                        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+                    },
+                    chart: {
+                        cycle: {
+                            id: cycleId,
+                            startDate: startDate,
+                            state: 'INFERTILE_PRE',
+                            peakDate: null,
+                            tempShiftConfirmedDate: null,
+                        },
+                        analytics: engine.analytics,
+                        days: [],
+                        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+                    }
+                });
 
             } catch (dbError) {
                 req.log.error({ route: '/api/delete-all-data', userId, dbError }, 'database operation failed');
@@ -364,6 +436,47 @@ export async function apiRoutes(
         } catch (error) {
             const userId = (req as any).userId as string | undefined;
             req.log.error({ route: '/api/delete-account', userId, error }, 'unexpected error in delete-account');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
+
+    // Preferences API
+    app.get('/api/preferences', async (req, reply) => {
+        try {
+            const userId = (req as any).userId as string;
+
+            let prefs = await preferencesRepository.findByUserId(userId);
+
+            // Create default preferences if none exist
+            if (!prefs) {
+                prefs = await preferencesRepository.createDefault(userId);
+            }
+
+            return reply.send({ theme: prefs.theme });
+        } catch (error) {
+            const userId = (req as any).userId as string | undefined;
+            req.log.error({ route: '/api/preferences', userId, error }, 'unexpected error in preferences');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
+
+    app.patch('/api/preferences', async (req, reply) => {
+        try {
+            const userId = (req as any).userId as string;
+            const body = req.body as any;
+            const theme = body?.theme;
+
+            if (theme !== 'light' && theme !== 'dark') {
+                return reply.status(400).send({ error: 'Invalid theme. Must be light or dark' });
+            }
+
+            await preferencesRepository.updateTheme(userId, theme);
+
+            req.log.info({ route: '/api/preferences', userId, theme }, 'theme updated');
+            return reply.send({ ok: true, theme });
+        } catch (error) {
+            const userId = (req as any).userId as string | undefined;
+            req.log.error({ route: '/api/preferences', userId, error }, 'unexpected error updating preferences');
             return reply.status(500).send({ error: 'Internal server error' });
         }
     });

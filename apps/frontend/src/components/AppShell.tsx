@@ -101,12 +101,15 @@ export function AppShell() {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionGate>
-        <main className="pb-24">
-          <SignedInRoutes route={route} />
-        </main>
-        <BottomNav active={route} />
+        <div className="h-dvh flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+          <div className="h-full max-w-lg mx-auto w-full bg-background flex flex-col overflow-hidden shadow-2xl">
+            <main className="flex-1 overflow-y-auto no-scrollbar">
+              <SignedInRoutes route={route} />
+            </main>
+            <BottomNav active={route} />
+          </div>
+        </div>
       </SessionGate>
     </QueryClientProvider>
   );
 }
-

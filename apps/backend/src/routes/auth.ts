@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import type { UserRepository } from '../repositories/UserRepository.js';
 import type { CycleRepository } from '../repositories/CycleRepository.js';
+import type { PreferencesRepository } from '../repositories/PreferencesRepository.js';
 import {
     appBase,
     linkIdentity,
@@ -14,9 +15,9 @@ import {
 
 export async function authRoutes(
     app: FastifyInstance,
-    opts: { userRepository: UserRepository; cycleRepository: CycleRepository }
+    opts: { userRepository: UserRepository; cycleRepository: CycleRepository; preferencesRepository: PreferencesRepository }
 ) {
-    const { userRepository, cycleRepository } = opts;
+    const { userRepository, cycleRepository, preferencesRepository } = opts;
 
     app.get<{ Params: { provider: string } }>('/api/auth/oauth/:provider/start', async (req, reply) => {
         const provider = req.params.provider as OauthProvider;
@@ -111,7 +112,7 @@ export async function authRoutes(
             if (!emailVerified) return reply.redirect(`${appBase()}/auth?error=email_not_verified`);
 
             // Pass repositories to linkIdentity
-            const userId = await linkIdentity(userRepository, cycleRepository, { provider: 'google', providerUserId: sub, email });
+            const userId = await linkIdentity(userRepository, cycleRepository, preferencesRepository, { provider: 'google', providerUserId: sub, email });
             reply.clearCookie('oauth_state', { path: '/' });
             reply.clearCookie('oauth_return_to', { path: '/' });
 
@@ -136,7 +137,7 @@ export async function authRoutes(
         }
     });
 
-    app.post('/api/logout', async (_req, reply) => {
+    app.post('/api/signout', async (_req, reply) => {
         // Be extra defensive: some browsers can be finicky about deleting cookies if attributes differ.
         // Overwrite with an expired cookie (maxAge=0 + expires) and also attempt clearCookie with/without signing.
         const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;

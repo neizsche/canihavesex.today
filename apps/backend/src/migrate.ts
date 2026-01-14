@@ -18,6 +18,12 @@ export async function migrate(db: Db) {
       unique(provider, provider_user_id)
     );
 
+    create table if not exists user_preferences (
+      user_id text primary key,
+      theme text not null default 'dark',
+      updated_at text not null
+    );
+
     create table if not exists cycles (
       id text primary key,
       user_id text not null,

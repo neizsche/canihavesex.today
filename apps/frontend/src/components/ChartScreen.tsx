@@ -1,383 +1,292 @@
 import * as React from 'react';
-import { Calendar as CalendarIcon, TrendingUp, Info, AlertTriangle, ChevronDown, Clock } from 'lucide-react';
-import { addDays, format, isAfter, isBefore, parseISO, startOfDay } from 'date-fns';
-import { useCalendarGrid } from './hooks/useCalendarGrid';
 import { useQuery } from '@tanstack/react-query';
+import { TrendingUp, AlertCircle, Info } from 'lucide-react';
 
-import { apiJson, fertilityPct, type Risk, riskBadgeVariant } from '../lib/api';
-import { Badge } from './ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { apiJson, type Risk } from '../lib/api';
+import { cn } from '../lib/utils';
+import { Header } from './Header';
+import { InsetGroup } from './ui/inset-group';
+import { DateNavigator } from './ui/date-navigator';
 
 type ChartDay = {
-  date: string;
-  fertilityIndex: number;
-  risk: Risk;
-  temperature: number | null;
-  lhTest: 'positive' | 'negative' | 'notTaken';
+    date: string;
+    risk: Risk;
+    temperature: number | null;
+    fertilityIndex: number;
+    lhTest: 'positive' | 'negative' | 'notTaken';
 };
 
 type ChartData = {
-  cycle: {
-    id: string;
-    startDate: string;
-    state: string;
-    peakDate: string | null;
-    tempShiftConfirmedDate: string | null;
-  };
-  analytics?: {
-    anchorCycleDay: number;
-    windowCycleDay: { start: number; end: number };
-    confidence: number;
-    confirmed: boolean;
-    coverage: { temp: number; mucus: number; lh: number; any: number; critical_gap: boolean };
-    signals: Array<{ source: 'BBT' | 'LH' | 'MUCUS' | 'CALENDAR'; anchor: number; reliability: number; explain: string }>;
-    warnings: string[];
-    flags: { pcos_like: boolean; pcos_score: number; pcos_reasons: string[] };
-    todayCycleDay: number;
-    todayRisk: Risk;
-  } | null;
-  days: ChartDay[];
-  disclaimer: string;
+    cycle: {
+        startDate: string;
+        state: string;
+        peakDate: string | null;
+        tempShiftConfirmedDate: string | null;
+    };
+    analytics?: {
+        anchorCycleDay: number;
+        windowCycleDay: { start: number; end: number };
+        confidence: number;
+        confirmed: boolean;
+        warnings: string[];
+        coverage: { critical_gap: boolean };
+    } | null;
+    days: ChartDay[];
 };
 
-function stateLabel(state: string): string {
-  const s = state.toUpperCase();
-  if (s.includes('POST')) return 'Fertility likely closed';
-  if (s.includes('PEAK')) return 'Fertility open (peak signals)';
-  if (s.includes('FERTILE')) return 'Fertility may be open';
-  if (s.includes('INFERTILE')) return 'Fertility not yet closed';
-  return state;
-}
-
-function yesNo(v: boolean): string {
-  return v ? 'Yes' : 'No';
+function riskColor(risk: Risk): string {
+    if (risk === 'HIGH') return 'bg-rose-500';
+    if (risk === 'MEDIUM') return 'bg-amber-500';
+    if (risk === 'LOW') return 'bg-emerald-500';
+    return 'bg-zinc-200 dark:bg-zinc-800';
 }
 
 export function ChartScreen() {
-  const chartQuery = useQuery({
-    queryKey: ['chart'],
-    queryFn: () => apiJson<ChartData>('/api/chart'),
-  });
+    const chartQuery = useQuery({
+        queryKey: ['chart'],
+        queryFn: () => apiJson<ChartData>('/api/chart'),
+    });
 
-  const loading = chartQuery.isLoading;
-  const data = chartQuery.isError ? null : chartQuery.data ?? null;
-  const analytics = data?.analytics ?? null;
-  const confPct = analytics ? Math.round((analytics.confidence ?? 0) * 100) : null;
-  const confidenceLabel = (() => {
-    const c = analytics?.confidence ?? 0;
-    if (c < 0.45) return 'Low';
-    if (c < 0.7) return 'Medium';
-    return 'High';
-  })();
+    const loading = chartQuery.isLoading;
+    const data = chartQuery.data;
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-1">
-        <div className="text-sm text-muted-foreground">Chart</div>
-        <h1 className="text-2xl font-semibold tracking-tight">Your cycle timeline</h1>
-        <p className="text-sm text-muted-foreground">Track your patterns and understand your fertility window.</p>
-      </div>
+    // Viewed Month State
+    const [viewDate, setViewDate] = React.useState(new Date());
 
-      {/* Calendar Hero Section */}
-      {data ? (
-        <Card>
-          <CardHeader className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-lg">Last 5 weeks</CardTitle>
+    const changeMonth = (offset: number) => {
+        const next = new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1);
+        setViewDate(next);
+    };
+
+    // Calendar Generation based on viewDate
+    const currentYear = viewDate.getFullYear();
+    const currentMonth = viewDate.getMonth();
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    const calendarTitle = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const isCurrentMonth = currentYear === today.getFullYear() && currentMonth === today.getMonth();
+
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <div className="text-sm text-zinc-500">Loading chart...</div>
             </div>
-            <CardDescription className="text-sm">
-              Visual overview of your cycle. Today is highlighted.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(() => {
-              const { days, today, start } = useCalendarGrid();
-              const cycleStart = parseISO(data.cycle.startDate);
-              const todayIso = format(today, 'yyyy-MM-dd');
-              const windowStart =
-                analytics?.windowCycleDay?.start != null ? addDays(cycleStart, Number(analytics.windowCycleDay.start) - 1) : null;
-              const windowEnd =
-                analytics?.windowCycleDay?.end != null ? addDays(cycleStart, Number(analytics.windowCycleDay.end) - 1) : null;
+        );
+    }
 
-              function withinWindow(d: Date): boolean {
-                if (!windowStart || !windowEnd) return false;
-                if (isBefore(d, cycleStart)) return false;
-                if (isAfter(d, today)) return false;
-                if (isBefore(d, windowStart)) return false;
-                if (isAfter(d, windowEnd)) return false;
-                return true;
-              }
-
-              const loggedByDate = new Map<string, ChartDay>();
-              for (const d of data.days) loggedByDate.set(d.date, d);
-
-              const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-              return (
-                <div className="space-y-3">
-                  <div className="text-xs text-muted-foreground text-center">
-                    {format(start, 'MMM d')}–{format(today, 'MMM d, yyyy')}
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-2">
-                    {weekdayLabels.map((d) => (
-                      <div key={d} className="h-5 w-10 text-center text-xs font-medium text-muted-foreground">
-                        {d}
-                      </div>
-                    ))}
-
-                    {days.map((dt, index) => {
-                      // Handle empty cells for month breaks
-                      if (dt === null) {
-                        return <div key={`empty-${index}`} className="h-10 w-10" aria-hidden="true" />;
-                      }
-
-                      const isFuture = isAfter(dt, today);
-                      const iso = format(dt, 'yyyy-MM-dd');
-                      const entry = loggedByDate.get(iso);
-                      const outOfCycle = isBefore(dt, cycleStart);
-                      const isToday = iso === todayIso;
-                      const lh = entry?.lhTest === 'positive';
-
-                      const inWindow = withinWindow(dt);
-                      const prev = days[index - 1];
-                      const next = days[index + 1];
-                      const connectsLeft =
-                        inWindow &&
-                        prev instanceof Date &&
-                        withinWindow(prev) &&
-                        format(prev, 'yyyy-MM-dd') === format(addDays(dt, -1), 'yyyy-MM-dd');
-                      const connectsRight =
-                        inWindow &&
-                        next instanceof Date &&
-                        withinWindow(next) &&
-                        format(next, 'yyyy-MM-dd') === format(addDays(dt, 1), 'yyyy-MM-dd');
-
-                      if (isFuture) {
-                        return <div key={iso} className="h-10 w-10" aria-hidden="true" />;
-                      }
-
-                      const circleClass = outOfCycle
-                        ? 'bg-muted/20 text-muted-foreground/40'
-                        : entry
-                          ? entry.risk === 'HIGH'
-                            ? 'bg-[hsl(var(--risk-high))] text-white'
-                            : entry.risk === 'MEDIUM'
-                              ? 'bg-[hsl(var(--risk-medium))] text-white'
-                              : 'bg-[hsl(var(--risk-low))] text-white'
-                          : 'border-2 border-dashed border-[hsl(var(--risk-high))] text-foreground';
-
-                      const todayClass = isToday ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : '';
-
-                      return (
-                        <div key={iso} className="relative h-10 w-10" aria-label={iso}>
-                          {inWindow ? (
-                            <span
-                              aria-hidden="true"
-                              className={[
-                                'absolute inset-y-2',
-                                connectsLeft ? '-left-1' : 'left-0',
-                                connectsRight ? '-right-1' : 'right-0',
-                                connectsLeft ? '' : 'rounded-l-full',
-                                connectsRight ? '' : 'rounded-r-full',
-                              ].join(' ')}
-                              style={{ backgroundColor: 'hsl(var(--risk-high) / 0.14)' }}
-                            />
-                          ) : null}
-
-                          <div className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full text-sm tabular-nums ${circleClass} ${todayClass}`}>
-                            <span>{dt.getDate()}</span>
-                            {lh ? (
-                              <span
-                                className="absolute -bottom-0.5 h-1.5 w-1.5 rounded-full bg-white"
-                                aria-label="LH positive"
-                              />
-                            ) : null}
-                          </div>
+    if (!data || !data.days.length) {
+        return (
+            <div className="h-full bg-background font-sans flex flex-col">
+                <Header />
+                <div className="flex-1 flex flex-col min-h-0 items-center justify-center">
+                    <div className="px-6 pb-24 w-full">
+                        <div className="max-w-md mx-auto space-y-6">
+                            <div className="text-center space-y-4">
+                                <TrendingUp className="w-16 h-16 mx-auto text-zinc-300 dark:text-zinc-700" />
+                                <div className="space-y-4">
+                                    <h2 className="text-[20px] font-bold tracking-tight">No Data Available</h2>
+                                    <p className="text-[17px] text-zinc-500 leading-relaxed px-4">
+                                        Logs will appear here once you start tracking your signs.
+                                    </p>
+                                </div>
+                                <a
+                                    href="#/log"
+                                    className="inline-block bg-[#007aff] hover:bg-[#006ee6] text-white font-semibold text-[17px] h-12 flex items-center justify-center px-8 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/10"
+                                >
+                                    Log First Entry
+                                </a>
+                            </div>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center text-xs text-muted-foreground pt-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-3 w-6 rounded-full"
-                        style={{ backgroundColor: 'hsl(var(--risk-high) / 0.14)' }}
-                      />
-                      Fertile window
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[hsl(var(--risk-high))]" />
-                      High risk
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[hsl(var(--risk-medium))]" />
-                      Medium risk
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[hsl(var(--risk-low))]" />
-                      Low risk
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full border-2 border-dashed border-[hsl(var(--risk-high))]" />
-                      No data
-                    </div>
-                  </div>
                 </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Cycle Insights Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Current Cycle Status */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Cycle status</span>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-medium">
-                  {loading ? 'Loading…' : data?.cycle?.state ? stateLabel(data.cycle.state) : 'No data'}
-                </div>
-                {data?.cycle?.startDate && (
-                  <div className="text-xs text-muted-foreground">
-                    Started {format(parseISO(data.cycle.startDate), 'MMM d')}
-                  </div>
-                )}
-              </div>
             </div>
+        );
+    }
 
-            {/* Key Insights */}
-            {analytics && (
-              <>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Ovulation</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {analytics.confirmed ? 'Confirmed' : 'Not yet confirmed'}
-                  </div>
-                </div>
+    const dayMap = new Map(data.days.map(d => [d.date, d]));
 
-                {analytics.warnings?.length && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-amber-800">{analytics.warnings[0]}</div>
-                  </div>
-                )}
-              </>
-            )}
+    return (
+        <div className="h-full bg-background font-sans flex flex-col">
+            <Header />
+            <div className="flex-1 flex flex-col min-h-0">
+                <div className="px-6 py-4 pb-24">
+                    <div className="max-w-md mx-auto space-y-6">
 
-            {/* Expandable Details */}
-            <details className="group">
-              <summary className="cursor-pointer flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                <span className="text-sm font-medium">Cycle details</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="mt-3 space-y-3 pl-3 border-l-2 border-muted">
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">Peak detected:</span> {data ? yesNo(Boolean(data.cycle.peakDate)) : '—'}
-                </div>
-                {analytics && (
-                  <>
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">Confidence:</span> {confidenceLabel} ({confPct}%)
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">Fertile window:</span> Cycle days {analytics.windowCycleDay.start}–{analytics.windowCycleDay.end}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">Data gaps:</span> {yesNo(Boolean(analytics.coverage?.critical_gap))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </details>
-
-            {/* Disclaimer */}
-            <div className="text-xs text-muted-foreground pt-2 border-t border-muted/50">
-              This is a retrospective view only. No predictions. If uncertain, assume fertile.
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Timeline */}
-      <Card>
-        <CardHeader className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Recent days</CardTitle>
-          </div>
-          <CardDescription className="text-sm">Your latest logged data and temperature readings.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(data?.days ?? [])
-            .filter((d) => {
-              const date = parseISO(d.date);
-              const today = startOfDay(new Date());
-              const diff = (today.getTime() - date.getTime()) / (1000 * 3600 * 24);
-              return diff >= 0 && diff < 7;
-            })
-            .sort((a, b) => b.date.localeCompare(a.date))
-            .map((d) => {
-              const pct = fertilityPct(d.fertilityIndex);
-              const temp = d.temperature == null ? '—' : Number(d.temperature).toFixed(1);
-              const lhPositive = d.lhTest === 'positive';
-              return (
-                <div key={d.date} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm tabular-nums text-muted-foreground min-w-[80px]">
-                      {format(parseISO(d.date), 'MMM d')}
-                    </div>
-                    <Badge variant={riskBadgeVariant(d.risk)} className="text-xs">
-                      {d.risk}
-                    </Badge>
-                    {lhPositive && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span className="h-2 w-2 rounded-full bg-[hsl(var(--risk-high))]" />
-                        LH+
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 min-w-[100px]">
-                      <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: `${pct}%`,
-                            background: `hsl(var(--${d.risk === 'HIGH' ? 'risk-high' : d.risk === 'MEDIUM' ? 'risk-medium' : 'risk-low'}))`,
-                          }}
+                        {/* Month Navigator */}
+                        <DateNavigator
+                            label={calendarTitle}
+                            sublabel={isCurrentMonth ? "Current Month" : "Monthly View"}
+                            onPrev={() => changeMonth(-1)}
+                            onNext={() => changeMonth(1)}
+                            nextDisabled={isCurrentMonth}
                         />
-                      </div>
-                    </div>
-                    <div className="text-sm tabular-nums text-muted-foreground min-w-[40px] text-right">
-                      {temp}°
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
 
-          {(data?.days ?? []).length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <div className="text-sm">No logged data yet for this cycle.</div>
+                        {/* Screen Time Style Hero */}
+                        <div className="px-1 pt-2 space-y-1">
+                            <div className="text-[14px] font-semibold text-zinc-500 uppercase tracking-tight">Today's Risk</div>
+                            <div className="flex items-baseline gap-2">
+                                <span className={cn(
+                                    "text-5xl font-bold tracking-tight",
+                                    data.days.find(d => d.date === todayStr)?.risk === 'HIGH' ? "text-rose-500" :
+                                        data.days.find(d => d.date === todayStr)?.risk === 'MEDIUM' ? "text-amber-500" : "text-emerald-500"
+                                )}>
+                                    {data.days.find(d => d.date === todayStr)?.risk || "LOW"}
+                                </span>
+                                <span className="text-[17px] font-medium text-zinc-400">Risk</span>
+                            </div>
+                        </div>
+
+                        {/* Signature Screen Time Bar Chart (Last 7 Days) */}
+                        <div className="bg-zinc-100 dark:bg-zinc-900/50 rounded-2xl p-5 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[13px] font-bold text-zinc-400 uppercase tracking-tight">Last 7 Days</div>
+                                <div className="flex items-center gap-1 text-[13px] font-medium text-[#007aff]">
+                                    <TrendingUp className="w-4 h-4" />
+                                    <span>Cycle Insight</span>
+                                </div>
+                            </div>
+                            <div className="flex items-end justify-between h-32 pt-2">
+                                {data.days.slice(-7).map((day, i) => {
+                                    const height = day.risk === 'HIGH' ? 'h-full' : day.risk === 'MEDIUM' ? 'h-2/3' : 'h-1/3';
+                                    return (
+                                        <div key={i} className="flex flex-col items-center gap-2 group flex-1">
+                                            <div className={cn(
+                                                "w-full max-w-[12px] rounded-t-sm transition-all duration-300",
+                                                height,
+                                                riskColor(day.risk)
+                                            )} />
+                                            <div className="text-[10px] font-bold text-zinc-400">
+                                                {new Date(day.date).toLocaleDateString('en-US', { weekday: 'narrow' })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Cycle Details - Secondary Stats */}
+                        <div className="grid grid-cols-2 gap-4 px-1 py-2">
+                            <div className="space-y-0.5">
+                                <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-tight">Cycles State</div>
+                                <div className="text-[16px] font-semibold text-foreground capitalize">{data.cycle.state.replace(/_/g, ' ')}</div>
+                            </div>
+                            <div className="space-y-0.5">
+                                <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-tight">Ovulation</div>
+                                <div className="text-[16px] font-semibold text-foreground">{data.analytics?.confirmed ? 'Confirmed' : 'Tracking'}</div>
+                            </div>
+                        </div>
+
+                        {/* Monthly Calendar View */}
+                        <InsetGroup title="Monthly View">
+                            <div className="p-4 bg-card">
+                                <div className="grid grid-cols-7 gap-y-7 text-center">
+                                    {/* Weekday Headers */}
+                                    {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(d => (
+                                        <div key={d} className="text-[10px] font-bold text-zinc-400 tracking-widest">{d}</div>
+                                    ))}
+
+                                    {/* Empty pre-padding */}
+                                    {Array.from({ length: firstDay }).map((_, i) => (
+                                        <div key={`empty-${i}`} />
+                                    ))}
+
+                                    {/* Days */}
+                                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                                        const dayNum = i + 1;
+                                        const dateObj = new Date(currentYear, currentMonth, dayNum);
+                                        // Handle timezone offset for ISO string
+                                        const offset = dateObj.getTimezoneOffset();
+                                        const localDate = new Date(dateObj.getTime() - (offset * 60000));
+                                        const dateIso = localDate.toISOString().slice(0, 10);
+
+                                        const dayData = dayMap.get(dateIso);
+                                        const isFuture = dateIso > todayStr;
+                                        const isToday = dateIso === todayStr;
+
+                                        return (
+                                            <div key={dayNum} className="flex flex-col items-center justify-center relative py-0.5">
+                                                <div className={cn(
+                                                    "w-9 h-9 rounded-full flex items-center justify-center text-[16px] transition-all duration-200 relative",
+                                                    isToday && !dayData ? "border-2 border-[#007aff] text-[#007aff] font-bold" : "",
+                                                    isFuture ? "text-zinc-300 dark:text-zinc-700 font-normal" : "text-foreground font-medium",
+                                                )}>
+                                                    {/* Background Dot for mapped data */}
+                                                    {dayData && (
+                                                        <div className={cn(
+                                                            "absolute inset-0 m-auto w-[34px] h-[34px] rounded-full z-0 shadow-sm",
+                                                            riskColor(dayData.risk)
+                                                        )} />
+                                                    )}
+
+                                                    {/* Day Number */}
+                                                    <span className={cn(
+                                                        "z-10",
+                                                        dayData ? "text-white font-semibold" : ""
+                                                    )}>
+                                                        {dayNum}
+                                                    </span>
+                                                </div>
+
+                                                {/* LH+ Indicator */}
+                                                {dayData?.lhTest === 'positive' && (
+                                                    <div className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-[#1C1C1E]" />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </InsetGroup>
+
+                        {/* Data Quality & Warnings */}
+                        {data.analytics?.coverage.critical_gap && (
+                            <div className="mx-1 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <div className="text-sm font-bold text-amber-900 dark:text-amber-400">Data Missing</div>
+                                    <div className="text-xs text-amber-700/80 dark:text-amber-500/80 leading-relaxed">
+                                        Multiple consecutive days are missing logs. This reduces analysis confidence.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Legend Inset */}
+                        <InsetGroup title="Legend">
+                            <div className="divide-y divide-border/30">
+                                {[
+                                    { color: 'bg-emerald-500', label: 'Low Risk', info: 'Safe' },
+                                    { color: 'bg-amber-500', label: 'Medium Risk', info: 'Caution' },
+                                    { color: 'bg-rose-500', label: 'High Risk', info: 'Fertile' },
+                                    { color: 'bg-zinc-200 dark:bg-zinc-800', label: 'No Data', info: 'Logged' }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex h-12 items-center justify-between px-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("w-5 h-5 rounded-md", item.color)} />
+                                            <span className="text-[17px] font-normal text-zinc-900 dark:text-zinc-100">{item.label}</span>
+                                        </div>
+                                        <span className="text-[14px] text-zinc-400">{item.info}</span>
+                                    </div>
+                                ))}
+                                <div className="flex h-12 items-center justify-between px-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-rose-500/10 flex items-center justify-center">
+                                            <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                        </div>
+                                        <span className="text-[17px] font-normal text-zinc-900 dark:text-zinc-100">LH+ Detected</span>
+                                    </div>
+                                    <Info className="w-4 h-4 text-zinc-300" />
+                                </div>
+                            </div>
+                        </InsetGroup>
+
+                    </div>
+                </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+        </div>
+    );
 }

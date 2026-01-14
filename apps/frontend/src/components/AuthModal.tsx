@@ -56,7 +56,7 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
       onClose={onClose}
       title={
         <span className="text-stone-500 font-medium">
-          {HERO.SUBTITLE.BEFORE}{HERO.SUBTITLE.HIGHLIGHT}{HERO.SUBTITLE.AFTER}
+          {HERO.SUBTITLE.BEFORE}<span className="text-rose-500 font-extrabold italic">{HERO.SUBTITLE.HIGHLIGHT}</span>{HERO.SUBTITLE.AFTER}
         </span>
       }
     >
@@ -85,7 +85,7 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
         <div
           className={
             statusTone === 'danger'
-              ? 'text-sm text-red-600 bg-red-50 dark:bg-red-950/50 p-3 rounded-xl'
+              ? 'text-sm text-rose-500 bg-rose-50 dark:bg-rose-950/50 p-3 rounded-xl'
               : 'text-sm text-stone-500'
           }
           role="status"

@@ -33,7 +33,7 @@ export function LandingPage() {
           {HERO.TITLE}
         </h1>
         <p className="text-xl md:text-2xl text-slate-600 mb-8 font-medium tracking-tight">
-          {HERO.SUBTITLE.BEFORE}<span className="text-red-600">{HERO.SUBTITLE.HIGHLIGHT}</span>{HERO.SUBTITLE.AFTER}
+          {HERO.SUBTITLE.BEFORE}<span className="text-rose-500 font-extrabold italic">{HERO.SUBTITLE.HIGHLIGHT}</span>{HERO.SUBTITLE.AFTER}
         </p>
         <p className="text-lg md:text-xl text-gray-500 mb-12 font-normal leading-relaxed">
           {HERO.DESCRIPTION}
@@ -50,17 +50,17 @@ export function LandingPage() {
 
           <div className="flex flex-wrap justify-center items-center gap-x-5 gap-y-3 text-xs md:text-sm font-medium text-stone-400">
             <span className="flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-600" strokeWidth={3} />
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-500" strokeWidth={3} />
               Free by default.
             </span>
             <div className="hidden md:block w-1 h-1 rounded-full bg-stone-200" />
             <span className="flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-600" strokeWidth={3} />
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-500" strokeWidth={3} />
               No ads.
             </span>
             <div className="hidden md:block w-1 h-1 rounded-full bg-stone-200" />
             <span className="flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-red-600" strokeWidth={3} />
+              <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-500" strokeWidth={3} />
               No tracking.
             </span>
           </div>
@@ -163,10 +163,10 @@ export function LandingPage() {
                   <TableRow key={f.name} className="border-stone-100">
                     <TableCell className="py-3 md:py-4 pl-4 md:pl-8 text-stone-600 font-medium text-xs md:text-base">{f.name}</TableCell>
                     <TableCell className="text-center px-2">
-                      <Check className="h-4 w-4 md:h-5 md:w-5 text-red-600 mx-auto" strokeWidth={3} />
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-rose-500 mx-auto" strokeWidth={3} />
                     </TableCell>
                     <TableCell className="text-center px-2">
-                      <Check className="h-4 w-4 md:h-5 md:w-5 text-red-600 mx-auto" strokeWidth={3} />
+                      <Check className="h-4 w-4 md:h-5 md:w-5 text-rose-500 mx-auto" strokeWidth={3} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -189,7 +189,7 @@ export function LandingPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm font-semibold border-red-600 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                      className="rounded-full px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm font-semibold border-rose-500 text-rose-500 hover:bg-red-50 hover:text-red-700 transition-colors"
                       onClick={openAuth}
                     >
                       Start free

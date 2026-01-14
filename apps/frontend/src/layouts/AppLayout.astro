@@ -2,7 +2,7 @@
 const { title, active } = Astro.props;
 const showBranding = Astro.props.showBranding ?? true;
 const showNav = Astro.props.showNav ?? true;
-const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md';
+const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md px-4 pt-6';
 import { BottomNav } from '../components/BottomNav';
 import Analytics from '@vercel/analytics/astro';
 import SpeedInsights from '@vercel/speed-insights/astro';
@@ -29,10 +29,32 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     <script>
       (() => {
         try {
+          // Theme logic
           const stored = localStorage.getItem('theme');
           const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           const shouldDark = stored ? stored === 'dark' : prefersDark;
           document.documentElement.classList.toggle('dark', shouldDark);
+
+          // Scaling logic - considers both width and height
+          const updateScale = () => {
+            const h = window.innerHeight;
+            const w = window.innerWidth;
+            let scale = 'medium';
+            
+            // Desktop/laptop: use large scale for premium, spacious feel
+            if (w > 768) {
+              scale = 'large';
+            } else {
+              // For narrow screens (actual mobile), use height-based scaling
+              if (h < 720) scale = 'small';
+              else if (h > 850) scale = 'large';
+              else scale = 'medium';
+            }
+            
+            document.documentElement.setAttribute('data-scale', scale);
+          };
+          updateScale();
+          window.addEventListener('resize', updateScale);
         } catch {
           // ignore
         }
@@ -50,13 +72,13 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     {showBranding ? (
       <header class="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div class={`mx-auto flex ${maxWidthClass} items-center justify-between px-4 py-3`}>
-          <a href={brandHref} class="text-sm font-semibold tracking-tight text-foreground">{BRAND.PREFIX}<span class="text-red-600 font-bold">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}</a>
+          <a href={brandHref} class="text-sm font-semibold tracking-tight text-foreground">{BRAND.PREFIX}<span class="text-rose-500 font-extrabold italic">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}</a>
           <div class="text-xs text-muted-foreground">Informational only</div>
         </div>
       </header>
     ) : null}
 
-    <main class={`mx-auto min-h-dvh ${maxWidthClass} px-4 pt-6 ${mainPaddingBottom}`}>
+    <main class={`mx-auto min-h-dvh ${maxWidthClass} ${mainPaddingBottom}`}>
       <slot />
     </main>
 

@@ -12,6 +12,7 @@ import { UserRepository } from './repositories/UserRepository.js';
 import { CycleRepository } from './repositories/CycleRepository.js';
 import { LogRepository } from './repositories/LogRepository.js';
 import { EngineRepository } from './repositories/EngineRepository.js';
+import { PreferencesRepository } from './repositories/PreferencesRepository.js';
 
 import { authRoutes } from './routes/auth.js';
 import { apiRoutes } from './routes/api.js';
@@ -127,6 +128,7 @@ const userRepository = new UserRepository(db);
 const cycleRepository = new CycleRepository(db);
 const logRepository = new LogRepository(db);
 const engineRepository = new EngineRepository(db);
+const preferencesRepository = new PreferencesRepository(db);
 
 // Health check endpoint (kept in index as it's a system route)
 app.get('/health', async (req, reply) => {
@@ -157,7 +159,7 @@ app.addHook('preHandler', async (req, reply) => {
   if (
     req.url.startsWith('/api/') &&
     !req.url.startsWith('/api/auth/oauth/') &&
-    req.url !== '/api/logout' &&
+    req.url !== '/api/signout' &&
     req.url !== '/api/session/check'
   ) {
     const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
@@ -177,8 +179,8 @@ app.addHook(
 );
 
 // Register Routes
-app.register(authRoutes, { userRepository, cycleRepository });
-app.register(apiRoutes, { logRepository, engineRepository, cycleRepository, db, userRepository });
+app.register(authRoutes, { userRepository, cycleRepository, preferencesRepository });
+app.register(apiRoutes, { logRepository, engineRepository, cycleRepository, db, userRepository, preferencesRepository });
 
 // Graceful shutdown handling
 async function gracefulShutdown(signal: string) {
