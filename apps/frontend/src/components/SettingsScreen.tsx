@@ -182,17 +182,14 @@ export function SettingsScreen() {
   const confirmConfig = {
     reset: {
       title: 'Reset Cycle',
-      description: 'This will create a new cycle. Previous data remains in history. This action cannot be undone.',
       confirmText: 'RESET CYCLE',
     },
     deleteData: {
       title: 'Delete All Data',
-      description: 'This will permanently remove all logged cycles and observations. Your account will be preserved. This cannot be undone.',
       confirmText: 'DELETE ALL DATA',
     },
     deleteAccount: {
       title: 'Delete Account',
-      description: 'This will permanently remove your account and all data. You will be signed out. This cannot be undone.',
       confirmText: 'DELETE ACCOUNT',
     },
   };
@@ -511,8 +508,7 @@ export function SettingsScreen() {
           onClose={() => setConfirmAction(null)}
           onConfirm={handleConfirmAction}
           title={confirmConfig[confirmAction].title}
-          description={confirmConfig[confirmAction].description}
-          confirmText={confirmConfig[confirmAction].confirmText}
+          actionLabel={confirmConfig[confirmAction].confirmText}
           variant={confirmAction === 'deleteAccount' ? 'danger' : 'warning'}
         />
       )}
