@@ -101,6 +101,16 @@ export async function deleteAllData(): Promise<{ ok: boolean }> {
 }
 
 /**
+ * Delete user account and all data
+ */
+export async function deleteAccount(): Promise<{ ok: boolean }> {
+  return await apiJson('/api/delete-account', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+/**
  * Get user session
  */
 export async function getUserSession(): Promise<{ userId: string | null; email: string | null }> {

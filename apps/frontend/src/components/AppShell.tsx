@@ -101,7 +101,9 @@ export function AppShell() {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionGate>
-        <SignedInRoutes route={route} />
+        <main className="pb-24">
+          <SignedInRoutes route={route} />
+        </main>
         <BottomNav active={route} />
       </SessionGate>
     </QueryClientProvider>

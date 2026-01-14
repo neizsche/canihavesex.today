@@ -27,10 +27,20 @@ function p(n: number): string {
   return `$${n}`;
 }
 
+import { UserRepository } from './repositories/UserRepository.js';
+import { EngineRepository } from './repositories/EngineRepository.js';
+import { LogRepository } from './repositories/LogRepository.js';
+
+// ... helpers ...
+
 export async function seedPerfect() {
   loadEnv();
   const db = await createDb();
   await migrate(db);
+
+  const userRepo = new UserRepository(db);
+  const engineRepo = new EngineRepository(db);
+  const logRepo = new LogRepository(db);
 
   const now = new Date().toISOString();
 
@@ -41,16 +51,14 @@ export async function seedPerfect() {
     'perfect-scenario@example.com';
 
   // Email is the key: create user if missing, otherwise reuse existing id.
-  const existing = await db.query<{ id: string }>(
-    `select id from users where email = ${p(1)} limit 1`,
-    [email]
-  );
-  const userId = existing[0]?.id ?? randomUUID();
-  if (!existing[0]?.id) {
-    await db.query(
-      `insert into users (id, email, created_at) values (${p(1)}, ${p(2)}, ${p(3)})`,
-      [userId, email, now]
-    );
+  let userId = await userRepo.findByEmail(email).then(u => u?.id);
+  if (!userId) {
+    userId = randomUUID();
+    await userRepo.create({
+      id: userId,
+      email,
+      created_at: now
+    });
   }
 
   // Put the cycle in the recent past so /api/today has enough data to confirm BBT.
@@ -58,21 +66,14 @@ export async function seedPerfect() {
   const startDate = isoDateFrom(isoToday(), -20);
 
   // Optional: give a personal model so calendar prior is stable.
-  await db.query(
-    `insert into user_personal_model (user_id, mean_ovulation_day, mean_luteal_length, updated_at)
-     values (${p(1)}, 14.0, 14.0, ${p(2)})
-     on conflict (user_id) do update set
-       mean_ovulation_day=excluded.mean_ovulation_day,
-       mean_luteal_length=excluded.mean_luteal_length,
-       updated_at=excluded.updated_at`,
-    [userId, now]
-  );
+  await engineRepo.savePersonalModel(userId, {
+    meanOvulationDay: 14.0,
+    meanLutealLength: 14.0,
+    updatedAt: now
+  });
 
-  // “Perfect” logging: full coverage, one LH+, one eggwhite peak, and a clear BBT shift.
-  // Requirements for BBT confirmation in CIHS:
-  // - 6 reliable prior temps
-  // - next 3 temps reliable
-  // - ≥2 of next3 ≥ baseline+0.2°C
+  // ... logs array definition ...
+
   const logs: Array<{
     cd: number;
     mucusType: 'dry' | 'sticky' | 'creamy' | 'watery' | 'eggwhite';
@@ -81,34 +82,32 @@ export async function seedPerfect() {
     temperature: number | null;
     lhTest: 'positive' | 'negative' | 'notTaken';
   }> = [
-    // CD1..CD5 (early cycle)
-    { cd: 1, bleeding: 'light', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.45 },
-    { cd: 2, bleeding: 'light', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.42 },
-    { cd: 3, bleeding: 'spotting', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.44 },
-    { cd: 4, bleeding: 'none', mucusType: 'sticky', sensation: 'damp', lhTest: 'notTaken', temperature: 36.46 },
-    { cd: 5, bleeding: 'none', mucusType: 'sticky', sensation: 'damp', lhTest: 'notTaken', temperature: 36.43 },
+      // ... same logs ...
+      // CD1..CD5 (early cycle)
+      { cd: 1, bleeding: 'light', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.45 },
+      { cd: 2, bleeding: 'light', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.42 },
+      { cd: 3, bleeding: 'spotting', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.44 },
+      { cd: 4, bleeding: 'none', mucusType: 'sticky', sensation: 'damp', lhTest: 'notTaken', temperature: 36.46 },
+      { cd: 5, bleeding: 'none', mucusType: 'sticky', sensation: 'damp', lhTest: 'notTaken', temperature: 36.43 },
 
-    // CD6..CD12 (fertile buildup + reliable baseline temps)
-    { cd: 6, bleeding: 'none', mucusType: 'creamy', sensation: 'damp', lhTest: 'notTaken', temperature: 36.47 },
-    { cd: 7, bleeding: 'none', mucusType: 'creamy', sensation: 'damp', lhTest: 'negative', temperature: 36.48 },
-    { cd: 8, bleeding: 'none', mucusType: 'watery', sensation: 'slippery', lhTest: 'negative', temperature: 36.49 },
-    { cd: 9, bleeding: 'none', mucusType: 'watery', sensation: 'slippery', lhTest: 'negative', temperature: 36.50 },
-    { cd: 10, bleeding: 'none', mucusType: 'eggwhite', sensation: 'slippery', lhTest: 'negative', temperature: 36.51 },
-    { cd: 11, bleeding: 'none', mucusType: 'eggwhite', sensation: 'slippery', lhTest: 'positive', temperature: 36.52 },
-    { cd: 12, bleeding: 'none', mucusType: 'watery', sensation: 'slippery', lhTest: 'negative', temperature: 36.50 },
+      // CD6..CD12 (fertile buildup + reliable baseline temps)
+      { cd: 6, bleeding: 'none', mucusType: 'creamy', sensation: 'damp', lhTest: 'notTaken', temperature: 36.47 },
+      { cd: 7, bleeding: 'none', mucusType: 'creamy', sensation: 'damp', lhTest: 'negative', temperature: 36.48 },
+      { cd: 8, bleeding: 'none', mucusType: 'watery', sensation: 'slippery', lhTest: 'negative', temperature: 36.49 },
+      { cd: 9, bleeding: 'none', mucusType: 'watery', sensation: 'slippery', lhTest: 'negative', temperature: 36.50 },
+      { cd: 10, bleeding: 'none', mucusType: 'eggwhite', sensation: 'slippery', lhTest: 'negative', temperature: 36.51 },
+      { cd: 11, bleeding: 'none', mucusType: 'eggwhite', sensation: 'slippery', lhTest: 'positive', temperature: 36.52 },
+      { cd: 12, bleeding: 'none', mucusType: 'watery', sensation: 'slippery', lhTest: 'negative', temperature: 36.50 },
 
-    // CD13 is “shift day” anchor; CD14-16 are elevated (confirm)
-    { cd: 13, bleeding: 'none', mucusType: 'creamy', sensation: 'damp', lhTest: 'negative', temperature: 36.55 },
-    { cd: 14, bleeding: 'none', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.76 },
-    { cd: 15, bleeding: 'none', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.80 },
-    { cd: 16, bleeding: 'none', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.82 },
-  ];
+      // CD13 is “shift day” anchor; CD14-16 are elevated (confirm)
+      { cd: 13, bleeding: 'none', mucusType: 'creamy', sensation: 'damp', lhTest: 'negative', temperature: 36.55 },
+      { cd: 14, bleeding: 'none', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.76 },
+      { cd: 15, bleeding: 'none', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.80 },
+      { cd: 16, bleeding: 'none', mucusType: 'dry', sensation: 'dry', lhTest: 'notTaken', temperature: 36.82 },
+    ];
 
   // Idempotency: if you re-run with the same email/user, replace prior seeded logs.
-  await db.query(
-    `delete from raw_logs where user_id = ${p(1)} and source = ${p(2)}`,
-    [userId, 'seedPerfect']
-  );
+  await logRepo.deleteRawLogsBySource(userId, 'seedPerfect');
 
   // Insert append-only raw logs. We don’t touch daily_logs directly; the backend engine will maintain compat tables.
   // created_at increases to preserve deterministic ordering.
@@ -133,11 +132,14 @@ export async function seedPerfect() {
       illness: false,
       sleepHours: 8,
     };
-    await db.query(
-      `insert into raw_logs (id, user_id, date, payload_json, source, created_at)
-       values (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)})`,
-      [id, userId, date, JSON.stringify(payload), 'seedPerfect', createdAt]
-    );
+    await logRepo.createRawLog({
+      id,
+      user_id: userId,
+      date,
+      payload_json: JSON.stringify(payload),
+      source: 'seedPerfect',
+      created_at: createdAt
+    });
   }
 
   // Helpful print for dev usage

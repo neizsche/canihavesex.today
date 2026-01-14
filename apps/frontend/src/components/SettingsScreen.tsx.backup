@@ -89,7 +89,8 @@ export function SettingsScreen() {
     }
   }
 
-  async function executeDeleteAllData() {
+  async function deleteAll() {
+    if (!confirm('Delete all your fertility data?\n\nYour account will be preserved, but all logged cycles and observations will be permanently removed.\n\nThis cannot be undone.')) return;
     setBusy(true);
     setStatusTone('muted');
     setStatus('Deleting…');
@@ -124,7 +125,8 @@ export function SettingsScreen() {
     }
   }
 
-  async function executeDeleteAccount() {
+  async function deleteAccount() {
+    if (!confirm('Delete your account?\n\nThis will permanently remove your account and all data. You will be signed out.\n\nThis cannot be undone.')) return;
     setBusy(true);
     setStatusTone('muted');
     setStatus('Deleting account…');
@@ -158,44 +160,6 @@ export function SettingsScreen() {
       setBusy(false);
     }
   }
-
-  // Wrapper functions that trigger confirmation dialog
-  function resetCycle() {
-    setConfirmAction('reset');
-  }
-
-  function deleteAll() {
-    setConfirmAction('deleteData');
-  }
-
-  function deleteAccount() {
-    setConfirmAction('deleteAccount');
-  }
-
-  // Confirmation handlers
-  function handleConfirmAction() {
-    if (confirmAction === 'reset') executeResetCycle();
-    else if (confirmAction === 'deleteData') executeDeleteAllData();
-    else if (confirmAction === 'deleteAccount') executeDeleteAccount();
-  }
-
-  const confirmConfig = {
-    reset: {
-      title: 'Reset Cycle',
-      description: 'This will create a new cycle. Previous data remains in history. This action cannot be undone.',
-      confirmText: 'RESET CYCLE',
-    },
-    deleteData: {
-      title: 'Delete All Data',
-      description: 'This will permanently remove all logged cycles and observations. Your account will be preserved. This cannot be undone.',
-      confirmText: 'DELETE ALL DATA',
-    },
-    deleteAccount: {
-      title: 'Delete Account',
-      description: 'This will permanently remove your account and all data. You will be signed out. This cannot be undone.',
-      confirmText: 'DELETE ACCOUNT',
-    },
-  };
 
   async function logout() {
     setBusy(true);
@@ -503,19 +467,6 @@ export function SettingsScreen() {
           </div>
         </div>
       </dialog>
-
-      {/* Confirmation Dialog */}
-      {confirmAction && (
-        <ConfirmationDialog
-          isOpen={confirmAction !== null}
-          onClose={() => setConfirmAction(null)}
-          onConfirm={handleConfirmAction}
-          title={confirmConfig[confirmAction].title}
-          description={confirmConfig[confirmAction].description}
-          confirmText={confirmConfig[confirmAction].confirmText}
-          variant={confirmAction === 'deleteAccount' ? 'danger' : 'warning'}
-        />
-      )}
     </div>
   );
 }

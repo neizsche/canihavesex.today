@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { CalendarDays, Droplets, Save, Thermometer, TestTube2, Heart, Moon, AlertCircle, ChevronDown, CheckCircle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { apiFetch, currentReturnTo } from '../lib/api';
+import { apiFetch, apiJson, currentReturnTo } from '../lib/api';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
@@ -16,6 +17,7 @@ function todayIso(): string {
 }
 
 export function LogScreen() {
+  const queryClient = useQueryClient();
   const [date, setDate] = React.useState<string>(todayIso());
   const [temperature, setTemperature] = React.useState<string>('');
   const [mucusType, setMucusType] = React.useState<MucusType>('dry');
@@ -92,17 +94,28 @@ export function LogScreen() {
         return;
       }
 
+      // ✨ Invalidate queries to trigger automatic refetch on Today and Chart screens
+      await queryClient.invalidateQueries({ queryKey: ['chart'] });
+
+      // Direct cache update from valid response payload (0-latency transition)
+      const data = await res.json();
+      if (data.today) {
+        queryClient.setQueryData(['today'], data.today);
+      } else {
+        // Fallback if backend doesn't return data
+        await queryClient.invalidateQueries({ queryKey: ['today'] });
+      }
+
       setStatusTone('ok');
       setStatus('Saved.');
       setBusy(false);
-      // Navigate within the SPA (avoid flashing the landing page).
-      setTimeout(() => {
-        if (window.location.pathname.startsWith('/app')) {
-          window.location.hash = '#/today';
-        } else {
-          window.location.href = '/app#/today';
-        }
-      }, 350);
+
+      // Navigate immediately now that data is fresh
+      if (window.location.pathname.startsWith('/app')) {
+        window.location.hash = '#/today';
+      } else {
+        window.location.href = '/app#/today';
+      }
     } catch {
       setStatusTone('danger');
       setStatus('Network error.');
@@ -415,7 +428,7 @@ export function LogScreen() {
             <div className="pt-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
               <Button className="h-14 w-full text-base font-medium" onClick={save} disabled={busy}>
                 <Save className="mr-2 h-5 w-5" />
-                Save observation
+                View today's status
               </Button>
 
               {/* Status Message */}

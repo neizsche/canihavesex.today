@@ -1,5 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
-import type { Db } from './db.js';
+import type { LogRepository, RawLog } from './repositories/LogRepository.js';
+import type { EngineRepository, EngineResult, EngineTrace } from './repositories/EngineRepository.js';
+import type { CycleRepository } from './repositories/CycleRepository.js';
 import { fertilityIndexForLog } from './fertilityEngine.js';
 import { run_engine as runCihsEngine, type Day as CihsDay, type Personal as CihsPersonal, explain_state as explainCihsState } from './cihsEngine.js';
 
@@ -102,11 +104,11 @@ function extractAnalytics(params: { output: EngineOutput; todayIso: IsoDate; tod
     },
     signals: Array.isArray(cihs.signals)
       ? (cihs.signals as any[]).map((s) => ({
-          source: String(s?.source ?? 'CALENDAR') as any,
-          anchor: Number(s?.anchor ?? 14),
-          reliability: Number(s?.reliability ?? 0),
-          explain: String(s?.explain ?? ''),
-        }))
+        source: String(s?.source ?? 'CALENDAR') as any,
+        anchor: Number(s?.anchor ?? 14),
+        reliability: Number(s?.reliability ?? 0),
+        explain: String(s?.explain ?? ''),
+      }))
       : [],
     warnings: Array.isArray(cihs.warnings) ? (cihs.warnings as any[]).map((w) => String(w ?? '')) : [],
     flags: {
@@ -412,25 +414,26 @@ function toPublicRisk(r: EngineRisk): PublicRisk {
   return r;
 }
 
-export async function appendRawLog(db: Db, params: { userId: string; date: IsoDate; payload: RawLogPayloadV1; source?: string }): Promise<string> {
+export async function appendRawLog(logRepo: LogRepository, params: { userId: string; date: IsoDate; payload: RawLogPayloadV1; source?: string }): Promise<string> {
   const id = randomUUID();
   const now = new Date().toISOString();
-  await db.query(
-    'insert into raw_logs (id, user_id, date, payload_json, source, created_at) values ($1,$2,$3,$4,$5,$6)',
-    [id, params.userId, params.date, JSON.stringify(params.payload ?? {}), params.source ?? 'app', now]
-  );
+  await logRepo.createRawLog({
+    id,
+    user_id: params.userId,
+    date: params.date,
+    payload_json: JSON.stringify(params.payload ?? {}),
+    source: params.source ?? 'app',
+    created_at: now,
+  });
   return id;
 }
 
-async function getRawLogEvents(db: Db, userId: string): Promise<Array<{ date: IsoDate; payload: RawLogPayloadV1; createdAt: string }>> {
-  const rows = await db.query<any>(
-    'select date, payload_json as "payloadJson", created_at as "createdAt" from raw_logs where user_id=$1 order by date asc, created_at asc',
-    [userId]
-  );
-  return (rows as any[]).map((r) => ({
+async function getRawLogEvents(logRepo: LogRepository, userId: string): Promise<Array<{ date: IsoDate; payload: RawLogPayloadV1; createdAt: string }>> {
+  const rows = await logRepo.findRawLogs(userId);
+  return rows.map((r) => ({
     date: r.date as IsoDate,
-    payload: safeJsonParse<RawLogPayloadV1>(String(r.payloadJson ?? '{}')),
-    createdAt: String(r.createdAt ?? ''),
+    payload: safeJsonParse<RawLogPayloadV1>(r.payload_json),
+    createdAt: r.created_at,
   }));
 }
 
@@ -486,114 +489,75 @@ function buildNormalizedDays(args: { latestByDate: Map<IsoDate, RawLogPayloadV1>
   return out;
 }
 
-async function ensureCycle(db: Db, params: { userId: string; cycleStartDate: IsoDate }): Promise<{ id: string; startDate: IsoDate }> {
-  const rows = await db.query<any>(
-    'select id, start_date as "startDate" from cycles where user_id=$1 and start_date=$2 order by created_at desc limit 1',
-    [params.userId, params.cycleStartDate]
-  );
-  if (rows[0]?.id) return { id: String(rows[0].id), startDate: params.cycleStartDate };
+async function ensureCycle(cycleRepo: CycleRepository, params: { userId: string; cycleStartDate: IsoDate }): Promise<{ id: string; startDate: IsoDate }> {
+  const cycles = await cycleRepo.findByUserId(params.userId);
+  const existing = cycles.find(c => c.start_date === params.cycleStartDate);
+
+  if (existing) return { id: existing.id, startDate: params.cycleStartDate };
+
   const id = randomUUID();
   const now = new Date().toISOString();
-  await db.query(
-    'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
-    [id, params.userId, params.cycleStartDate, 'INFERTILE_PRE', null, null, now]
-  );
+  await cycleRepo.create({
+    id,
+    user_id: params.userId,
+    start_date: params.cycleStartDate,
+    state: 'INFERTILE_PRE',
+    peak_date: null,
+    temp_shift_confirmed_date: null,
+    created_at: now,
+  });
   return { id, startDate: params.cycleStartDate };
 }
 
-async function upsertNormalizedDay(db: Db, userId: string, d: NormalizedDay): Promise<void> {
+async function upsertNormalizedDay(engineRepo: EngineRepository, userId: string, d: NormalizedDay): Promise<void> {
   const now = new Date().toISOString();
   const id = sha256Hex(`${userId}:${d.date}`);
-  await db.query(
-    `insert into normalized_days
-      (id, user_id, date, cycle_start_date, cycle_day_index, has_log, bleeding, mucus_type, sensation, temperature, lh_test, sex, sleep_hours, illness, stress, notes, updated_at)
-     values
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-     on conflict (user_id, date) do update set
-      cycle_start_date=excluded.cycle_start_date,
-      cycle_day_index=excluded.cycle_day_index,
-      has_log=excluded.has_log,
-      bleeding=excluded.bleeding,
-      mucus_type=excluded.mucus_type,
-      sensation=excluded.sensation,
-      temperature=excluded.temperature,
-      lh_test=excluded.lh_test,
-      sex=excluded.sex,
-      sleep_hours=excluded.sleep_hours,
-      illness=excluded.illness,
-      stress=excluded.stress,
-      notes=excluded.notes,
-      updated_at=excluded.updated_at`,
-    [
-      id,
-      userId,
-      d.date,
-      d.cycleStartDate,
-      d.cycleDayIndex,
-      d.hasLog ? 1 : 0,
-      d.payload.bleeding ?? null,
-      d.payload.mucusType ?? null,
-      d.payload.sensation ?? null,
-      d.payload.temperature ?? null,
-      d.payload.lhTest ?? null,
-      d.payload.sex ? 1 : 0,
-      d.payload.sleepHours ?? null,
-      d.payload.illness ? 1 : 0,
-      d.payload.stress ?? null,
-      d.payload.notes ?? null,
-      now,
-    ]
-  );
+  await engineRepo.saveNormalizedDay({
+    id,
+    user_id: userId,
+    date: d.date,
+    cycle_start_date: d.cycleStartDate,
+    cycle_day_index: d.cycleDayIndex,
+    has_log: d.hasLog ? 1 : 0,
+    bleeding: d.payload.bleeding ?? null,
+    mucus_type: d.payload.mucusType ?? null,
+    sensation: d.payload.sensation ?? null,
+    temperature: d.payload.temperature ?? null,
+    lh_test: d.payload.lhTest ?? null,
+    sex: d.payload.sex ? 1 : 0,
+    sleep_hours: d.payload.sleepHours ?? null,
+    illness: d.payload.illness ? 1 : 0,
+    stress: d.payload.stress ?? null,
+    notes: d.payload.notes ?? null,
+    updated_at: now,
+  });
 }
 
-async function upsertDailyLogCompat(db: Db, userId: string, cycleId: string, d: NormalizedDay): Promise<void> {
+async function upsertDailyLogCompat(logRepo: LogRepository, userId: string, cycleId: string, d: NormalizedDay): Promise<void> {
   // Maintain compatibility with existing UI queries against daily_logs (latest state per day).
   // NOTE: This is not the source of truth anymore; raw_logs is.
   if (!d.payload.mucusType || !d.payload.sensation || !d.payload.bleeding || !d.payload.lhTest) return;
   const now = new Date().toISOString();
   const logId = randomUUID();
-  await db.query(
-    `insert into daily_logs
-      (id, user_id, cycle_id, date, mucus_type, sensation, bleeding, temperature, lh_test, sick, bad_sleep, alcohol, created_at)
-     values
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-     on conflict (user_id, date) do update set
-      cycle_id = excluded.cycle_id,
-      mucus_type = excluded.mucus_type,
-      sensation = excluded.sensation,
-      bleeding = excluded.bleeding,
-      temperature = excluded.temperature,
-      lh_test = excluded.lh_test,
-      sick = excluded.sick,
-      bad_sleep = excluded.bad_sleep,
-      alcohol = excluded.alcohol`,
-    [
-      logId,
-      userId,
-      cycleId,
-      d.date,
-      d.payload.mucusType,
-      d.payload.sensation,
-      d.payload.bleeding,
-      d.payload.temperature ?? null,
-      d.payload.lhTest,
-      d.payload.illness ? 1 : 0,
-      d.payload.sleepHours != null && d.payload.sleepHours < 4 ? 1 : 0,
-      d.payload.alcohol ? 1 : 0,
-      now,
-    ]
-  );
+  await logRepo.createDailyLog({
+    id: logId,
+    user_id: userId,
+    cycle_id: cycleId,
+    date: d.date,
+    mucus_type: d.payload.mucusType,
+    sensation: d.payload.sensation,
+    bleeding: d.payload.bleeding,
+    temperature: d.payload.temperature ?? null,
+    lh_test: d.payload.lhTest,
+    sick: d.payload.illness ? 1 : 0,
+    bad_sleep: d.payload.sleepHours != null && d.payload.sleepHours < 4 ? 1 : 0,
+    alcohol: d.payload.alcohol ? 1 : 0,
+    created_at: now,
+  });
 }
 
-async function getPersonalModel(db: Db, userId: string): Promise<{ meanLutealLength: number; meanCycleLength: number }> {
-  const rows = await db.query<any>(
-    'select mean_luteal_length as "meanLutealLength" from user_personal_model where user_id=$1',
-    [userId]
-  );
-  const meanLutealLength = typeof rows[0]?.meanLutealLength === 'number' ? Number(rows[0].meanLutealLength) : 14;
-  // phase 1: compute mean cycle length from history of cycle starts (from normalized days later); default 28
-  const meanCycleLength = 28;
-  return { meanLutealLength, meanCycleLength };
+async function getPersonalModel(engineRepo: EngineRepository, userId: string): Promise<{ meanLutealLength: number; meanCycleLength: number }> {
+  return await engineRepo.getPersonalModel(userId);
 }
 
 function buildEngineForCycle(args: {
@@ -719,7 +683,7 @@ function buildEngineForCycle(args: {
   };
 }
 
-async function storeEngineResult(db: Db, args: {
+async function storeEngineResult(engineRepo: EngineRepository, args: {
   userId: string;
   cycleId: string;
   cycleStartDate: IsoDate;
@@ -729,37 +693,41 @@ async function storeEngineResult(db: Db, args: {
   inputHash: string;
 }): Promise<{ engineResultId: string }> {
   const id = randomUUID();
-  const traceId = randomUUID();
   const now = new Date().toISOString();
-  await db.query(
-    `insert into engine_results
-      (id, user_id, cycle_id, cycle_start_date, as_of_date, engine_version, parameter_version, input_hash, output_json, created_at)
-     values
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-    [id, args.userId, args.cycleId, args.cycleStartDate, args.asOfDate, ENGINE_VERSION, PARAMETER_VERSION, args.inputHash, JSON.stringify(args.output), now]
-  );
-  await db.query(
-    'insert into engine_traces (id, engine_result_id, trace_json, created_at) values ($1,$2,$3,$4)',
-    [traceId, id, JSON.stringify(args.trace ?? {}), now]
-  );
+  await engineRepo.saveResult({
+    id,
+    user_id: args.userId,
+    cycle_id: args.cycleId,
+    cycle_start_date: args.cycleStartDate,
+    as_of_date: args.asOfDate,
+    engine_version: ENGINE_VERSION,
+    parameter_version: PARAMETER_VERSION,
+    input_hash: args.inputHash,
+    output_json: JSON.stringify(args.output),
+    created_at: now,
+  });
+  await engineRepo.saveTrace({
+    id: randomUUID(),
+    engine_result_id: id,
+    trace_json: JSON.stringify(args.trace ?? {}),
+    created_at: now,
+  });
   return { engineResultId: id };
 }
 
-export async function getLatestEngineResult(db: Db, params: { userId: string; cycleId: string; asOfDate: IsoDate }): Promise<EngineOutput | null> {
-  const rows = await db.query<any>(
-    'select output_json as "outputJson", engine_version as "engineVersion" from engine_results where user_id=$1 and cycle_id=$2 and as_of_date=$3 order by created_at desc limit 1',
-    [params.userId, params.cycleId, params.asOfDate]
-  );
-  if (!rows[0]?.outputJson) return null;
-  const out = safeJsonParse<EngineOutput>(String(rows[0].outputJson));
+export async function getLatestEngineResult(engineRepo: EngineRepository, params: { userId: string; cycleId: string; asOfDate: IsoDate }): Promise<EngineOutput | null> {
+  const result = await engineRepo.getLatestResult(params.userId);
+  if (!result || result.as_of_date !== params.asOfDate || result.cycle_id !== params.cycleId) return null;
+
+  const out = safeJsonParse<EngineOutput>(result.output_json);
   return out?.cycle_id ? out : null;
 }
 
 export async function runEngineV2(
-  db: Db,
+  repos: { logRepo: LogRepository, engineRepo: EngineRepository, cycleRepo: CycleRepository },
   params: { userId: string; asOfDate: IsoDate }
 ): Promise<{ output: EngineOutput; publicToday: { risk: PublicRisk; explanation: string }; analytics: EngineAnalytics | null }> {
-  const events = await getRawLogEvents(db, params.userId);
+  const events = await getRawLogEvents(repos.logRepo, params.userId);
   if (events.length === 0) {
     // No logs yet: conservative defaults
     const dummyCycleId = 'no-cycle';
@@ -801,14 +769,14 @@ export async function runEngineV2(
   const cycleStartDates = Array.from(new Set(normalized.map((d) => d.cycleStartDate))).sort();
   const cycleIdByStart = new Map<IsoDate, string>();
   for (const s of cycleStartDates) {
-    const c = await ensureCycle(db, { userId: params.userId, cycleStartDate: s });
+    const c = await ensureCycle(repos.cycleRepo, { userId: params.userId, cycleStartDate: s });
     cycleIdByStart.set(s, c.id);
   }
 
   for (const d of normalized) {
-    await upsertNormalizedDay(db, params.userId, d);
+    await upsertNormalizedDay(repos.engineRepo, params.userId, d);
     const cycleId = cycleIdByStart.get(d.cycleStartDate)!;
-    if (d.hasLog) await upsertDailyLogCompat(db, params.userId, cycleId, d);
+    if (d.hasLog) await upsertDailyLogCompat(repos.logRepo, params.userId, cycleId, d);
   }
 
   // Current cycle is the one containing asOfDate
@@ -818,14 +786,15 @@ export async function runEngineV2(
   const cycleDays = normalized.filter((d) => d.cycleStartDate === cycleStart);
   const todayCycleDay = current.cycleDayIndex;
 
-  const personal = await getPersonalModel(db, params.userId);
+  const personal = await getPersonalModel(repos.engineRepo, params.userId);
   const built = buildEngineForCycle({ cycleDays, personal });
 
   // Update cycles compat fields (state/peak/temp shift)
-  await db.query(
-    'update cycles set state=$1, peak_date=$2, temp_shift_confirmed_date=$3 where id=$4',
-    [built.derived.cycleState, built.derived.peakDate, built.derived.tempShiftConfirmedDate, cycleId]
-  );
+  await repos.cycleRepo.update(cycleId, {
+    state: built.derived.cycleState,
+    peak_date: built.derived.peakDate,
+    temp_shift_confirmed_date: built.derived.tempShiftConfirmedDate,
+  });
 
   const inputHash = sha256Hex(
     JSON.stringify({
@@ -850,7 +819,7 @@ export async function runEngineV2(
     ...built.output,
   };
 
-  await storeEngineResult(db, {
+  await storeEngineResult(repos.engineRepo, {
     userId: params.userId,
     cycleId,
     cycleStartDate: cycleStart,

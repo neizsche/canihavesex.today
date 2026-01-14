@@ -13,6 +13,10 @@ import { calculateRisk, fertilityIndexForLog, updateCycleState } from './fertili
 import { appendRawLog, fertilityIndexCompatFromPayload, runEngineV2 } from './engineV2.js';
 import { createRateLimitMiddleware } from './rateLimiter.js';
 import { loadEnv } from './env.js';
+import { UserRepository } from './repositories/UserRepository.js';
+import { CycleRepository } from './repositories/CycleRepository.js';
+import { LogRepository } from './repositories/LogRepository.js';
+import { EngineRepository } from './repositories/EngineRepository.js';
 
 loadEnv();
 
@@ -202,6 +206,11 @@ await app.register(formbody);
 
 const db = await createDb();
 await migrate(db);
+
+const userRepository = new UserRepository(db);
+const cycleRepository = new CycleRepository(db);
+const logRepository = new LogRepository(db);
+const engineRepository = new EngineRepository(db);
 
 // Auth preHandler: require a signed uid cookie for protected API routes.
 app.addHook('preHandler', async (req, reply) => {
@@ -424,24 +433,27 @@ function oauthRedirectUri(provider: OauthProvider, req: any): string {
 
 async function ensureUserForEmail(email: string): Promise<string> {
   const now = new Date().toISOString();
-  const existing = await db.query<{ id: string }>(
-    'select id from users where email = $1',
-    [email]
-  );
-  const userId = existing[0]?.id ?? randomUUID();
+  const existing = await userRepository.findByEmail(email);
+  const userId = existing?.id ?? randomUUID();
 
-  if (!existing[0]) {
-    await db.query(
-      'insert into users (id, email, created_at) values ($1, $2, $3)',
-      [userId, email, now]
-    );
+  if (!existing) {
+    await userRepository.create({
+      id: userId,
+      email,
+      created_at: now,
+    });
 
     const cycleId = randomUUID();
     const startDate = now.slice(0, 10);
-    await db.query(
-      'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
-      [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
-    );
+    await cycleRepository.create({
+      id: cycleId,
+      user_id: userId,
+      start_date: startDate,
+      state: 'INFERTILE_PRE',
+      peak_date: null,
+      temp_shift_confirmed_date: null,
+      created_at: now,
+    });
   }
 
   return userId;
@@ -454,19 +466,21 @@ async function linkIdentity(params: {
 }): Promise<string> {
   const now = new Date().toISOString();
 
-  const existing = await db.query<{ user_id: string }>(
-    'select user_id as "user_id" from user_identities where provider = $1 and provider_user_id = $2',
-    [params.provider, params.providerUserId]
-  );
+  const existing = await userRepository.findIdentityByProvider(params.provider, params.providerUserId);
 
-  if (existing[0]?.user_id) return existing[0].user_id;
+  if (existing) return existing.user_id;
 
   const userId = await ensureUserForEmail(params.email);
   const identityId = randomUUID();
-  await db.query(
-    'insert into user_identities (id, user_id, provider, provider_user_id, email, created_at) values ($1,$2,$3,$4,$5,$6)',
-    [identityId, userId, params.provider, params.providerUserId, params.email, now]
-  );
+
+  await userRepository.createIdentity({
+    id: identityId,
+    user_id: userId,
+    provider: params.provider,
+    provider_user_id: params.providerUserId,
+    email: params.email,
+    created_at: now,
+  });
   return userId;
 }
 
@@ -634,11 +648,9 @@ app.get('/api/session', async (req, reply) => {
   // If unauthenticated, the preHandler will return 401.
   const userId = (req as any).userId as string | undefined;
   if (!userId) return reply.send({ userId: null, email: null });
-  const rows = await db.query<any>(
-    'select email from users where id=$1 limit 1',
-    [userId]
-  );
-  const email = rows[0]?.email ? String(rows[0].email) : null;
+
+  const user = await userRepository.findById(userId);
+  const email = user?.email ?? null;
   return reply.send({ userId, email });
 });
 
@@ -654,11 +666,8 @@ app.get('/api/session/check', async (req, reply) => {
 
   // Verify the user still exists in the database
   try {
-    const rows = await db.query<any>(
-      'select id from users where id=$1 limit 1',
-      [uid]
-    );
-    const authenticated = rows.length > 0;
+    const user = await userRepository.findById(uid);
+    const authenticated = !!user;
     return reply.send({ authenticated });
   } catch (error) {
     req.log.error({ error, userId: uid }, 'session check database error');
@@ -759,7 +768,7 @@ app.post('/api/log-day', async (req, reply) => {
 
     try {
       // Append-only raw log event (new source of truth)
-      await appendRawLog(db, {
+      await appendRawLog(logRepository, {
         userId,
         date,
         payload: {
@@ -784,9 +793,23 @@ app.post('/api/log-day', async (req, reply) => {
 
       // Recompute and persist engine results for today (deterministic, versioned).
       // This also maintains daily_logs + cycles compat fields under the hood.
-      const engine = await runEngineV2(db, { userId, asOfDate: date });
+      const engine = await runEngineV2(
+        { logRepo: logRepository, engineRepo: engineRepository, cycleRepo: cycleRepository },
+        { userId, asOfDate: date }
+      );
 
-      return reply.send({ ok: true, cycleState: 'UPDATED', engineVersion: 'v2' });
+      return reply.send({
+        ok: true,
+        cycleState: 'UPDATED',
+        engineVersion: 'v2',
+        today: {
+          date: new Date().toISOString().slice(0, 10),
+          risk: engine.publicToday.risk,
+          explanation: engine.publicToday.explanation,
+          analytics: engine.analytics,
+          disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+        }
+      });
 
     } catch (dbError) {
       req.log.error({ route: '/api/log-day', userId, dbError, date }, 'database operation failed');
@@ -806,7 +829,10 @@ app.get('/api/today', async (req, reply) => {
     const today = new Date().toISOString().slice(0, 10);
 
     try {
-      const engine = await runEngineV2(db, { userId, asOfDate: today });
+      const engine = await runEngineV2(
+        { logRepo: logRepository, engineRepo: engineRepository, cycleRepo: cycleRepository },
+        { userId, asOfDate: today }
+      );
 
       return {
         date: today,
@@ -834,15 +860,25 @@ app.get('/api/chart', async (req, reply) => {
 
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const engine = await runEngineV2(db, { userId, asOfDate: today });
+      const engine = await runEngineV2(
+        { logRepo: logRepository, engineRepo: engineRepository, cycleRepo: cycleRepository },
+        { userId, asOfDate: today }
+      );
       const cycleId = engine.output.cycle_id;
 
-      const cycleRows = await db.query<any>(
-        'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles where id=$1 limit 1',
-        [cycleId]
-      );
-      const cycle = (cycleRows[0] as Cycle) ?? (await getCurrentCycle(db, userId));
-      const logsInCycle = await getLogsInCycle(db, userId, cycle.id);
+      const cycleById = await cycleRepository.findById(cycleId);
+      const currentCycle = await cycleRepository.findCurrent(userId);
+      // Fallback logic preserved from original code
+      const cycle = cycleById ?? currentCycle;
+
+      if (!cycle) {
+        // Should ideally handle no cycle case, but original code implied getCurrentCycle always returns something or throws?
+        // Helper was likely: select ... limit 1.
+        // Assuming ensureUserForEmail creates a cycle, user should have one.
+        return reply.status(404).send({ error: "Cycle not found" });
+      }
+
+      const logsInCycle = await logRepository.findDailyLogsByCycleId(cycle.id);
 
       const riskByDate = new Map<string, 'HIGH' | 'MEDIUM' | 'LOW'>();
       for (const r of engine.output.daily_risks) {
@@ -859,13 +895,13 @@ app.get('/api/chart', async (req, reply) => {
         .sort((a, b) => a.date.localeCompare(b.date))
         .map((l) => {
           try {
-            const idx = fertilityIndexForLog(l);
+            const idx = fertilityIndexForLog({ mucusType: l.mucus_type as any, sensation: l.sensation as any });
             return {
               date: l.date,
               fertilityIndex: idx,
               risk: riskByDate.get(l.date) ?? ('HIGH' as const),
               temperature: l.temperature,
-              lhTest: l.lhTest,
+              lhTest: l.lh_test,
             };
           } catch (calcError) {
             req.log.warn({ route: '/api/chart', userId, date: l.date, calcError }, 'error calculating risk for date');
@@ -874,7 +910,7 @@ app.get('/api/chart', async (req, reply) => {
               fertilityIndex: 0,
               risk: 'HIGH' as const, // Conservative default
               temperature: l.temperature,
-              lhTest: l.lhTest,
+              lhTest: l.lh_test,
             };
           }
         });
@@ -882,10 +918,10 @@ app.get('/api/chart', async (req, reply) => {
       return {
         cycle: {
           id: cycle.id,
-          startDate: cycle.startDate,
+          startDate: cycle.start_date,
           state: cycle.state,
-          peakDate: cycle.peakDate,
-          tempShiftConfirmedDate: cycle.tempShiftConfirmedDate,
+          peakDate: cycle.peak_date,
+          tempShiftConfirmedDate: cycle.temp_shift_confirmed_date,
         },
         analytics: engine.analytics,
         days,
@@ -912,10 +948,25 @@ app.post('/api/reset-cycle', async (req, reply) => {
     const cycleId = randomUUID();
 
     try {
-      await db.query(
-        'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1,$2,$3,$4,$5,$6,$7)',
-        [cycleId, userId, startDate, 'INFERTILE_PRE', null, null, now]
-      );
+      // User request: "in recet cycle also we should delete raw logs of user of last cycle"
+      // Behavior: When resetting, if there is a current active cycle, wipe its logs so we start fresh-fresh.
+      // This effectively "restarts" the current period rather than just appending a new empty one.
+      const currentCycle = await cycleRepository.findCurrent(userId);
+      if (currentCycle) {
+        // Delete raw logs belonging to the cycle we are about to supersede
+        // Because we are "resetting", we assume the user wants to clear the data for *this* current timeframe.
+        await logRepository.deleteRawLogsFromDate(userId, currentCycle.start_date);
+      }
+
+      await cycleRepository.create({
+        id: cycleId,
+        user_id: userId,
+        start_date: startDate,
+        state: 'INFERTILE_PRE',
+        peak_date: null,
+        temp_shift_confirmed_date: null,
+        created_at: now
+      });
 
       req.log.info({ route: '/api/reset-cycle', userId, cycleId }, 'cycle reset');
       return reply.send({ ok: true });
@@ -936,16 +987,22 @@ app.post('/api/delete-all-data', async (req, reply) => {
   try {
     const userId = (req as any).userId as string;
 
-    app.log.warn({ route: '/api/delete-all-data', userId }, 'delete all data initiated');
+    app.log.warn({ route: '/api/delete-all-data', userId }, 'delete all user fertility data initiated');
 
     try {
-      // Delete in correct order to maintain referential integrity
+      // Delete ALL fertility data (preserve account)
+      // Delete in order: derived data first, then source data
+      await db.query('delete from engine_traces where engine_result_id in (select id from engine_results where user_id=$1)', [userId]);
+      await db.query('delete from engine_results where user_id=$1', [userId]);
+      await db.query('delete from normalized_days where user_id=$1', [userId]);
       await db.query('delete from daily_logs where user_id=$1', [userId]);
       await db.query('delete from cycles where user_id=$1', [userId]);
-      await db.query('delete from user_identities where user_id=$1', [userId]);
-      await db.query('delete from users where id=$1', [userId]);
+      await db.query('delete from raw_logs where user_id=$1', [userId]); // Source of truth - delete last
 
-      req.log.warn({ route: '/api/delete-all-data', userId }, 'all user data deleted');
+      // Don't create a fresh cycle - let it be created when user logs first observation
+      // This ensures chart shows empty state after deletion
+
+      req.log.warn({ route: '/api/delete-all-data', userId }, 'user fertility data deleted');
       return reply.send({ ok: true });
 
     } catch (dbError) {
@@ -956,6 +1013,39 @@ app.post('/api/delete-all-data', async (req, reply) => {
   } catch (error) {
     const userId = (req as any).userId as string | undefined;
     req.log.error({ route: '/api/delete-all-data', userId, error }, 'unexpected error in delete-all-data');
+    return reply.status(500).send({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/delete-account', async (req, reply) => {
+  try {
+    const userId = (req as any).userId as string;
+
+    app.log.warn({ route: '/api/delete-account', userId }, 'delete account initiated');
+
+    try {
+      // Delete EVERYTHING including the account
+      // Delete in correct order to maintain referential integrity
+      await db.query('delete from engine_traces where engine_result_id in (select id from engine_results where user_id=$1)', [userId]);
+      await db.query('delete from engine_results where user_id=$1', [userId]);
+      await db.query('delete from normalized_days where user_id=$1', [userId]);
+      await db.query('delete from daily_logs where user_id=$1', [userId]);
+      await db.query('delete from cycles where user_id=$1', [userId]);
+      await db.query('delete from raw_logs where user_id=$1', [userId]);
+      await db.query('delete from user_identities where user_id=$1', [userId]);
+      await db.query('delete from users where id=$1', [userId]);
+
+      req.log.warn({ route: '/api/delete-account', userId }, 'account and all data deleted');
+      return reply.send({ ok: true });
+
+    } catch (dbError) {
+      req.log.error({ route: '/api/delete-account', userId, dbError }, 'database operation failed');
+      return reply.status(500).send({ error: 'Failed to delete account' });
+    }
+
+  } catch (error) {
+    const userId = (req as any).userId as string | undefined;
+    req.log.error({ route: '/api/delete-account', userId, error }, 'unexpected error in delete-account');
     return reply.status(500).send({ error: 'Internal server error' });
   }
 });

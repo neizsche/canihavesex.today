@@ -353,45 +353,53 @@ export function ChartScreen() {
           <CardDescription className="text-sm">Your latest logged data and temperature readings.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {(data?.days ?? []).slice().reverse().slice(0, 7).map((d) => {
-            const pct = fertilityPct(d.fertilityIndex);
-            const temp = d.temperature == null ? '—' : Number(d.temperature).toFixed(1);
-            const lhPositive = d.lhTest === 'positive';
-            return (
-              <div key={d.date} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                <div className="flex items-center gap-3">
-                  <div className="text-sm tabular-nums text-muted-foreground min-w-[80px]">
-                    {format(parseISO(d.date), 'MMM d')}
-                  </div>
-                  <Badge variant={riskBadgeVariant(d.risk)} className="text-xs">
-                    {d.risk}
-                  </Badge>
-                  {lhPositive && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <span className="h-2 w-2 rounded-full bg-[hsl(var(--risk-high))]" />
-                      LH+
+          {(data?.days ?? [])
+            .filter((d) => {
+              const date = parseISO(d.date);
+              const today = startOfDay(new Date());
+              const diff = (today.getTime() - date.getTime()) / (1000 * 3600 * 24);
+              return diff >= 0 && diff < 7;
+            })
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .map((d) => {
+              const pct = fertilityPct(d.fertilityIndex);
+              const temp = d.temperature == null ? '—' : Number(d.temperature).toFixed(1);
+              const lhPositive = d.lhTest === 'positive';
+              return (
+                <div key={d.date} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm tabular-nums text-muted-foreground min-w-[80px]">
+                      {format(parseISO(d.date), 'MMM d')}
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 min-w-[100px]">
-                    <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{
-                          width: `${pct}%`,
-                          background: `hsl(var(--${d.risk === 'HIGH' ? 'risk-high' : d.risk === 'MEDIUM' ? 'risk-medium' : 'risk-low'}))`,
-                        }}
-                      />
+                    <Badge variant={riskBadgeVariant(d.risk)} className="text-xs">
+                      {d.risk}
+                    </Badge>
+                    {lhPositive && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full bg-[hsl(var(--risk-high))]" />
+                        LH+
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 min-w-[100px]">
+                      <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${pct}%`,
+                            background: `hsl(var(--${d.risk === 'HIGH' ? 'risk-high' : d.risk === 'MEDIUM' ? 'risk-medium' : 'risk-low'}))`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-sm tabular-nums text-muted-foreground min-w-[40px] text-right">
+                      {temp}°
                     </div>
                   </div>
-                  <div className="text-sm tabular-nums text-muted-foreground min-w-[40px] text-right">
-                    {temp}°
-                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
           {(data?.days ?? []).length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
