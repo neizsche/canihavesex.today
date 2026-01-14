@@ -8,7 +8,6 @@
     "dev": "npm run dev -w apps/backend & npm run dev -w apps/frontend",
     "dev:backend": "npm run dev -w apps/backend",
     "dev:frontend": "npm run dev -w apps/frontend",
-    "dev:admin": "npm run dev -w apps/admin-frontend",
     "build": "npm run build -w apps/backend && npm run build -w apps/frontend"
   }
 }

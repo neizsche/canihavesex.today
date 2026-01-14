@@ -82,7 +82,7 @@ See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for complete local developmen
 - `GET /api/chart` – returns current cycle timeline + per-day risk/index
 - `POST /api/reset-cycle` – create a new cycle starting today
 - `POST /api/delete-all-data` – delete cycles + logs for current user
-- `GET /api/admin/*` – admin endpoints (requires x-admin-token header)
+
 
 ## Data model (MVP)
 

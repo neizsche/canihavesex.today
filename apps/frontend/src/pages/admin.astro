@@ -1,8 +1,0 @@
----
-import AppLayout from '../layouts/AppLayout.astro';
-import { AdminDashboard } from '../components/AdminDashboard';
----
-
-<AppLayout title="Admin" showNav={false} maxWidthClass="max-w-6xl">
-  <AdminDashboard client:only="react" />
-</AppLayout>

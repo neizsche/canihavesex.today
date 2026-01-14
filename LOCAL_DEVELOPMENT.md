@@ -62,8 +62,7 @@ The app uses environment-specific configuration files:
    # Security (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
    COOKIE_SECRET=your_very_long_random_secret_minimum_32_characters
    
-   # Optional: Admin token for /api/admin endpoints
-   # ADMIN_TOKEN=your_admin_token_here
+
    
    # Optional: Override any development defaults from .env.development
    # DATABASE_URL=postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres

@@ -102,7 +102,7 @@ app.setErrorHandler((err, req, reply) => {
   return reply.send(err);
 });
 
-const adminToken = process.env.ADMIN_TOKEN ?? null;
+
 
 // Health check endpoint
 app.get('/health', async (req, reply) => {
@@ -127,63 +127,13 @@ app.get('/health', async (req, reply) => {
   }
 });
 
-app.get('/api/admin', async (req, reply) => {
-  if (!adminToken) return reply.status(404).send('Not found');
-  const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
-  if (token !== adminToken) return reply.status(401).send('Unauthorized');
 
-  reply.header('content-type', 'text/html; charset=utf-8');
-  return reply.send(`<!doctype html>
-  <html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin</title>
-  <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:20px}code{background:#f3f3f3;padding:2px 6px;border-radius:6px}</style>
-  </head><body>
-    <h1>Admin</h1>
-    <p>Send <code>x-admin-token</code> header with your token.</p>
-    <ul>
-      <li><code>GET /api/admin/users</code></li>
-      <li><code>GET /api/admin/cycles</code></li>
-      <li><code>GET /api/admin/logs?limit=50</code></li>
-    </ul>
-  </body></html>`);
-});
 
-app.get('/api/admin/users', async (req, reply) => {
-  if (!adminToken) return reply.status(404).send({ error: 'Not found' });
-  const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
-  if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
 
-  const rows = await db.query<any>(
-    'select id, email, created_at as "createdAt" from users order by created_at desc limit 100'
-  );
-  return reply.send({ users: rows });
-});
 
-app.get('/api/admin/cycles', async (req, reply) => {
-  if (!adminToken) return reply.status(404).send({ error: 'Not found' });
-  const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
-  if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
 
-  const rows = await db.query<any>(
-    'select id, user_id as "userId", start_date as "startDate", state, peak_date as "peakDate", temp_shift_confirmed_date as "tempShiftConfirmedDate", created_at as "createdAt" from cycles order by created_at desc limit 200'
-  );
-  return reply.send({ cycles: rows });
-});
 
-app.get('/api/admin/logs', async (req, reply) => {
-  if (!adminToken) return reply.status(404).send({ error: 'Not found' });
-  const token = (req.headers['x-admin-token'] as string | undefined) ?? '';
-  if (token !== adminToken) return reply.status(401).send({ error: 'Unauthorized' });
 
-  const limitRaw = (req.query as any)?.limit;
-  const limit = Math.max(1, Math.min(500, Number(limitRaw ?? 50)));
-
-  const rows = await db.query<any>(
-    'select id, user_id as "userId", cycle_id as "cycleId", date, mucus_type as "mucusType", sensation, bleeding, temperature, lh_test as "lhTest", created_at as "createdAt" from daily_logs order by date desc limit $1',
-    [limit]
-  );
-  return reply.send({ logs: rows });
-});
 
 // Validate required environment variables
 const requiredEnvVars = ['COOKIE_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
@@ -217,7 +167,6 @@ app.addHook('preHandler', async (req, reply) => {
   if (
     req.url.startsWith('/api/') &&
     !req.url.startsWith('/api/auth/oauth/') &&
-    !req.url.startsWith('/api/admin/') &&
     req.url !== '/api/logout' &&
     req.url !== '/api/session/check'
   ) {
