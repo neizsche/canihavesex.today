@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heart, Activity, CheckCircle2, ChevronRight, TrendingUp, Sparkles, AlertTriangle, Zap, Brain } from 'lucide-react';
+import { OnboardingFlow } from './OnboardingFlow';
 
 import { apiJson, type Risk } from '../lib/api';
 import { cn } from '../lib/utils';
@@ -52,9 +53,20 @@ function riskTheme(risk: Risk) {
 }
 
 export function TodayScreen() {
+    const queryClient = useQueryClient();
+
+    // Check onboarding status
+    const onboardingQuery = useQuery({
+        queryKey: ['onboarding-status'],
+        queryFn: () => apiJson<{ completed: boolean; has_data: boolean }>('/api/onboarding/status'),
+        retry: false,
+    });
+
+    // ALL HOOKS MUST BE AT TOP LEVEL - fetch today data but only enable if onboarding complete
     const todayQuery = useQuery({
         queryKey: ['today'],
         queryFn: () => apiJson<TodayData>('/api/today'),
+        enabled: onboardingQuery.data?.completed === true,
     });
 
     const loading = todayQuery.isLoading;
@@ -79,6 +91,30 @@ export function TodayScreen() {
     const theme = riskTheme(risk);
     const analytics = data.analytics;
     const isInsufficient = risk === 'INSUFFICIENT_DATA';
+
+    // Show loading state while checking onboarding status
+    if (onboardingQuery.isLoading) {
+        return (
+            <div className="h-full bg-background font-sans flex flex-col">
+                <Header />
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-sm text-muted-foreground">Loading...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // If onboarding not completed, show onboarding flow
+    if (onboardingQuery.data && !onboardingQuery.data.completed) {
+        return (
+            <OnboardingFlow
+                onComplete={() => {
+                    queryClient.invalidateQueries({ queryKey: ['onboarding-status'] });
+                    queryClient.invalidateQueries({ queryKey: ['today'] });
+                }}
+            />
+        );
+    }
 
     // 🧠 Dynamic Insights Engine
     const insights = [

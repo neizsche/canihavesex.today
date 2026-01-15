@@ -31,7 +31,7 @@ Every screen shows the disclaimer:
 
 See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for deployment instructions using Railway + Vercel.
 
-## Run locally
+## Run locally 
 
 See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for complete local development setup.
 

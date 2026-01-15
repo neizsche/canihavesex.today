@@ -21,6 +21,14 @@ export async function migrate(db: Db) {
     create table if not exists user_preferences (
       user_id text primary key,
       theme text not null default 'dark',
+      intent text,
+      cycle_regularity text,
+      context_flags text,
+      onboarding_completed_at text,
+      education_global_shown_at text,
+      education_mucus_shown_at text,
+      education_bbt_shown_at text,
+      education_lh_shown_at text,
       updated_at text not null
     );
 
@@ -137,4 +145,25 @@ export async function migrate(db: Db) {
     create index if not exists idx_engine_traces_result on engine_traces(engine_result_id);
     create index if not exists idx_feedback_user_date on user_feedback(user_id, date desc);
   `);
+
+  // Add onboarding columns to existing user_preferences tables
+  // These will fail silently if columns already exist
+  const alterCommands = [
+    'alter table user_preferences add column intent text;',
+    'alter table user_preferences add column cycle_regularity text;',
+    'alter table user_preferences add column context_flags text;',
+    'alter table user_preferences add column onboarding_completed_at text;',
+    'alter table user_preferences add column education_global_shown_at text;',
+    'alter table user_preferences add column education_mucus_shown_at text;',
+    'alter table user_preferences add column education_bbt_shown_at text;',
+    'alter table user_preferences add column education_lh_shown_at text;'
+  ];
+
+  for (const cmd of alterCommands) {
+    try {
+      await db.exec(cmd);
+    } catch (e) {
+      // Column already exists, ignore error
+    }
+  }
 }

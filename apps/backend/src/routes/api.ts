@@ -480,4 +480,138 @@ export async function apiRoutes(
             return reply.status(500).send({ error: 'Internal server error' });
         }
     });
+
+    // Onboarding API
+    app.get('/api/onboarding/status', async (req, reply) => {
+        try {
+            const userId = (req as any).userId as string;
+
+            const hasCompleted = await preferencesRepository.hasCompletedOnboarding(userId);
+            const currentCycle = await cycleRepository.findCurrent(userId);
+            const hasData = !!currentCycle;
+
+            return reply.send({ completed: hasCompleted, has_data: hasData });
+        } catch (error) {
+            const userId = (req as any).userId as string | undefined;
+            req.log.error({ route: '/api/onboarding/status', userId, error }, 'unexpected error in onboarding status');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
+
+    app.post('/api/onboarding/complete', async (req, reply) => {
+        try {
+            const userId = (req as any).userId as string;
+            const body = req.body as any;
+
+            const { intent, cycle_regularity, context_flags, last_period_start } = body;
+
+            // Validation
+            if (!intent || !cycle_regularity || !last_period_start) {
+                return reply.status(400).send({ error: 'Missing required fields' });
+            }
+
+            if (!['avoid_pregnancy', 'conceive', 'understand_cycle'].includes(intent)) {
+                return reply.status(400).send({ error: 'Invalid intent' });
+            }
+
+            if (!['regular', 'irregular', 'unsure'].includes(cycle_regularity)) {
+                return reply.status(400).send({ error: 'Invalid cycle_regularity' });
+            }
+
+            try {
+                // Mark onboarding complete
+                await preferencesRepository.completeOnboarding(userId, {
+                    intent,
+                    cycle_regularity,
+                    context_flags: Array.isArray(context_flags) ? context_flags : []
+                });
+
+                // Create initial cycle
+                const cycleId = randomUUID();
+                const now = new Date().toISOString();
+
+                await cycleRepository.create({
+                    id: cycleId,
+                    user_id: userId,
+                    start_date: last_period_start,
+                    state: 'INFERTILE_PRE',
+                    peak_date: null,
+                    temp_shift_confirmed_date: null,
+                    created_at: now
+                });
+
+                // Run engine to get initial estimate
+                const today = new Date().toISOString().slice(0, 10);
+                const engine = await runEngineV2(
+                    { logRepo: logRepository, engineRepo: engineRepository, cycleRepo: cycleRepository },
+                    { userId, asOfDate: today }
+                );
+
+                req.log.info({ route: '/api/onboarding/complete', userId, intent, cycle_regularity }, 'onboarding completed');
+
+                return reply.send({
+                    ok: true,
+                    today: {
+                        date: today,
+                        risk: engine.publicToday.risk,
+                        explanation: engine.publicToday.explanation,
+                        analytics: engine.analytics,
+                        disclaimer: 'This is not medical advice. This does not guarantee pregnancy prevention.',
+                    }
+                });
+            } catch (dbError) {
+                req.log.error({ route: '/api/onboarding/complete', userId, dbError }, 'database operation failed');
+                return reply.status(500).send({ error: 'Database operation failed' });
+            }
+
+        } catch (error) {
+            const userId = (req as any).userId as string | undefined;
+            req.log.error({ route: '/api/onboarding/complete', userId, error }, 'unexpected error in onboarding complete');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
+
+    // Education State API
+    app.get('/api/education-state', async (req, reply) => {
+        try {
+            const userId = (req as any).userId as string;
+
+            let prefs = await preferencesRepository.findByUserId(userId);
+
+            // Create default preferences if none exist
+            if (!prefs) {
+                prefs = await preferencesRepository.createDefault(userId);
+            }
+
+            const educationState = await preferencesRepository.getEducationState(userId);
+
+            req.log.info({ route: '/api/education-state', userId }, 'education state retrieved');
+            return reply.send(educationState);
+        } catch (error) {
+            const userId = (req as any).userId as string | undefined;
+            req.log.error({ route: '/api/education-state', userId, error }, 'unexpected error in education-state');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
+
+    app.post('/api/education-state/mark', async (req, reply) => {
+        try {
+            const userId = (req as any).userId as string;
+            const body = req.body as any;
+            const type = body?.type;
+
+            if (!['global', 'mucus', 'bbt', 'lh'].includes(type)) {
+                return reply.status(400).send({ error: 'Invalid type. Must be global, mucus, bbt, or lh' });
+            }
+
+            await preferencesRepository.markEducationShown(userId, type);
+
+            req.log.info({ route: '/api/education-state/mark', userId, type }, 'education marked as shown');
+            return reply.send({ ok: true, type });
+        } catch (error) {
+            const userId = (req as any).userId as string | undefined;
+            req.log.error({ route: '/api/education-state/mark', userId, error }, 'unexpected error marking education');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
 }
