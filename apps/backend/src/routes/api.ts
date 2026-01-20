@@ -614,4 +614,41 @@ export async function apiRoutes(
             return reply.status(500).send({ error: 'Internal server error' });
         }
     });
+
+    app.post('/api/waitlist', async (req, reply) => {
+        try {
+            const body = req.body as any;
+            const { email, reason } = body;
+
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                return reply.status(400).send({ error: 'Invalid email' });
+            }
+
+            try {
+                // Determine source based on origin or default
+                const source = 'landing_page';
+
+                // Using raw SQL insert since we don't have a repository for waitlist yet
+                // and it's a simple single-table operation
+                await db.query(
+                    `INSERT INTO waitlist (email, source, reason) 
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (email) DO NOTHING`,
+                    [email, source, reason || null]
+                );
+
+                // Note: We return success even if duplicate to avoid leaking email existence
+                // The ON CONFLICT DO NOTHING handles the uniqueness constraint silently
+                return reply.send({ success: true });
+
+            } catch (dbError) {
+                req.log.error({ route: '/api/waitlist', email, dbError }, 'database operation failed');
+                return reply.status(500).send({ error: 'Database operation failed' });
+            }
+
+        } catch (error) {
+            req.log.error({ route: '/api/waitlist', error }, 'unexpected error in waitlist');
+            return reply.status(500).send({ error: 'Internal server error' });
+        }
+    });
 }

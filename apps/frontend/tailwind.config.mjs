@@ -16,6 +16,16 @@ export default {
           'Helvetica',
           'Arial',
         ],
+        serif: [
+          'ui-serif',
+          'Georgia',
+          'Cambria',
+          "Times New Roman",
+          "Times",
+          "serif"
+        ],
+        brand: ['Outfit', 'sans-serif'],
+        cursive: ['"Dancing Script"', 'cursive'],
       },
       colors: {
         background: 'var(--background)',

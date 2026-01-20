@@ -41,6 +41,7 @@ const frontendPreviewPort = Number(env.FRONTEND_PREVIEW_PORT || frontendPort);
 
 export default defineConfig({
   site: 'https://canihavesex.today',
+  output: 'static',
   integrations: [react(), sitemap()],
   devToolbar: {
     enabled: false,
@@ -49,6 +50,13 @@ export default defineConfig({
     envDir,
     server: {
       allowedHosts,
+      proxy: {
+        '/api': {
+          target: isProduction ? 'https://backend-production-9072.up.railway.app' : 'http://localhost:1299',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
     plugins: [
       VitePWA({

@@ -160,7 +160,8 @@ app.addHook('preHandler', async (req, reply) => {
     req.url.startsWith('/api/') &&
     !req.url.startsWith('/api/auth/oauth/') &&
     req.url !== '/api/signout' &&
-    req.url !== '/api/session/check'
+    req.url !== '/api/session/check' &&
+    !req.url.startsWith('/api/waitlist')
   ) {
     const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
     const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;

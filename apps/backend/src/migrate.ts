@@ -144,6 +144,16 @@ export async function migrate(db: Db) {
     create index if not exists idx_engine_results_user_cycle_asof on engine_results(user_id, cycle_id, as_of_date desc, created_at desc);
     create index if not exists idx_engine_traces_result on engine_traces(engine_result_id);
     create index if not exists idx_feedback_user_date on user_feedback(user_id, date desc);
+
+    -- Waitlist table (moved from Supabase migrations)
+    create table if not exists waitlist (
+      id uuid primary key default gen_random_uuid(),
+      email text not null unique,
+      source text,
+      reason text,
+      created_at timestamp with time zone default now()
+    );
+    create index if not exists idx_waitlist_email on waitlist(email);
   `);
 
   // Add onboarding columns to existing user_preferences tables
@@ -156,14 +166,19 @@ export async function migrate(db: Db) {
     'alter table user_preferences add column education_global_shown_at text;',
     'alter table user_preferences add column education_mucus_shown_at text;',
     'alter table user_preferences add column education_bbt_shown_at text;',
-    'alter table user_preferences add column education_lh_shown_at text;'
+    'alter table user_preferences add column education_lh_shown_at text;',
+    'alter table waitlist add column if not exists source text;',
+    'alter table waitlist add column if not exists reason text;'
   ];
 
   for (const cmd of alterCommands) {
     try {
       await db.exec(cmd);
-    } catch (e) {
-      // Column already exists, ignore error
+    } catch (e: any) {
+      // Silently ignore if column already exists (error code 42701)
+      if (e?.code !== '42701') {
+        console.error('Migration error:', e);
+      }
     }
   }
 }

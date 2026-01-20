@@ -19,7 +19,12 @@ export const HERO = {
         HIGHLIGHT: "fertility awareness",
         AFTER: " app."
     },
-    DESCRIPTION: "Log your cycle. See today’s status. That’s it.",
+    DESCRIPTION: "Log your cycle. See today's status. That's it.",
+    DISTINCTION: {
+        STRIKETHROUGH: "Cycle tracker",
+        ACTUAL: "Fertility awareness tool"
+    },
+    METHOD_NOTE: "Based on the symptothermal method.",
     PRIVACY_NOTE: "Your data stays yours. No tracking. No ads."
 };
 
@@ -28,6 +33,6 @@ export const LEGAL_TITLES = {
     PRIVACY: "Privacy",
     TERMS: "Terms",
     HOW: "How this works",
-    LIMITS: "What this app can and can’t do",
+    LIMITS: "What this app can and can't do",
     DISCLAIMER: "Medical disclaimer"
 };

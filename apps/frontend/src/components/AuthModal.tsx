@@ -55,15 +55,15 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <span className="text-stone-500 font-medium">
-          {HERO.SUBTITLE.BEFORE}<span className="text-rose-500 font-extrabold italic">{HERO.SUBTITLE.HIGHLIGHT}</span>{HERO.SUBTITLE.AFTER}
+        <span className="text-slate-500 font-medium">
+          {HERO.SUBTITLE.BEFORE}<span className="text-rose-500 font-bold italic">{HERO.SUBTITLE.HIGHLIGHT}</span>{HERO.SUBTITLE.AFTER}
         </span>
       }
     >
       <div className="space-y-4">
         <Button
           type="button"
-          className="w-full h-12 text-base font-medium bg-white text-gray-900 border border-stone-200 hover:bg-stone-50 hover:border-stone-300 shadow-sm transition-all rounded-full dark:bg-stone-900 dark:text-white dark:border-stone-700 dark:hover:bg-stone-800"
+          className="w-full h-14 text-lg font-medium bg-white text-slate-900 border-2 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:scale-[1.02] active:scale-[0.98] shadow-sm transition-all duration-200 rounded-2xl"
           onClick={() => {
             setBusy(true);
             setStatus('');
@@ -71,7 +71,7 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
           }}
           disabled={busy}
         >
-          <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
+          <svg className="mr-3 h-6 w-6" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -85,8 +85,8 @@ export function AuthModal({ isOpen, onClose, returnTo = '/app#/today' }: AuthMod
         <div
           className={
             statusTone === 'danger'
-              ? 'text-sm text-rose-500 bg-rose-50 dark:bg-rose-950/50 p-3 rounded-xl'
-              : 'text-sm text-stone-500'
+              ? 'text-sm text-rose-600 bg-rose-50 p-4 rounded-xl font-medium'
+              : 'text-sm text-slate-500'
           }
           role="status"
         >

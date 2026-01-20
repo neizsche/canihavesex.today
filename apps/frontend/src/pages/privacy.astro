@@ -4,28 +4,28 @@ import { CONTACT_EMAIL } from '../lib/siteConfig';
 ---
 
 <LandingLayout title="Privacy">
-  <div class="max-w-3xl mx-auto px-6 py-24">
-    <h1 class="text-4xl font-semibold tracking-tight text-gray-900 mb-12">Privacy</h1>
+  <div class="max-w-3xl mx-auto px-6 py-32 md:py-40">
+    <h1 class="text-4xl md:text-6xl font-semibold tracking-tight text-slate-900 mb-16">Privacy</h1>
     
-    <div class="prose prose-lg text-gray-600 space-y-12 leading-relaxed">
+    <div class="prose prose-lg max-w-none text-slate-600 space-y-16 leading-relaxed">
       
       <section>
-        <p class="text-xl font-medium text-gray-900 mb-4">Short version: your data is yours. We don’t sell it, and we don’t spy on you.</p>
+        <p class="text-xl md:text-2xl font-medium text-slate-900 mb-4">Short version: your data is yours. We don't sell it, and we don't spy on you.</p>
       </section>
 
       <section>
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">What data we store</h2>
-        <p class="mb-4">When you create an account, we store:</p>
-        <ul class="list-disc pl-5 space-y-2">
+        <h2 class="text-2xl md:text-3xl font-semibold text-slate-900 mb-6">What data we store</h2>
+        <p class="mb-4 text-lg">When you create an account, we store:</p>
+        <ul class="list-disc pl-5 space-y-3 text-lg">
           <li>Your email address</li>
           <li>Your cycle data and logs (the information you enter into the app)</li>
         </ul>
-        <p class="mt-4">This data exists only so the app can work and show you your history.</p>
+        <p class="mt-6 text-lg">This data exists only so the app can work and show you your history.</p>
       </section>
 
       <section>
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">What we do NOT do</h2>
-        <ul class="list-disc pl-5 space-y-2">
+        <h2 class="text-2xl md:text-3xl font-semibold text-slate-900 mb-6">What we do NOT do</h2>
+        <ul class="list-disc pl-5 space-y-3 text-lg">
           <li>We do not sell your data</li>
           <li>We do not show ads</li>
           <li>We do not share your personal data with third parties</li>
@@ -35,8 +35,8 @@ import { CONTACT_EMAIL } from '../lib/siteConfig';
       </section>
 
       <section>
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Your control</h2>
-        <ul class="list-disc pl-5 space-y-2">
+        <h2 class="text-2xl md:text-3xl font-semibold text-slate-900 mb-6">Your control</h2>
+        <ul class="list-disc pl-5 space-y-3 text-lg">
           <li>You can delete your data.</li>
           <li>You can delete your account.</li>
           <li>When you do, your data is removed from our systems.</li>
@@ -44,21 +44,21 @@ import { CONTACT_EMAIL } from '../lib/siteConfig';
       </section>
 
       <section>
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Why we collect data</h2>
-        <p class="mb-4">Only to:</p>
-        <ul class="list-disc pl-5 space-y-2">
+        <h2 class="text-2xl md:text-3xl font-semibold text-slate-900 mb-6">Why we collect data</h2>
+        <p class="mb-4 text-lg">Only to:</p>
+        <ul class="list-disc pl-5 space-y-3 text-lg">
           <li>Make the app work</li>
           <li>Sync your data</li>
           <li>Show your history across devices (if you use more than one)</li>
         </ul>
-        <p class="mt-4">Nothing else.</p>
+        <p class="mt-6 text-lg font-medium">Nothing else.</p>
       </section>
 
-      <section class="pt-8 border-t border-gray-100 mt-12">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Contact</h2>
-        <p>
+      <section class="pt-12 border-t border-slate-100 mt-16">
+        <h2 class="text-xl font-semibold text-slate-900 mb-6">Contact</h2>
+        <p class="text-lg">
           If you have questions or want your data removed, contact us at:<br/>
-          <a href={`mailto:${CONTACT_EMAIL}`} class="text-red-600 underline underline-offset-4 decoration-red-200 hover:decoration-red-600 transition-colors">{CONTACT_EMAIL}</a>
+          <a href={`mailto:${CONTACT_EMAIL}`} class="text-red-600 underline underline-offset-4 decoration-red-200 hover:decoration-red-600 transition-colors font-medium">{CONTACT_EMAIL}</a>
         </p>
       </section>
 
