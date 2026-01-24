@@ -1,8 +1,8 @@
 ---
-import LandingLayout from '../layouts/LandingLayout.astro';
-import { LandingPage } from '../components/LandingPage';
+import AppLayout from '../layouts/AppLayout.astro';
+import { SignInPage } from '../components/SignInPage';
 ---
 
-<LandingLayout>
-  <LandingPage client:load />
-</LandingLayout>
+<AppLayout title="Sign In" showBranding={false} showNav={false}>
+  <SignInPage client:load />
+</AppLayout>

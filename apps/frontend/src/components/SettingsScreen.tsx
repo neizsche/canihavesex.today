@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { Sun, Moon, Trash2, RotateCcw, LogOut, Info, Shield, Scale, HelpCircle, FileText, X, CheckCircle2, ChevronRight } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { BRAND, CONTACT_EMAIL, LEGAL_TITLES } from '../lib/siteConfig';
+import { BRAND } from '../lib/siteConfig';
 import { cn } from '../lib/utils';
 
 import { apiJson } from '../lib/api';

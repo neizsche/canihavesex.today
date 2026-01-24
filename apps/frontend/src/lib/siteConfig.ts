@@ -10,29 +10,12 @@ export const BRAND = {
 };
 
 export const CONTACT_EMAIL = "support@canihavesex.today";
-export const FOOTER_NOTE = "Built with care for your privacy.";
 
 export const HERO = {
-    TITLE: "Clarity for your intimate decisions.",
     SUBTITLE: {
         BEFORE: "A simple ",
         HIGHLIGHT: "fertility awareness",
         AFTER: " app."
     },
-    DESCRIPTION: "Log your cycle. See today's status. That's it.",
-    DISTINCTION: {
-        STRIKETHROUGH: "Cycle tracker",
-        ACTUAL: "Fertility awareness tool"
-    },
-    METHOD_NOTE: "Based on the symptothermal method.",
     PRIVACY_NOTE: "Your data stays yours. No tracking. No ads."
-};
-
-export const LEGAL_TITLES = {
-    ABOUT: "About",
-    PRIVACY: "Privacy",
-    TERMS: "Terms",
-    HOW: "How this works",
-    LIMITS: "What this app can and can't do",
-    DISCLAIMER: "Medical disclaimer"
 };
