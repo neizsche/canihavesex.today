@@ -13,7 +13,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # build output
-/dist/
+dist/
 **/dist/
 
 # local databases
@@ -26,3 +26,6 @@ pnpm-debug.log*
 .idea/
 .vscode/
 
+# Open Core - Premium
+apps/backend/src/features/
+apps/backend/src/server-premium.ts

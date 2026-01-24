@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/server.ts",
+    "dev:premium": "tsx watch src/server-premium.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "seed:perfect": "tsx src/seedPerfect.ts",
