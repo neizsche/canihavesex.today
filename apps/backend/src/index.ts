@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
@@ -9,13 +9,12 @@ import { migrate } from './migrate.js';
 import { createRateLimitMiddleware } from './rateLimiter.js';
 import { loadEnv } from './env.js';
 import { UserRepository } from './repositories/UserRepository.js';
-import { CycleRepository } from './repositories/CycleRepository.js';
-import { LogRepository } from './repositories/LogRepository.js';
-import { EngineRepository } from './repositories/EngineRepository.js';
 import { PreferencesRepository } from './repositories/PreferencesRepository.js';
 
 import { authRoutes } from './routes/auth.js';
-import { apiRoutes } from './routes/api.js';
+import { logsRoutes } from './routes/logs.js';
+import { calendarRoutes } from './routes/calendar.js';
+import { userRoutes } from './routes/user.js';
 
 loadEnv();
 
@@ -126,9 +125,6 @@ export async function createApp() {
   await migrate(db);
 
   const userRepository = new UserRepository(db);
-  const cycleRepository = new CycleRepository(db);
-  const logRepository = new LogRepository(db);
-  const engineRepository = new EngineRepository(db);
   const preferencesRepository = new PreferencesRepository(db);
 
   // Health check endpoint (kept in index as it's a system route)
@@ -176,13 +172,21 @@ export async function createApp() {
     'preHandler',
     createRateLimitMiddleware({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      maxRequests: 100, // 100 requests per 15 minutes
+      maxRequests: 5000, // Increased for dev/testing safety
     })
   );
 
+
   // Register Routes
-  app.register(authRoutes, { userRepository, cycleRepository, preferencesRepository });
-  app.register(apiRoutes, { logRepository, engineRepository, cycleRepository, db, userRepository, preferencesRepository });
+  app.register(authRoutes, { userRepository, preferencesRepository });
+
+  // V5 Routes (Consolidated & Segregated)
+  app.register(logsRoutes, { db });
+  app.register(calendarRoutes, { db });
+  app.register(userRoutes, { db });
+
+
+
 
   // Graceful shutdown handling
   async function gracefulShutdown(signal: string) {

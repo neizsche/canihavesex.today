@@ -1,7 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import type { UserRepository } from '../repositories/UserRepository.js';
-import type { CycleRepository } from '../repositories/CycleRepository.js';
 import type { PreferencesRepository } from '../repositories/PreferencesRepository.js';
 import {
     appBase,
@@ -15,9 +14,9 @@ import {
 
 export async function authRoutes(
     app: FastifyInstance,
-    opts: { userRepository: UserRepository; cycleRepository: CycleRepository; preferencesRepository: PreferencesRepository }
+    opts: { userRepository: UserRepository; preferencesRepository: PreferencesRepository }
 ) {
-    const { userRepository, cycleRepository, preferencesRepository } = opts;
+    const { userRepository, preferencesRepository } = opts;
 
     app.get<{ Params: { provider: string } }>('/api/auth/oauth/:provider/start', async (req, reply) => {
         const provider = req.params.provider as OauthProvider;
@@ -112,7 +111,7 @@ export async function authRoutes(
             if (!emailVerified) return reply.redirect(`${appBase()}/auth?error=email_not_verified`);
 
             // Pass repositories to linkIdentity
-            const userId = await linkIdentity(userRepository, cycleRepository, preferencesRepository, { provider: 'google', providerUserId: sub, email });
+            const userId = await linkIdentity(userRepository, preferencesRepository, { provider: 'google', providerUserId: sub, email });
             reply.clearCookie('oauth_state', { path: '/' });
             reply.clearCookie('oauth_return_to', { path: '/' });
 
@@ -136,6 +135,10 @@ export async function authRoutes(
             return reply.redirect(`${appBase()}/auth?error=invalid_token`);
         }
     });
+
+    // ... (Signout and Session routes remain unchanged but omitted for brevity in this replace block if not needed, 
+    // BUT replace_file_content needs strict range. I'll include the whole file content to be safe or break it down if I can match the top part.)
+    // Actually, I can just replace the top part and get the params right.
 
     app.post('/api/signout', async (_req, reply) => {
         // Be extra defensive: some browsers can be finicky about deleting cookies if attributes differ.

@@ -1,6 +1,7 @@
 import type { Db } from './db.js';
 
 export async function migrate(db: Db) {
+  // 1. Core User Tables
   await db.exec(`
     create table if not exists users (
       id text primary key,
@@ -31,121 +32,8 @@ export async function migrate(db: Db) {
       education_lh_shown_at text,
       updated_at text not null
     );
-
-    create table if not exists cycles (
-      id text primary key,
-      user_id text not null,
-      start_date text not null,
-      state text not null,
-      peak_date text,
-      temp_shift_confirmed_date text,
-      created_at text not null
-    );
-
-    create table if not exists daily_logs (
-      id text primary key,
-      user_id text not null,
-      cycle_id text not null,
-      date text not null,
-      mucus_type text not null,
-      sensation text not null,
-      bleeding text not null,
-      temperature real,
-      lh_test text not null,
-      sick integer not null default 0,
-      bad_sleep integer not null default 0,
-      alcohol integer not null default 0,
-      created_at text not null,
-      unique(user_id, date)
-    );
-
-    -- Append-only raw input events (source of truth)
-    create table if not exists raw_logs (
-      id text primary key,
-      user_id text not null,
-      date text not null,
-      payload_json text not null,
-      source text not null default 'app',
-      created_at text not null
-    );
-
-    -- Latest normalized day snapshot (recomputable; safe to overwrite)
-    create table if not exists normalized_days (
-      id text primary key,
-      user_id text not null,
-      date text not null,
-      cycle_start_date text not null,
-      cycle_day_index integer not null,
-      has_log integer not null default 0,
-      bleeding text,
-      mucus_type text,
-      sensation text,
-      temperature real,
-      lh_test text,
-      -- phase 1: additional raw fields (optional in UI today)
-      sex integer,
-      sleep_hours real,
-      illness integer,
-      stress integer,
-      notes text,
-      updated_at text not null,
-      unique(user_id, date)
-    );
-
-    -- Versioned engine output + trace (never overwrite)
-    create table if not exists engine_results (
-      id text primary key,
-      user_id text not null,
-      cycle_id text not null,
-      cycle_start_date text not null,
-      as_of_date text not null,
-      engine_version text not null,
-      parameter_version text not null,
-      input_hash text not null,
-      output_json text not null,
-      created_at text not null
-    );
-
-    create table if not exists engine_traces (
-      id text primary key,
-      engine_result_id text not null,
-      trace_json text not null,
-      created_at text not null
-    );
-
-    -- phase 2+: personalization + feedback scaffolding
-    create table if not exists user_personal_model (
-      user_id text primary key,
-      mean_ovulation_day real,
-      mean_luteal_length real,
-      updated_at text not null
-    );
-
-    create table if not exists user_feedback (
-      id text primary key,
-      user_id text not null,
-      date text not null,
-      type text not null,
-      payload_json text,
-      created_at text not null
-    );
-
-    -- Critical performance indexes
-    create index if not exists idx_users_email on users(email);
-    create index if not exists idx_cycles_user_start_date on cycles(user_id, start_date desc);
-    create index if not exists idx_cycles_user_created on cycles(user_id, created_at desc);
-    create index if not exists idx_daily_logs_user_date on daily_logs(user_id, date desc);
-    create index if not exists idx_daily_logs_cycle_date on daily_logs(cycle_id, date asc);
-    create index if not exists idx_daily_logs_user_cycle on daily_logs(user_id, cycle_id);
-    create index if not exists idx_user_identities_user on user_identities(user_id);
-
-    create index if not exists idx_raw_logs_user_date_created on raw_logs(user_id, date asc, created_at asc);
-    create index if not exists idx_normalized_days_user_cycle_date on normalized_days(user_id, cycle_start_date, date asc);
-    create index if not exists idx_engine_results_user_cycle_asof on engine_results(user_id, cycle_id, as_of_date desc, created_at desc);
-    create index if not exists idx_engine_traces_result on engine_traces(engine_result_id);
-    create index if not exists idx_feedback_user_date on user_feedback(user_id, date desc);
-
-    -- Waitlist table (moved from Supabase migrations)
+    
+    -- Waitlist (Legacy but harmless to keep if needed, or remove if truly scrubbing)
     create table if not exists waitlist (
       id uuid primary key default gen_random_uuid(),
       email text not null unique,
@@ -153,32 +41,74 @@ export async function migrate(db: Db) {
       reason text,
       created_at timestamp with time zone default now()
     );
-    create index if not exists idx_waitlist_email on waitlist(email);
   `);
 
-  // Add onboarding columns to existing user_preferences tables
-  // These will fail silently if columns already exist
-  const alterCommands = [
-    'alter table user_preferences add column intent text;',
-    'alter table user_preferences add column cycle_regularity text;',
-    'alter table user_preferences add column context_flags text;',
-    'alter table user_preferences add column onboarding_completed_at text;',
-    'alter table user_preferences add column education_global_shown_at text;',
-    'alter table user_preferences add column education_mucus_shown_at text;',
-    'alter table user_preferences add column education_bbt_shown_at text;',
-    'alter table user_preferences add column education_lh_shown_at text;',
-    'alter table waitlist add column if not exists source text;',
-    'alter table waitlist add column if not exists reason text;'
-  ];
+  // 2. V5 Engine Tables (Promoted to Primary)
+  // We keep the _v2 suffix in SQL for now to avoid data migration complexity during this cleanup,
+  // or we could rename them if we wanted a hard break.
+  // For safety/continuity of the CURRENT data, we keep the schema referencing logs_v2 etc.
 
-  for (const cmd of alterCommands) {
-    try {
-      await db.exec(cmd);
-    } catch (e: any) {
-      // Silently ignore if column already exists (error code 42701)
-      if (e?.code !== '42701') {
-        console.error('Migration error:', e);
-      }
-    }
-  }
+  await db.exec(`
+      CREATE TABLE IF NOT EXISTS logs_v2 (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL,
+        date DATE NOT NULL,
+        bleeding TEXT,
+        temperature DECIMAL(5,2),
+        mucus TEXT,
+        lh_test TEXT,
+        disturbances JSONB DEFAULT '[]',
+        symptoms JSONB DEFAULT '[]',
+        notes TEXT,
+        created_at TIMESTAMP,
+        updated_at TIMESTAMP,
+        UNIQUE(user_id, date)
+      );
+
+      CREATE TABLE IF NOT EXISTS cycles_v2 (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        ovulation_prediction DATE,
+        ovulation_confirmed_date DATE,
+        length INTEGER,
+        period_length INTEGER,
+        analysis_flags JSONB DEFAULT '[]'
+      );
+
+      CREATE TABLE IF NOT EXISTS active_cycles_v2 (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL UNIQUE,
+        start_date DATE NOT NULL,
+        end_date DATE,
+        ovulation_prediction DATE,
+        ovulation_confirmed_date DATE,
+        length INTEGER,
+        period_length INTEGER,
+        analysis_flags JSONB DEFAULT '[]'
+      );
+
+      CREATE TABLE IF NOT EXISTS daily_status_v2 (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL,
+        date DATE NOT NULL,
+        fertility_status TEXT NOT NULL,
+        phase TEXT NOT NULL,
+        is_predicted BOOLEAN NOT NULL,
+        insights_payload JSONB NOT NULL,
+        engine_version TEXT NOT NULL,
+        updated_at TIMESTAMP,
+        UNIQUE(user_id, date)
+      );
+
+      CREATE TABLE IF NOT EXISTS user_meta_v2 (
+        user_id UUID PRIMARY KEY,
+        app_mode TEXT DEFAULT 'prevent',
+        baseline_temp_avg DECIMAL(5,2) DEFAULT 36.5,
+        avg_cycle_length DECIMAL(5,2) DEFAULT 28.0
+      );
+  `);
+
+  console.log('[Migrate] Schema synced.');
 }

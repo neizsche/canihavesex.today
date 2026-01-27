@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+keptforreference/
 
 # environment / secrets
 .env
@@ -25,6 +26,7 @@ dist/
 # ideas
 .idea/
 .vscode/
+.agent/
 
 # Open Core - Premium
 apps/backend/src/features/

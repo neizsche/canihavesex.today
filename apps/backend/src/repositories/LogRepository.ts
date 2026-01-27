@@ -1,101 +1,88 @@
-import type { Db } from '../db.js';
+import { Db } from '../db.js';
+import { randomUUID } from 'node:crypto';
 
-export interface DailyLog {
+export interface LogV2 {
     id: string;
     user_id: string;
-    cycle_id: string;
-    date: string;
-    mucus_type: string;
-    sensation: string;
-    bleeding: string;
+    date: string; // YYYY-MM-DD
+    bleeding: 'none' | 'spotting' | 'light' | 'medium' | 'heavy' | null;
     temperature: number | null;
-    lh_test: string;
-    sick: number;
-    bad_sleep: number;
-    alcohol: number;
-    created_at: string;
-}
-
-export interface RawLog {
-    id: string;
-    user_id: string;
-    date: string;
-    payload_json: string;
-    source: string;
+    mucus: 'dry' | 'sticky' | 'creamy' | 'watery' | 'eggwhite' | null;
+    lh_test: 'positive' | 'negative' | null;
+    disturbances: string[]; // JSONB
+    symptoms: string[];     // JSONB
+    notes: string | null;
     created_at: string;
 }
 
 export class LogRepository {
     constructor(private db: Db) { }
 
-    // Daily Logs
-    async createDailyLog(log: DailyLog): Promise<void> {
+    async upsertLog(log: Omit<LogV2, 'created_at'>): Promise<void> {
+        const now = new Date().toISOString();
         await this.db.query(
-            `insert into daily_logs (
-        id, user_id, cycle_id, date, mucus_type, sensation, bleeding, 
-        temperature, lh_test, sick, bad_sleep, alcohol, created_at
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-      on conflict(user_id, date) do update set
-        cycle_id=excluded.cycle_id,
-        mucus_type=excluded.mucus_type,
-        sensation=excluded.sensation,
-        bleeding=excluded.bleeding,
-        temperature=excluded.temperature,
-        lh_test=excluded.lh_test,
-        sick=excluded.sick,
-        bad_sleep=excluded.bad_sleep,
-        alcohol=excluded.alcohol,
-        created_at=excluded.created_at
+            `INSERT INTO logs_v2 (id, user_id, date, bleeding, temperature, mucus, lh_test, disturbances, symptoms, notes, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+       ON CONFLICT (user_id, date) DO UPDATE SET
+         bleeding = EXCLUDED.bleeding,
+         temperature = EXCLUDED.temperature,
+         mucus = EXCLUDED.mucus,
+         lh_test = EXCLUDED.lh_test,
+         disturbances = EXCLUDED.disturbances,
+         symptoms = EXCLUDED.symptoms,
+         notes = EXCLUDED.notes,
+         updated_at = EXCLUDED.updated_at
       `,
             [
-                log.id, log.user_id, log.cycle_id, log.date, log.mucus_type, log.sensation, log.bleeding,
-                log.temperature, log.lh_test, log.sick, log.bad_sleep, log.alcohol, log.created_at
+                log.id || randomUUID(),
+                log.user_id,
+                log.date,
+                log.bleeding ?? null,
+                log.temperature ?? null,
+                log.mucus ?? null,
+                log.lh_test ?? null,
+                JSON.stringify(log.disturbances || []),
+                JSON.stringify(log.symptoms || []),
+                log.notes ?? null,
+                now
             ]
         );
     }
 
-    async findDailyLogs(userId: string): Promise<DailyLog[]> {
-        return await this.db.query<DailyLog>(
-            'select * from daily_logs where user_id = $1 order by date desc',
+    async getLog(userId: string, date: string): Promise<LogV2 | null> {
+        const rows = await this.db.query<any>(
+            `SELECT * FROM logs_v2 WHERE user_id = $1 AND date = $2`,
+            [userId, date]
+        );
+        if (!rows[0]) return null;
+        return this.mapLog(rows[0]);
+    }
+
+    async getAllLogs(userId: string): Promise<LogV2[]> {
+        const rows = await this.db.query<any>(
+            `SELECT * FROM logs_v2 WHERE user_id = $1 ORDER BY date ASC`,
             [userId]
         );
+        return rows.map(this.mapLog);
     }
 
-    async findDailyLogsByCycleId(cycleId: string): Promise<DailyLog[]> {
-        return await this.db.query<DailyLog>(
-            'select * from daily_logs where cycle_id = $1 order by date asc',
-            [cycleId]
-        );
+    async deleteLogsByUserId(userId: string): Promise<void> {
+        await this.db.query(`DELETE FROM logs_v2 WHERE user_id = $1`, [userId]);
     }
 
-    async deleteDailyLogsByUserId(userId: string): Promise<void> {
-        await this.db.query('delete from daily_logs where user_id = $1', [userId]);
-    }
-
-    // Raw Logs
-    async createRawLog(log: RawLog): Promise<void> {
-        await this.db.query(
-            'insert into raw_logs (id, user_id, date, payload_json, source, created_at) values ($1, $2, $3, $4, $5, $6)',
-            [log.id, log.user_id, log.date, log.payload_json, log.source, log.created_at]
-        );
-    }
-
-    async findRawLogs(userId: string): Promise<RawLog[]> {
-        return await this.db.query<RawLog>(
-            'select * from raw_logs where user_id = $1 order by date asc, created_at asc',
-            [userId]
-        );
-    }
-
-    async deleteRawLogsByUserId(userId: string): Promise<void> {
-        await this.db.query('delete from raw_logs where user_id = $1', [userId]);
-    }
-
-    async deleteRawLogsBySource(userId: string, source: string): Promise<void> {
-        await this.db.query('delete from raw_logs where user_id = $1 and source = $2', [userId, source]);
-    }
-
-    async deleteRawLogsFromDate(userId: string, fromDate: string): Promise<void> {
-        await this.db.query('delete from raw_logs where user_id = $1 and date >= $2', [userId, fromDate]);
+    private mapLog(row: any): LogV2 {
+        return {
+            ...row,
+            date: row.date instanceof Date ? (() => {
+                const d = row.date;
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            })() : row.date,
+            disturbances: typeof row.disturbances === 'string' ? JSON.parse(row.disturbances) : row.disturbances,
+            symptoms: typeof row.symptoms === 'string' ? JSON.parse(row.symptoms) : row.symptoms,
+            temperature: row.temperature != null ? Number(row.temperature) : null
+        };
     }
 }

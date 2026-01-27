@@ -177,7 +177,6 @@ export function oauthRedirectUri(provider: OauthProvider, req: any): string {
 
 export async function ensureUserForEmail(
     userRepository: UserRepository,
-    cycleRepository: CycleRepository,
     preferencesRepository: PreferencesRepository,
     email: string
 ): Promise<string> {
@@ -195,17 +194,8 @@ export async function ensureUserForEmail(
         // Create default preferences with dark theme
         await preferencesRepository.createDefault(userId);
 
-        const cycleId = randomUUID();
-        const startDate = now.slice(0, 10);
-        await cycleRepository.create({
-            id: cycleId,
-            user_id: userId,
-            start_date: startDate,
-            state: 'INFERTILE_PRE',
-            peak_date: null,
-            temp_shift_confirmed_date: null,
-            created_at: now,
-        });
+        // NOTE: We no longer create a default "Cycle" here.
+        // The V5 engine handles new users (empty state) gracefully.
     }
 
     return userId;
@@ -213,7 +203,6 @@ export async function ensureUserForEmail(
 
 export async function linkIdentity(
     userRepository: UserRepository,
-    cycleRepository: CycleRepository,
     preferencesRepository: PreferencesRepository,
     params: {
         provider: OauthProvider;
@@ -227,7 +216,7 @@ export async function linkIdentity(
 
     if (existing) return existing.user_id;
 
-    const userId = await ensureUserForEmail(userRepository, cycleRepository, preferencesRepository, params.email);
+    const userId = await ensureUserForEmail(userRepository, preferencesRepository, params.email);
     const identityId = randomUUID();
 
     await userRepository.createIdentity({

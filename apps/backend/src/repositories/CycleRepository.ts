@@ -1,84 +1,83 @@
-import type { Db } from '../db.js';
+import { Db } from '../db.js';
 
-export interface Cycle {
+export interface CycleV2 {
     id: string;
     user_id: string;
     start_date: string;
-    state: string; // e.g., 'INFERTILE_PRE', 'FERTILE_OPEN', etc.
-    peak_date: string | null;
-    temp_shift_confirmed_date: string | null;
-    created_at: string;
+    end_date: string | null;
+    ovulation_prediction: string | null;
+    ovulation_confirmed_date: string | null;
+    length: number | null;
+    period_length: number | null;
+    analysis_flags: string[]; // JSONB
 }
 
 export class CycleRepository {
     constructor(private db: Db) { }
 
-    async create(cycle: Cycle): Promise<void> {
-        await this.db.query(
-            'insert into cycles (id, user_id, start_date, state, peak_date, temp_shift_confirmed_date, created_at) values ($1, $2, $3, $4, $5, $6, $7)',
-            [cycle.id, cycle.user_id, cycle.start_date, cycle.state, cycle.peak_date, cycle.temp_shift_confirmed_date, cycle.created_at]
-        );
-    }
-
-    async findByUserId(userId: string): Promise<Cycle[]> {
-        return await this.db.query<Cycle>(
-            'select * from cycles where user_id = $1 order by start_date desc',
-            [userId]
-        );
-    }
-
-    async findById(id: string): Promise<Cycle | undefined> {
-        const rows = await this.db.query<Cycle>(
-            'select * from cycles where id = $1',
-            [id]
-        );
-        return rows[0];
-    }
-
-    async findCurrent(userId: string): Promise<Cycle | undefined> {
-        const rows = await this.db.query<Cycle>(
-            'select * from cycles where user_id = $1 order by start_date desc limit 1',
-            [userId]
-        );
-        return rows[0];
-    }
-
-    async update(id: string, updates: Partial<Cycle>): Promise<void> {
-        // Helper to dynamically build update query is not really needed for simple cases,
-        // but here we might only update specific fields.
-        // For now, let's implement specific update methods or a simple dynamic one if needed.
-        // Since we primarily update state/dates, let's allow updating those.
-
-        // Simple implementation for specific known fields updates could be better for safety.
-        // But let's support general updates for typical fields.
-
-        const fields: string[] = [];
-        const values: any[] = [];
-        let idx = 1;
-
-        if (updates.state !== undefined) {
-            fields.push(`state = $${idx++}`);
-            values.push(updates.state);
+    async upsertCycles(cycles: CycleV2[]): Promise<void> {
+        for (const c of cycles) {
+            if (c.end_date) {
+                // COMPLETED CHOOSE HISTORY
+                await this.db.query(
+                    `INSERT INTO cycles_v2 (id, user_id, start_date, end_date, ovulation_prediction, ovulation_confirmed_date, length, period_length, analysis_flags)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (id) DO UPDATE SET
+               end_date = EXCLUDED.end_date,
+               ovulation_prediction = EXCLUDED.ovulation_prediction,
+               ovulation_confirmed_date = EXCLUDED.ovulation_confirmed_date,
+               length = EXCLUDED.length,
+               analysis_flags = EXCLUDED.analysis_flags
+             `,
+                    [c.id, c.user_id, c.start_date, c.end_date, c.ovulation_prediction, c.ovulation_confirmed_date, c.length, c.period_length, JSON.stringify(c.analysis_flags)]
+                );
+                // Remove from active
+                await this.db.query(`DELETE FROM active_cycles_v2 WHERE id = $1`, [c.id]);
+            } else {
+                // ACTIVE CHOOSE ACTIVE
+                await this.db.query(
+                    `INSERT INTO active_cycles_v2 (id, user_id, start_date, end_date, ovulation_prediction, ovulation_confirmed_date, length, period_length, analysis_flags)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (user_id) DO UPDATE SET
+               id = EXCLUDED.id,
+               start_date = EXCLUDED.start_date,
+               end_date = EXCLUDED.end_date,
+               ovulation_prediction = EXCLUDED.ovulation_prediction,
+               ovulation_confirmed_date = EXCLUDED.ovulation_confirmed_date,
+               length = EXCLUDED.length,
+               analysis_flags = EXCLUDED.analysis_flags
+             `,
+                    [c.id, c.user_id, c.start_date, null, c.ovulation_prediction, c.ovulation_confirmed_date, c.length, c.period_length, JSON.stringify(c.analysis_flags)]
+                );
+            }
         }
-        if (updates.peak_date !== undefined) {
-            fields.push(`peak_date = $${idx++}`);
-            values.push(updates.peak_date);
-        }
-        if (updates.temp_shift_confirmed_date !== undefined) {
-            fields.push(`temp_shift_confirmed_date = $${idx++}`);
-            values.push(updates.temp_shift_confirmed_date);
-        }
-
-        if (fields.length === 0) return;
-
-        values.push(id);
-        await this.db.query(
-            `update cycles set ${fields.join(', ')} where id = $${idx}`,
-            values
-        );
     }
 
-    async deleteByUserId(userId: string): Promise<void> {
-        await this.db.query('delete from cycles where user_id = $1', [userId]);
+    async getCycleHistory(userId: string): Promise<CycleV2[]> {
+        const historyRows = await this.db.query<any>(`SELECT * FROM cycles_v2 WHERE user_id = $1 ORDER BY start_date DESC`, [userId]);
+        const history = historyRows.map(this.mapCycle);
+
+        const activeRows = await this.db.query<any>(`SELECT * FROM active_cycles_v2 WHERE user_id = $1`, [userId]);
+        const active = activeRows.map(this.mapCycle);
+
+        // Combine (Active first for safety in filters, but logic uses date)
+        return [...active, ...history].sort((a, b) => b.start_date.localeCompare(a.start_date));
+    }
+
+    async deleteCyclesByUserId(userId: string): Promise<void> {
+        await this.db.query(`DELETE FROM cycles_v2 WHERE user_id = $1`, [userId]);
+        await this.db.query(`DELETE FROM active_cycles_v2 WHERE user_id = $1`, [userId]);
+    }
+
+    private mapCycle(r: any): CycleV2 {
+        const toIso = (d: any) => (d instanceof Date ? d.toISOString().split('T')[0] : d);
+        return {
+            ...r,
+            start_date: toIso(r.start_date),
+            end_date: toIso(r.end_date),
+            ovulation_prediction: toIso(r.ovulation_prediction),
+            ovulation_confirmed_date: toIso(r.ovulation_confirmed_date),
+            analysis_flags: typeof r.analysis_flags === 'string' ? JSON.parse(r.analysis_flags) : r.analysis_flags
+        };
     }
 }

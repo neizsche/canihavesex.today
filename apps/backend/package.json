@@ -7,7 +7,7 @@
     "dev:premium": "tsx watch src/server-premium.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "seed:perfect": "tsx src/seedPerfect.ts",
+    "simulate:normal": "tsx src/scripts/simulateUser.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },
