@@ -13,6 +13,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const allowedHosts = [
   'canihavesex.today',
   'www.canihavesex.today',
+  'app.canihavesex.today',
   'localhost',
   // Vercel
   '.vercel.app',
@@ -52,7 +53,7 @@ export default defineConfig({
       allowedHosts,
       proxy: {
         '/api': {
-          target: isProduction ? 'https://backend-production-9072.up.railway.app' : 'http://localhost:1299',
+          target: isProduction ? 'https://backend-production-9072.up.railway.app' : 'http://127.0.0.1:1299',
           changeOrigin: true,
           secure: false,
         },

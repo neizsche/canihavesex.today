@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/server.ts",
+    "dev:premium": "tsx watch src/server-premium.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "seed:perfect": "tsx src/seedPerfect.ts",
+    "simulate:normal": "tsx src/scripts/simulateUser.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },
@@ -15,6 +16,8 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/formbody": "^8.0.1",
     "fastify": "^5.0.0",
+    "fastify-type-provider-zod": "^4.0.2",
+    "google-auth-library": "^10.6.2",
     "pg": "^8.12.0",
     "zod": "^3.23.8"
   },

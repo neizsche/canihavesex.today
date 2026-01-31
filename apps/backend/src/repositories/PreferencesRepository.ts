@@ -68,6 +68,10 @@ export class PreferencesRepository {
         await this.db.query('delete from user_preferences where user_id = $1', [userId]);
     }
 
+    async deletePreferencesByUserId(userId: string): Promise<void> {
+        await this.deleteByUserId(userId);
+    }
+
     async completeOnboarding(userId: string, data: { intent: string; cycle_regularity: string; context_flags: string[] }): Promise<void> {
         const now = new Date().toISOString();
         const contextFlagsJson = JSON.stringify(data.context_flags);

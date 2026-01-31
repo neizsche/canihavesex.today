@@ -1,7 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import type { UserRepository } from '../repositories/UserRepository.js';
-import type { CycleRepository } from '../repositories/CycleRepository.js';
 import type { PreferencesRepository } from '../repositories/PreferencesRepository.js';
 import {
     appBase,
@@ -15,9 +14,9 @@ import {
 
 export async function authRoutes(
     app: FastifyInstance,
-    opts: { userRepository: UserRepository; cycleRepository: CycleRepository; preferencesRepository: PreferencesRepository }
+    opts: { userRepository: UserRepository; preferencesRepository: PreferencesRepository }
 ) {
-    const { userRepository, cycleRepository, preferencesRepository } = opts;
+    const { userRepository, preferencesRepository } = opts;
 
     app.get<{ Params: { provider: string } }>('/api/auth/oauth/:provider/start', async (req, reply) => {
         const provider = req.params.provider as OauthProvider;
@@ -112,7 +111,7 @@ export async function authRoutes(
             if (!emailVerified) return reply.redirect(`${appBase()}/auth?error=email_not_verified`);
 
             // Pass repositories to linkIdentity
-            const userId = await linkIdentity(userRepository, cycleRepository, preferencesRepository, { provider: 'google', providerUserId: sub, email });
+            const userId = await linkIdentity(userRepository, preferencesRepository, { provider: 'google', providerUserId: sub, email });
             reply.clearCookie('oauth_state', { path: '/' });
             reply.clearCookie('oauth_return_to', { path: '/' });
 
@@ -175,11 +174,14 @@ export async function authRoutes(
         // This route is protected by the /api/* auth preHandler below.
         // If unauthenticated, the preHandler will return 401.
         const userId = (req as any).userId as string | undefined;
-        if (!userId) return reply.send({ userId: null, email: null });
+        if (!userId) return reply.send({ userId: null, email: null, onboardingCompleted: false });
 
         const user = await userRepository.findById(userId);
         const email = user?.email ?? null;
-        return reply.send({ userId, email });
+
+        const onboardingCompleted = await preferencesRepository.hasCompletedOnboarding(userId);
+
+        return reply.send({ userId, email, onboardingCompleted });
     });
 
     // Unauthenticated session check endpoint

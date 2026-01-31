@@ -73,15 +73,22 @@ See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for complete local developmen
 
 ## API endpoints
 
-- `GET /api/session` – get current session
-- `GET /api/auth/oauth/google/start` – start Google OAuth flow
-- `GET /api/auth/oauth/google/callback` – OAuth callback
-- `POST /api/logout` – logout
-- `POST /api/log-day` – save a daily log
-- `GET /api/today` – returns today's risk + explanation
-- `GET /api/chart` – returns current cycle timeline + per-day risk/index
-- `POST /api/reset-cycle` – create a new cycle starting today
-- `POST /api/delete-all-data` – delete cycles + logs for current user
+- `GET /api/auth/oauth/:provider/start` – start OAuth flow (supports `google`)
+- `GET /api/auth/oauth/:provider/callback` – OAuth callback
+- `POST /api/signout` – logout
+- `GET /api/session` – get current session (authenticated)
+- `GET /api/session/check` – lightweight session check (unauthenticated)
+- `GET /api/today` – returns today's status + insights
+- `GET /api/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD` – calendar range + quick stats
+- `GET /api/stats` – cycle stats + history
+- `GET /api/logs/:date` – get log for a date
+- `GET /api/logs/suggestion?date=YYYY-MM-DD` – smart prefill suggestion
+- `POST /api/logs` – upsert daily log
+- `GET /api/export?includeNotes=true|false` – CSV export
+- `POST /api/user/onboarding/complete` – complete onboarding
+- `POST /api/user/data/delete` – delete all user data
+- `POST /api/user/account/delete` – delete account + data
+- `GET /health` – system health check
 
 
 ## Data model (MVP)
@@ -106,78 +113,19 @@ Tables:
 
 All fertility logic lives in:
 
-- `apps/backend/src/fertilityEngine.ts`
+- `apps/backend/src/engine.ts` (Fusion engine)
 
 Frontend only displays backend results.
 
-### 1) Fertility index
+### Engine overview (v5 fusion)
 
-Per day, compute `fertilityIndex`:
+1. Cycle segmentation: a new cycle starts on `medium` or `heavy` bleeding after at least 18 days since the last cycle start.
+2. Signals used for ovulation estimation: BBT shift (3 days above the mean of the previous 6), LH surge (ovulation ~1 day after), peak eggwhite mucus, and a calendar fallback from average cycle length.
+3. Fusion: a weighted average of available signals (LH > BBT > mucus > calendar) produces an estimated ovulation day and confidence score.
+4. Fertile window: estimated ovulation day minus 5 days through plus 1 day.
+5. Daily status: `period` on bleeding, `fertile` inside the window, `not_fertile` outside the window, and `unsure` if the window has passed without BBT confirmation.
 
-- `dry = 0`
-- `sticky = 2`
-- `creamy = 4`
-- `watery = 6`
-- `eggwhite = 8`
-
-If `sensation == slippery`:
-
-- `fertilityIndex = max(fertilityIndex, 7)`
-
-### 2) Cycle state machine
-
-`CycleState`:
-
-- `INFERTILE_PRE`
-- `FERTILE_OPEN`
-- `PEAK_FERTILE`
-- `FERTILE_CLOSING`
-- `INFERTILE_POST`
-
-Rules:
-
-- A **new cycle starts only** when `bleeding` is `light` or `heavy` (not spotting).
-- Fertility **opens** when `fertilityIndex >= 4`.
-- **Peak day** is the **last day** of the highest fertility index before it permanently drops.
-- After peak has occurred, state becomes `FERTILE_CLOSING`.
-- Fertility can become `INFERTILE_POST` only if:
-  - at least **3 days since peak**, and
-  - **temperature shift is confirmed**.
-
-### 3) Temperature shift confirmation
-
-A temperature shift is confirmed when:
-
-- There exist **3 consecutive usable temperatures**
-- Each is higher than the **maximum of the previous 6 usable temperatures**
-
-Temperatures are ignored if that day is marked:
-
-- sick
-- bad sleep
-- alcohol
-
-(Those flags exist in the schema; the MVP UI doesn’t expose them yet.)
-
-### 4) LH rule
-
-If LH is `positive`:
-
-- force `HIGH` risk for that day and the next day (carryover)
-
-### 5) Risk calculation
-
-Return:
-
-- `HIGH` if:
-  - `fertilityIndex >= 6`, or
-  - `cycleState` in `FERTILE_OPEN` / `PEAK_FERTILE`, or
-  - LH positive (today or carryover)
-- `MEDIUM` if:
-  - `fertilityIndex == 4`, or
-  - `cycleState == FERTILE_CLOSING` **without** temperature confirmation
-- `LOW` only if:
-  - `cycleState == INFERTILE_POST`
+The engine also emits an `insights_payload` with confidence, notifications, and cycle stats for the UI.
 
 
 ## Contributing
@@ -187,4 +135,3 @@ Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for details on how to contribute
 ## License
 
 All rights reserved.
-

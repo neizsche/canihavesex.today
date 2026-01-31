@@ -207,6 +207,10 @@
     @apply w-12 h-12;
   }
 
+  .icon-lg-plus {
+    @apply w-7 h-7;
+  }
+
   /* Short Screen Adjustments */
   @media (max-height: 720px) {
     .short-hide {

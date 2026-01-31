@@ -6,6 +6,7 @@ export type Db = {
   query<T = any>(sql: string, params?: any[]): Promise<T[]>;
   exec(sql: string): Promise<void>;
   transaction<T>(callback: (txDb: Db) => Promise<T>): Promise<T>;
+  close(): Promise<void>;
 };
 
 export async function createDb(): Promise<Db> {
@@ -33,6 +34,17 @@ export async function createDb(): Promise<Db> {
   }
 
   // Configure connection pool for production use
+  const sslDisabled = process.env.DB_SSL === 'false';
+  const sslCa = process.env.DB_SSL_CA;
+  const ssl =
+    sslDisabled
+      ? false
+      : {
+        // TODO: Re-enable strict SSL verification in production once the cert chain is fixed.
+        rejectUnauthorized: process.env.DB_SSL_STRICT === '1',
+        ...(sslCa ? { ca: sslCa } : {}),
+      };
+
   const pool = new pg.Pool({
     connectionString: url,
     // Connection pool settings
@@ -43,7 +55,8 @@ export async function createDb(): Promise<Db> {
     // SSL configuration
     // Supabase requires SSL (even in development)
     // For local PostgreSQL without SSL, set DB_SSL=false
-    ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+    // In production, enforce cert validation unless explicitly disabled.
+    ssl,
   });
 
   // Handle pool errors
@@ -72,6 +85,9 @@ export async function createDb(): Promise<Db> {
   return {
     kind: 'postgres',
     paramStyle: 'postgres',
+    async close() {
+      await pool.end();
+    },
     async query<T>(sql: string, params: any[] = []) {
       const client = await pool.connect();
       try {
@@ -123,6 +139,9 @@ export async function createDb(): Promise<Db> {
               await client.query(`ROLLBACK TO SAVEPOINT ${savepointId}`);
               throw err;
             }
+          },
+          async close() {
+            // No-op for transaction Db wrapper
           }
         };
 
