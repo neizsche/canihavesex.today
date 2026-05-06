@@ -1,18 +1,18 @@
 import * as React from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, AlertCircle, Info, Lock } from 'lucide-react';
 
-import { cn } from '../../lib/utils';
-import { Header } from '../common/Header';
-import { InsetGroup } from '../common/ui/inset-group';
-import { DateNavigator } from '../common/ui/date-navigator';
+import { cn } from '@/lib/utils';
+import { Header } from '@/components/common/Header';
+import { InsetGroup } from '@/components/common/ui/inset-group';
+import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { ChartsView } from './charts/ChartsView';
 import { ExportView } from './charts/ExportView';
-import { MOCK_CYCLES, generateMockChartData, type MockChartData, type ChartDay } from '../../lib/mock-data'; // Use lib types
+import { type ChartDay } from '@/lib/mock-data';
 import { QuickStats } from './charts/QuickStats';
-import { useSwipe } from '../common/hooks/useSwipe';
-import { usePremiumFeatures } from '../../lib/featureFlags';
-import { apiJson } from '../../lib/api';
+import { useSwipe } from '@/components/common/hooks/useSwipe';
+import { usePremiumFeatures } from '@/lib/featureFlags';
+import { apiJson } from '@/lib/api';
 // Removed local ChartDay/ChartData types below
 
 

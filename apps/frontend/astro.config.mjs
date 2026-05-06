@@ -49,6 +49,11 @@ export default defineConfig({
   },
   vite: {
     envDir,
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
     server: {
       allowedHosts,
       proxy: {

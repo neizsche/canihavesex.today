@@ -1,17 +1,17 @@
 import * as React from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Heart, Activity, CheckCircle2, ChevronRight, TrendingUp, Lock } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Heart, Activity, CheckCircle2, ChevronRight, TrendingUp } from 'lucide-react';
 
-import { fetchToday } from '../../lib/api';
-import { cn } from '../../lib/utils';
-import { usePremiumFeatures } from '../../lib/featureFlags';
-import { Header } from '../common/Header';
-import { RichCard } from '../common/ui/rich-card';
+import { cn } from '@/lib/utils';
+import { usePremiumFeatures } from '@/lib/featureFlags';
+import { Header } from '@/components/common/Header';
+import { RichCard } from '@/components/common/ui/rich-card';
 import { InsightPage } from './insights/InsightPage';
-import type { InsightType } from '../../lib/mock-data'; // Keeping this for type definition if needed, but should probably be moved
-import { AppModeSwitcher, type AppMode } from '../common/ui/app-mode-switcher';
-import { PremiumUnlockCard } from '../common/ui/PremiumUnlockCard';
-import { useNavigation } from '../../hooks/useNavigation';
+import type { InsightType } from '@/lib/mock-data';
+import { AppModeSwitcher, type AppMode } from '@/components/common/ui/app-mode-switcher';
+import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
+import { useNavigation } from '@/hooks/useNavigation';
+import { useInsights } from '@/hooks/queries/useInsights';
 
 type FertilityStatus = 'fertile' | 'unsure' | 'not_fertile';
 
@@ -39,16 +39,8 @@ const STATUS_CONFIG: Record<FertilityStatus, { title: string; subtitle: string; 
 export function TodayScreen() {
     const { premiumEnabled } = usePremiumFeatures();
     const { navigate } = useNavigation();
-    const queryClient = useQueryClient();
-    const cachedToday = queryClient.getQueryData<any>(['today']);
-
-    const todayQuery = useQuery({
-        queryKey: ['today'],
-        queryFn: fetchToday,
-        placeholderData: cachedToday,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 15 * 60 * 1000,   // 15 minutes
-    });
+    
+    const todayQuery = useInsights();
 
     const [activeInsight, setActiveInsight] = React.useState<InsightType | null>(null);
     const [activeCard, setActiveCard] = React.useState<{ bgImage?: string; shadowColor?: string } | null>(null);

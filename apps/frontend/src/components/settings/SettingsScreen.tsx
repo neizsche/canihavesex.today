@@ -1,20 +1,21 @@
 import * as React from 'react';
 import { Trash2, LogOut, HelpCircle, CheckCircle2, ChevronRight, Activity, KeyRound, Copy } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cn } from '../../lib/utils';
-import { usePremiumFeatures } from '../../lib/featureFlags';
+import { cn } from '@/lib/utils';
+import { usePremiumFeatures } from '@/lib/featureFlags';
 
-import { apiJson } from '../../lib/api';
-import { updateCacheFromMutation, type MutationResponse } from '../../lib/cacheUtils';
-import { Header } from '../common/Header';
-import { InsetGroup } from '../common/ui/inset-group';
-import { ActionSheet } from '../common/ui/action-sheet';
-import { Button } from '../common/ui/button';
+import { apiJson } from '@/lib/api';
+import { updateCacheFromMutation, type MutationResponse } from '@/lib/cacheUtils';
+import { Header } from '@/components/common/Header';
+import { InsetGroup } from '@/components/common/ui/inset-group';
+import { ActionSheet } from '@/components/common/ui/action-sheet';
+import { Button } from '@/components/common/ui/button';
 import { HelpScreen } from './HelpScreen';
-import { AppModeSwitcher, type AppMode } from '../common/ui/app-mode-switcher';
+import { AppModeSwitcher, type AppMode } from '@/components/common/ui/app-mode-switcher';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 import { CycleSettingsScreen } from './CycleSettingsScreen';
-import { PremiumUnlockCard } from '../common/ui/PremiumUnlockCard';
+import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
+import { useSession } from '@/hooks/queries/useSession';
 
 type ConfirmAction = 'reset' | 'delete-all' | 'delete-account' | null;
 
@@ -64,7 +65,7 @@ export function SettingsScreen() {
     const [periodLength, setPeriodLength] = React.useState(5);
     const [regularity, setRegularity] = React.useState<'regular' | 'irregular' | 'unsure'>('regular');
 
-    const session = queryClient.getQueryData<{ userId: string; email?: string | null }>(['session']) ?? null;
+    const { data: session } = useSession();
 
     const apiKeysQuery = useQuery({
         queryKey: ['api-keys'],

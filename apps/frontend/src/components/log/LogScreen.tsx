@@ -1,19 +1,19 @@
 import * as React from 'react';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  Thermometer, Droplets, Activity, ChevronRight, CheckCircle2, Info, Lock, ArrowRight, TestTube, AlertTriangle, FileText, Sparkles, X
+  Thermometer, Droplets, Activity, ChevronRight, CheckCircle2, Lock, TestTube, AlertTriangle, FileText, Sparkles, X
 } from 'lucide-react';
 
-import { apiJson, currentReturnTo, fetchToday, UnauthorizedError } from '../../lib/api';
-import { updateCacheFromMutation, type MutationResponse } from '../../lib/cacheUtils';
-import { cn } from '../../lib/utils';
-import { usePremiumFeatures, usePremiumStatus } from '../../lib/featureFlags';
-import { Button } from '../common/ui/button';
-import { Header } from '../common/Header';
-import { DateNavigator } from '../common/ui/date-navigator';
-import { PremiumUnlockCard } from '../common/ui/PremiumUnlockCard';
-import { InsetGroup } from '../common/ui/inset-group';
+import { currentReturnTo, UnauthorizedError } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { usePremiumFeatures, usePremiumStatus } from '@/lib/featureFlags';
+import { Button } from '@/components/common/ui/button';
+import { Header } from '@/components/common/Header';
+import { DateNavigator } from '@/components/common/ui/date-navigator';
+import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
+import { InsetGroup } from '@/components/common/ui/inset-group';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
+import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
 
 // --- Constants from V2 ---
 const MUCUS_OPTIONS = [
@@ -74,7 +74,6 @@ export function LogScreen() {
   const [showNotes, setShowNotes] = React.useState(false);
 
   // UI States
-  const [busy, setBusy] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [showPremiumUpsell, setShowPremiumUpsell] = React.useState(false);
   const premiumSectionRef = React.useRef<HTMLDivElement>(null);
@@ -101,19 +100,8 @@ export function LogScreen() {
   });
 
   /* Combined Query: Fetches Log + Suggestion + MinDate */
-  const query = useQuery({
-    queryKey: ['log-day', date],
-    queryFn: async (): Promise<{
-      found: boolean;
-      payload?: any;
-      minDate?: string;
-      suggestion?: { sourceDate: string; bleeding: any; temperature: number; mucusType: any; }
-    }> => {
-      return apiJson<{ found: boolean; payload?: any; minDate?: string; suggestion?: any; }>(`/api/v1/logs/${date}`);
-    },
-    staleTime: 0, // Always fetch fresh for edit mode
-    refetchOnWindowFocus: false,
-  });
+  const query = useLog(date);
+  const saveMutation = useSaveLog();
 
   const isHistorical = date < todayIso();
   const hasData = query.data?.found;
@@ -234,7 +222,6 @@ export function LogScreen() {
   }, [bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes, savedState]);
 
   async function save() {
-    setBusy(true);
     const payload = {
       date,
       // Derived fields
@@ -249,44 +236,24 @@ export function LogScreen() {
       notes: notes
     };
 
-    try {
-      const data = await apiJson<MutationResponse>(`/api/v1/logs/${date}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const prefetchToday = queryClient
-        .fetchQuery({ queryKey: ['today'], queryFn: fetchToday, staleTime: 0 })
-        .catch(() => undefined);
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['stats'] }),
-        queryClient.invalidateQueries({ queryKey: ['calendar'] }),
-        queryClient.invalidateQueries({ queryKey: ['user-status'] })
-      ]);
-      queryClient.setQueryData(['log-day', date], { found: true, payload }); // Update with submitted payload
-
-      // Update saved state
-      // Update saved state
-      setSavedState({ bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes });
-      setIsPrefilled(false); // No longer prefilled state once saved
-
-      setSuccess(true);
-      setTimeout(async () => {
-        await prefetchToday;
-        setSuccess(false); // Reset success state so user can stay or edit more? 
-        // Or navigate away? Old screen navigated to today.
-        window.location.hash = '#/today';
-      }, 800);
-    } catch (err: any) {
-      if (err instanceof UnauthorizedError || err?.status === 401) {
-        location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
-      } else {
-        alert('Could not save. Please try again.');
-        setBusy(false);
+    saveMutation.mutate({ date, payload }, {
+      onSuccess: () => {
+        setSavedState({ bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes });
+        setIsPrefilled(false);
+        setSuccess(true);
+        setTimeout(() => {
+          setSuccess(false);
+          window.location.hash = '#/today';
+        }, 800);
+      },
+      onError: (err: any) => {
+        if (err instanceof UnauthorizedError || err?.status === 401) {
+          location.href = `/?openAuth=true&returnTo=${encodeURIComponent(currentReturnTo())}`;
+        } else {
+          alert('Could not save. Please try again.');
+        }
       }
-    }
+    });
   }
 
   if (success) {
@@ -327,8 +294,8 @@ export function LogScreen() {
               if (!isAtMinDate) setDate(addDays(date, -1));
             }}
             onNext={() => setDate(addDays(date, 1))}
-            prevDisabled={busy || isAtMinDate}
-            nextDisabled={busy || date === todayIso()}
+            prevDisabled={saveMutation.isPending || isAtMinDate}
+            nextDisabled={saveMutation.isPending || date === todayIso()}
           />
 
           {isPrefilled && !isLockedPast && (
@@ -666,10 +633,10 @@ export function LogScreen() {
                 <div className="px-4 pb-8 space-y-3">
                   <Button
                     onClick={save}
-                    disabled={busy || !isDirty || !(bleeding || spotting || bbt || mucus || lhTest || disturbances.length > 0 || notes)}
+                    disabled={saveMutation.isPending || !isDirty || !(bleeding || spotting || bbt || mucus || lhTest || disturbances.length > 0 || notes)}
                     className="w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                   >
-                    {busy ? LOG_SCREEN_LABELS.buttons.saving : LOG_SCREEN_LABELS.buttons.save}
+                    {saveMutation.isPending ? LOG_SCREEN_LABELS.buttons.saving : LOG_SCREEN_LABELS.buttons.save}
                   </Button>
 
                   {/* Clear Form Button - Always visible if there is data to clear */}
@@ -685,7 +652,7 @@ export function LogScreen() {
                         setDisturbances([]);
                         setNotes('');
                       }}
-                      disabled={busy}
+                      disabled={saveMutation.isPending}
                       className="w-full py-2.5 text-[15px] font-medium text-red-500 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
                     >
                       Clear All
