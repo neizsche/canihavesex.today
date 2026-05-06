@@ -8,10 +8,10 @@ import { usePremiumFeatures } from '../../lib/featureFlags';
 import { Header } from '../common/Header';
 import { RichCard } from '../common/ui/rich-card';
 import { InsightPage } from './insights/InsightPage';
-import type { InsightType } from '../../lib/mock-data';
-import { MOCK_INSIGHTS, MOCK_APP_STATE } from '../../lib/mock-data';
+import type { InsightType } from '../../lib/mock-data'; // Keeping this for type definition if needed, but should probably be moved
 import { AppModeSwitcher, type AppMode } from '../common/ui/app-mode-switcher';
 import { PremiumUnlockCard } from '../common/ui/PremiumUnlockCard';
+import { useNavigation } from '../../hooks/useNavigation';
 
 type FertilityStatus = 'fertile' | 'unsure' | 'not_fertile';
 
@@ -38,20 +38,17 @@ const STATUS_CONFIG: Record<FertilityStatus, { title: string; subtitle: string; 
 
 export function TodayScreen() {
     const { premiumEnabled } = usePremiumFeatures();
+    const { navigate } = useNavigation();
     const queryClient = useQueryClient();
     const cachedToday = queryClient.getQueryData<any>(['today']);
 
-    // MOCKED DATA SOURCE instead of API
-    // const todayQuery = useQuery(...) -> REMOVED
     const todayQuery = useQuery({
         queryKey: ['today'],
         queryFn: fetchToday,
         placeholderData: cachedToday,
-        refetchOnMount: 'always',
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 15 * 60 * 1000,   // 15 minutes
     });
-
-    // Map Mock Data to Component State
-    const data = MOCK_APP_STATE;
 
     const [activeInsight, setActiveInsight] = React.useState<InsightType | null>(null);
     const [activeCard, setActiveCard] = React.useState<{ bgImage?: string; shadowColor?: string } | null>(null);
@@ -202,8 +199,8 @@ export function TodayScreen() {
                                             </h1>
                                         </div>
 
-                                        <a
-                                            href="#/log"
+                                        <button
+                                            onClick={() => navigate('/log')}
                                             className="group relative flex items-center justify-center gap-3 px-8 h-12 sm:h-16 rounded-full transition-all duration-300 active:scale-[0.98] shadow-2xl mx-auto bg-[#007aff] text-white shadow-blue-500/30"
                                         >
                                             <div className="w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-white/20">
@@ -213,7 +210,7 @@ export function TodayScreen() {
                                                 Log Today
                                             </span>
                                             <ChevronRight className="icon-md opacity-40 group-hover:translate-x-1 transition-transform" />
-                                        </a>
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -234,8 +231,8 @@ export function TodayScreen() {
                                     </p>
                                 </div>
 
-                                <a
-                                    href="#/chart"
+                                <button
+                                    onClick={() => navigate('/chart')}
                                     className="group relative flex items-center justify-center gap-3 px-8 h-12 sm:h-16 rounded-full transition-all duration-300 active:scale-[0.98] shadow-2xl mx-auto bg-white text-black shadow-white/10"
                                 >
                                     <div className="w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-zinc-100">
@@ -245,7 +242,7 @@ export function TodayScreen() {
                                         View Charts
                                     </span>
                                     <ChevronRight className="icon-md opacity-40 group-hover:translate-x-1 transition-transform" />
-                                </a>
+                                </button>
                             </div>
                         );
                     })()}

@@ -1,9 +1,9 @@
 import { Db } from '../db.js';
 import { formatIsoDateLocal } from '../utils/dates.js';
 
-export interface CycleV2 {
-    id: string;
-    user_id: string;
+export interface Cycle {
+    id: string; // UUID
+    user_id: string; // UUID
     start_date: string;
     end_date: string | null;
     ovulation_prediction: string | null;
@@ -16,7 +16,7 @@ export interface CycleV2 {
 export class CycleRepository {
     constructor(private db: Db) { }
 
-    async upsertCycles(cycles: CycleV2[]): Promise<void> {
+    async upsertCycles(cycles: Cycle[]): Promise<void> {
         if (!cycles.length) return;
 
         const completed = cycles.filter((c) => c.end_date);
@@ -44,22 +44,22 @@ export class CycleRepository {
                     .join(', ');
 
                 await txDb.query(
-                    `INSERT INTO cycles_v2 (id, user_id, start_date, end_date, ovulation_prediction, ovulation_confirmed_date, length, period_length, analysis_flags)
-             VALUES ${placeholders}
-             ON CONFLICT (id) DO UPDATE SET
-               end_date = EXCLUDED.end_date,
-               ovulation_prediction = EXCLUDED.ovulation_prediction,
-               ovulation_confirmed_date = EXCLUDED.ovulation_confirmed_date,
-               length = EXCLUDED.length,
-               analysis_flags = EXCLUDED.analysis_flags
-             `,
+                    `INSERT INTO cycles (id, user_id, start_date, end_date, ovulation_prediction, ovulation_confirmed_date, length, period_length, analysis_flags)
+                     VALUES ${placeholders}
+                     ON CONFLICT (id) DO UPDATE SET
+                       end_date = EXCLUDED.end_date,
+                       ovulation_prediction = EXCLUDED.ovulation_prediction,
+                       ovulation_confirmed_date = EXCLUDED.ovulation_confirmed_date,
+                       length = EXCLUDED.length,
+                       analysis_flags = EXCLUDED.analysis_flags
+                    `,
                     values
                 );
 
                 const deleteIds = completed.map((c) => c.id);
                 const deletePlaceholders = deleteIds.map((_, idx) => `$${idx + 1}`).join(', ');
                 await txDb.query(
-                    `DELETE FROM active_cycles_v2 WHERE id IN (${deletePlaceholders})`,
+                    `DELETE FROM active_cycles WHERE id IN (${deletePlaceholders})`,
                     deleteIds
                 );
             }
@@ -85,31 +85,30 @@ export class CycleRepository {
                     .join(', ');
 
                 await txDb.query(
-                    `INSERT INTO active_cycles_v2 (id, user_id, start_date, end_date, ovulation_prediction, ovulation_confirmed_date, length, period_length, analysis_flags)
-             VALUES ${placeholders}
-             ON CONFLICT (user_id) DO UPDATE SET
-               id = EXCLUDED.id,
-               start_date = EXCLUDED.start_date,
-               end_date = EXCLUDED.end_date,
-               ovulation_prediction = EXCLUDED.ovulation_prediction,
-               ovulation_confirmed_date = EXCLUDED.ovulation_confirmed_date,
-               length = EXCLUDED.length,
-               analysis_flags = EXCLUDED.analysis_flags
-             `,
+                    `INSERT INTO active_cycles (id, user_id, start_date, end_date, ovulation_prediction, ovulation_confirmed_date, length, period_length, analysis_flags)
+                     VALUES ${placeholders}
+                     ON CONFLICT (user_id) DO UPDATE SET
+                       id = EXCLUDED.id,
+                       start_date = EXCLUDED.start_date,
+                       end_date = EXCLUDED.end_date,
+                       ovulation_prediction = EXCLUDED.ovulation_prediction,
+                       ovulation_confirmed_date = EXCLUDED.ovulation_confirmed_date,
+                       length = EXCLUDED.length,
+                       analysis_flags = EXCLUDED.analysis_flags
+                    `,
                     values
                 );
             }
         });
     }
 
-    async getCycleHistory(userId: string): Promise<CycleV2[]> {
-        const historyRows = await this.db.query<any>(`SELECT * FROM cycles_v2 WHERE user_id = $1 ORDER BY start_date DESC`, [userId]);
+    async getCycleHistory(userId: string): Promise<Cycle[]> {
+        const historyRows = await this.db.query<any>(`SELECT * FROM cycles WHERE user_id = $1 ORDER BY start_date DESC`, [userId]);
         const history = historyRows.map(this.mapCycle);
 
-        const activeRows = await this.db.query<any>(`SELECT * FROM active_cycles_v2 WHERE user_id = $1`, [userId]);
+        const activeRows = await this.db.query<any>(`SELECT * FROM active_cycles WHERE user_id = $1`, [userId]);
         const active = activeRows.map(this.mapCycle);
 
-        // Combine (Active first for safety in filters, but logic uses date)
         return [...active, ...history].sort((a, b) => b.start_date.localeCompare(a.start_date));
     }
 
@@ -117,9 +116,9 @@ export class CycleRepository {
         const rows = await this.db.query<any>(
             `SELECT MIN(start_date) AS min_start
              FROM (
-               SELECT start_date FROM cycles_v2 WHERE user_id = $1
+               SELECT start_date FROM cycles WHERE user_id = $1
                UNION ALL
-               SELECT start_date FROM active_cycles_v2 WHERE user_id = $1
+               SELECT start_date FROM active_cycles WHERE user_id = $1
              ) AS cycle_dates`,
             [userId]
         );
@@ -129,11 +128,11 @@ export class CycleRepository {
     }
 
     async deleteCyclesByUserId(userId: string): Promise<void> {
-        await this.db.query(`DELETE FROM cycles_v2 WHERE user_id = $1`, [userId]);
-        await this.db.query(`DELETE FROM active_cycles_v2 WHERE user_id = $1`, [userId]);
+        await this.db.query(`DELETE FROM cycles WHERE user_id = $1`, [userId]);
+        await this.db.query(`DELETE FROM active_cycles WHERE user_id = $1`, [userId]);
     }
 
-    private mapCycle(r: any): CycleV2 {
+    private mapCycle(r: any): Cycle {
         const toIso = (d: any) => (d instanceof Date ? formatIsoDateLocal(d) : d);
         return {
             ...r,
@@ -141,7 +140,7 @@ export class CycleRepository {
             end_date: toIso(r.end_date),
             ovulation_prediction: toIso(r.ovulation_prediction),
             ovulation_confirmed_date: toIso(r.ovulation_confirmed_date),
-            analysis_flags: typeof r.analysis_flags === 'string' ? JSON.parse(r.analysis_flags) : r.analysis_flags
+            analysis_flags: Array.isArray(r.analysis_flags) ? r.analysis_flags : (r.analysis_flags ? JSON.parse(r.analysis_flags) : [])
         };
     }
 }

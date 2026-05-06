@@ -1,8 +1,8 @@
 import type { Db } from '../db.js';
 
 export interface ApiKeyRecord {
-  id: string;
-  user_id: string;
+  id: string; // UUID
+  user_id: string; // UUID
   name: string | null;
   key_hash: string;
   key_prefix: string;
@@ -26,18 +26,18 @@ export class ApiKeyRepository {
     name: string | null;
     key_hash: string;
     key_prefix: string;
-    created_at: string;
+    created_at?: string;
   }): Promise<void> {
     await this.db.query(
-      `insert into user_api_keys (id, user_id, name, key_hash, key_prefix, created_at)
-       values ($1, $2, $3, $4, $5, $6)`,
-      [key.id, key.user_id, key.name, key.key_hash, key.key_prefix, key.created_at]
+      `INSERT INTO user_api_keys (id, user_id, name, key_hash, key_prefix, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [key.id, key.user_id, key.name, key.key_hash, key.key_prefix, key.created_at || new Date().toISOString()]
     );
   }
 
   async listByUserId(userId: string): Promise<ApiKeyRecord[]> {
     const rows = await this.db.query<any>(
-      `select * from user_api_keys where user_id = $1 order by created_at desc`,
+      `SELECT * FROM user_api_keys WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
     return rows.map((row) => ({
@@ -50,7 +50,7 @@ export class ApiKeyRepository {
 
   async findActiveByHash(keyHash: string): Promise<ApiKeyRecord | null> {
     const rows = await this.db.query<any>(
-      `select * from user_api_keys where key_hash = $1 and revoked_at is null limit 1`,
+      `SELECT * FROM user_api_keys WHERE key_hash = $1 AND revoked_at IS NULL LIMIT 1`,
       [keyHash]
     );
     const row = rows[0];
@@ -64,23 +64,20 @@ export class ApiKeyRepository {
   }
 
   async touchLastUsed(id: string): Promise<void> {
-    const now = new Date().toISOString();
-    await this.db.query(`update user_api_keys set last_used_at = $1 where id = $2`, [now, id]);
+    await this.db.query(`UPDATE user_api_keys SET last_used_at = NOW() WHERE id = $1`, [id]);
   }
 
   async revokeById(userId: string, id: string): Promise<void> {
-    const now = new Date().toISOString();
     await this.db.query(
-      `update user_api_keys set revoked_at = $1 where id = $2 and user_id = $3`,
-      [now, id, userId]
+      `UPDATE user_api_keys SET revoked_at = NOW() WHERE id = $1 AND user_id = $2`,
+      [id, userId]
     );
   }
 
   async revokeAllByUserId(userId: string): Promise<void> {
-    const now = new Date().toISOString();
     await this.db.query(
-      `update user_api_keys set revoked_at = $1 where user_id = $2 and revoked_at is null`,
-      [now, userId]
+      `UPDATE user_api_keys SET revoked_at = NOW() WHERE user_id = $2 AND revoked_at IS NULL`,
+      [userId]
     );
   }
 }

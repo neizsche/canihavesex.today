@@ -84,13 +84,17 @@ export function ChartScreen() {
         queryKey: ['calendar', startOfMonth, endOfMonth],
         queryFn: async () => {
             return apiJson<CalendarResponse>(`/api/v1/insights/calendar?start=${startOfMonth}&end=${endOfMonth}`)
-        }
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 15 * 60 * 1000,   // 15 minutes
     });
 
     // 2. Stats Data (Cycle History)
     const statsQuery = useQuery({
         queryKey: ['stats'],
-        queryFn: async () => apiJson<any>('/api/v1/insights/stats')
+        queryFn: async () => apiJson<any>('/api/v1/insights/stats'),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 15 * 60 * 1000,   // 15 minutes
     });
 
     // Combined Loading State

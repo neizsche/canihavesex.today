@@ -15,7 +15,7 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
             })
         }
     }, async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
         const includeNotes = req.query.includeNotes === 'true';
 
         const logs = await logRepo.getAllLogs(userId);

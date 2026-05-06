@@ -13,6 +13,7 @@ import { UserRepository } from './repositories/UserRepository.js';
 import { PreferencesRepository } from './repositories/PreferencesRepository.js';
 import { ApiKeyRepository } from './repositories/ApiKeyRepository.js';
 import { extractApiKey, hashApiKey } from './apiKeys.js';
+import authPlugin from './plugins/auth.js';
 
 import { authRoutes } from './routes/auth.js';
 import { logsRoutes } from './routes/logs.js';
@@ -131,6 +132,7 @@ export async function createApp() {
     process.exit(1);
   }
 
+  // 1. Register Core Plugins
   await app.register(cors, {
     origin: process.env.NODE_ENV === 'production'
       ? process.env.FRONTEND_URL ?? false
@@ -148,6 +150,12 @@ export async function createApp() {
   const userRepository = new UserRepository(db);
   const preferencesRepository = new PreferencesRepository(db);
   const apiKeyRepository = new ApiKeyRepository(db);
+
+  // 2. Register Auth Plugin
+  await app.register(authPlugin, {
+    userRepository,
+    apiKeyRepository
+  });
 
   // Health check endpoint (kept in index as it's a system route)
   app.get('/health', async (req, reply) => {
@@ -180,45 +188,6 @@ export async function createApp() {
     }
   });
 
-
-  // Auth preHandler: require a signed uid cookie for protected API routes.
-  app.addHook('preHandler', async (req, reply) => {
-    if (
-      req.url.startsWith('/api/') &&
-      !req.url.startsWith('/api/auth/oauth/') &&
-      req.url !== '/api/signout' &&
-      req.url !== '/api/session/check' &&
-      !req.url.startsWith('/api/waitlist')
-    ) {
-      const unsigned = req.cookies.uid ? req.unsignCookie(req.cookies.uid) : null;
-      const uid = unsigned && unsigned.valid ? (unsigned.value ?? null) : null;
-      if (uid) {
-        (req as any).userId = uid;
-        (req as any).authType = 'cookie';
-        return;
-      }
-
-      const path = req.url.split('?')[0] ?? req.url;
-      const apiKey = extractApiKey(req);
-      const apiKeyAllowed = req.method === 'PUT' && path.startsWith('/api/v1/logs/');
-
-      if (apiKey) {
-        if (!apiKeyAllowed) {
-          return reply.status(403).send({ error: 'API key not allowed for this endpoint' });
-        }
-        const keyHash = hashApiKey(apiKey);
-        const record = await apiKeyRepository.findActiveByHash(keyHash);
-        if (!record) return reply.status(401).send({ error: 'Invalid API key' });
-        (req as any).userId = record.user_id;
-        (req as any).authType = 'api_key';
-        (req as any).apiKeyId = record.id;
-        await apiKeyRepository.touchLastUsed(record.id);
-        return;
-      }
-
-      return reply.status(401).send({ error: 'Not authenticated' });
-    }
-  });
 
   // Rate limiting
   app.addHook(

@@ -1,9 +1,8 @@
-
 import { randomUUID } from 'node:crypto';
-import { LogV2 } from './repositories/LogRepository.js';
-import { DailyStatusV2 } from './repositories/DailyStatusRepository.js';
-import { CycleV2 } from './repositories/CycleRepository.js';
-import { UserMetaV2 } from './repositories/UserMetaRepository.js';
+import { Log } from './repositories/LogRepository.js';
+import { DailyStatus } from './repositories/DailyStatusRepository.js';
+import { Cycle } from './repositories/CycleRepository.js';
+import { UserMeta } from './repositories/UserMetaRepository.js';
 import { addDaysIso as addDays, daysBetweenIso as daysBetween, generateIsoDateRange as generateDateRange, isoToday } from './utils/dates.js';
 
 // --- Types ---
@@ -12,9 +11,9 @@ type FertilityStatus = 'fertile' | 'unsure' | 'not_fertile' | 'period';
 type Phase = 'Follicular' | 'Ovulatory' | 'Luteal' | 'Period';
 
 interface EngineContext {
-    logs: LogV2[];
-    meta: UserMetaV2;
-    existingCycles?: CycleV2[];
+    logs: Log[];
+    meta: UserMeta;
+    existingCycles?: Cycle[];
     today?: IsoDate;
     timezoneOffsetMinutes?: number;
 }
@@ -23,7 +22,7 @@ interface EngineContext {
 interface EngineDay {
     date: IsoDate;
     cycleDay: number;
-    log?: LogV2;
+    log?: Log;
 
     // Reliability Scores (0.0 - 1.0)
     reliability: {
@@ -56,21 +55,14 @@ interface EngineResult {
 }
 
 // --- Constants ---
-const WEIGHTS = {
-    LH: 1.0,
-    BBT: 0.8,
-    MUCUS: 0.6,
-    CALENDAR: 0.3
-};
-
 const MUCUS_SCORES: Record<string, number> = {
     'dry': 0, 'sticky': 1, 'creamy': 2, 'watery': 3, 'eggwhite': 4
 };
 
 // --- Main Engine Function ---
 export function runFusionEngine(userId: string, context: EngineContext): {
-    statuses: DailyStatusV2[];
-    cycles: CycleV2[];
+    statuses: DailyStatus[];
+    cycles: Cycle[];
 } {
     // 1. Sort logs
     const sortedLogs = context.logs.sort((a, b) => a.date.localeCompare(b.date));
@@ -84,7 +76,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
     const cycles = mergeCycles(rawCycles, context.existingCycles || []);
 
     // 3. Process Per Cycle (Fusion Logic)
-    const statuses: DailyStatusV2[] = [];
+    const statuses: DailyStatus[] = [];
 
     // Generate dates for current view (Last log to future)
     const lastLogDate = sortedLogs[sortedLogs.length - 1].date;
@@ -103,7 +95,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
         return isActive || isRecent || isUnanalyzed;
     });
 
-    const logMap = new Map<string, LogV2>();
+    const logMap = new Map<string, Log>();
     sortedLogs.forEach(l => logMap.set(l.date, l));
 
     for (const cycle of relevantCycles) {
@@ -170,7 +162,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 is_predicted: date > (lastLogDate || today),
                 engine_version: 'v5.1.0-fusion',
                 updated_at: new Date().toISOString(),
-                insights_payload: buildInsightPayload(date, status, phase, result, cycles, cycleDays, today, dayData)
+                insights_payload: buildDayMeta(result, cycles, cycleDays, today, date, dayData)
             });
         }
     }
@@ -182,10 +174,10 @@ export function runFusionEngine(userId: string, context: EngineContext): {
 }
 
 // --- Module 1: Cycle Identification ---
-function identifyCycles(userId: string, logs: LogV2[]): CycleV2[] {
-    const cycles: CycleV2[] = [];
+function identifyCycles(userId: string, logs: Log[]): Cycle[] {
+    const cycles: Cycle[] = [];
     let currentStart = logs[0].date;
-    const logMap = new Map<string, LogV2>();
+    const logMap = new Map<string, Log>();
     logs.forEach(log => logMap.set(log.date, log));
 
     for (let i = 0; i < logs.length; i++) {
@@ -227,7 +219,7 @@ function identifyCycles(userId: string, logs: LogV2[]): CycleV2[] {
 }
 
 // --- Module 2: Normalization & Reliability ---
-function normalizeCycleData(cycle: CycleV2, logMap: Map<string, LogV2>, analysisEnd: string): EngineDay[] {
+function normalizeCycleData(cycle: Cycle, logMap: Map<string, Log>, analysisEnd: string): EngineDay[] {
     const days: EngineDay[] = [];
     // Analyze through the latest log in this cycle (or cycle end if closed).
     const range = generateDateRange(cycle.start_date, analysisEnd);
@@ -273,47 +265,67 @@ function normalizeCycleData(cycle: CycleV2, logMap: Map<string, LogV2>, analysis
 }
 
 // --- Module 3 & 4: Signal Interpretation & Fusion ---
-function fuseSignals(days: EngineDay[], meta: UserMetaV2): EngineResult {
+function fuseSignals(days: EngineDay[], meta: UserMeta): EngineResult {
     const signals: Signal[] = [];
     const anomalies: string[] = [];
 
     // 1. BBT Shift Detector (The Confirmer)
-    // Rule: 3 days > (Mean of prev 6) + 0.2
-    let bbtTrigger: number | null = null;
+    // Rule: 3 days > (Mean of prev 6) + 0.15
+    let bbtAnchorDay: number | null = null;
+    let bbtConfidence = 0;
+
     const reliableTemps = days.filter(d => d.reliability.temp > 0.5 && d.tempValue);
 
     if (reliableTemps.length > 8) {
-        for (let i = 6; i < reliableTemps.length - 3; i++) {
+        // Find the shift. Instead of assuming elements are consecutive, we need to check cycleDay gaps.
+        for (let i = 6; i <= reliableTemps.length - 3; i++) {
             const prev6 = reliableTemps.slice(i - 6, i);
-            const baseline = prev6.reduce((acc, d) => acc + (d.tempValue || 0), 0) / 6;
-
             const next3 = reliableTemps.slice(i, i + 3);
+
+            // Check if there are too many gaps in this 9-day window.
+            const daySpan = next3[2].cycleDay - prev6[0].cycleDay + 1;
+            if (daySpan > 12) continue; // Too many gaps, skip this potential shift
+
+            const baseline = prev6.reduce((acc, d) => acc + (d.tempValue || 0), 0) / 6;
             const isShift = next3.every(d => (d.tempValue || 0) > baseline + 0.15); // Slightly relaxed threshold
 
             if (isShift) {
-                bbtTrigger = reliableTemps[i].cycleDay;
+                // Ovulation happens the day BEFORE the shift (last low temp).
+                bbtAnchorDay = prev6[5].cycleDay;
+                
+                // Confidence drops if there are gaps (daySpan > 9)
+                const gapPenalty = (daySpan - 9) * 0.1;
+                const rawConfidence = 0.9 * (next3.reduce((a, b) => a + b.reliability.temp, 0) / 3);
+                bbtConfidence = Math.max(0.3, rawConfidence - gapPenalty);
+
                 signals.push({
                     source: 'BBT',
-                    anchorDay: bbtTrigger, // Shift start is roughly ovulation
-                    confidence: 0.9 * (next3.reduce((a, b) => a + b.reliability.temp, 0) / 3), // Avg reliability
-                    explanation: `Temp shift detected CD ${bbtTrigger}`
+                    anchorDay: bbtAnchorDay, 
+                    confidence: bbtConfidence, 
+                    explanation: `Temp shift detected. Ovulation on CD ${bbtAnchorDay}`
                 });
-                break; // First shift wins
+                break; // First valid shift wins
             }
         }
     } else {
         anomalies.push('Insufficient Temp Data');
     }
 
-    // 2. LH Surge Detector (The Planner)
+    // 2. LH Surge Detector (The Predictor)
     const lhPositives = days.filter(d => d.isLhPositive);
+    let lhAnchorDay: number | null = null;
+    let lhConfidence = 0;
+
     if (lhPositives.length > 0) {
         // Use last positive in the cluster
         const lastPos = lhPositives[lhPositives.length - 1];
+        lhAnchorDay = lastPos.cycleDay + 1; // Ovulation 24-36h after surge
+        lhConfidence = 0.95;
+
         signals.push({
             source: 'LH',
-            anchorDay: lastPos.cycleDay + 1, // Ovulation 24-36h after surge
-            confidence: 0.95,
+            anchorDay: lhAnchorDay,
+            confidence: lhConfidence,
             explanation: `LH Surge CD ${lastPos.cycleDay}`
         });
 
@@ -324,18 +336,24 @@ function fuseSignals(days: EngineDay[], meta: UserMetaV2): EngineResult {
 
     // 3. Mucus Peak (The Secondary)
     const peakMucus = days.filter(d => d.reliability.mucus > 0.5 && d.mucusValue === 4); // Eggwhite
+    let mucusAnchorDay: number | null = null;
+    let mucusConfidence = 0;
+
     if (peakMucus.length > 0) {
         const lastPeak = peakMucus[peakMucus.length - 1];
+        mucusAnchorDay = lastPeak.cycleDay;
+        mucusConfidence = 0.7;
+
         signals.push({
             source: 'MUCUS',
-            anchorDay: lastPeak.cycleDay,
-            confidence: 0.7,
+            anchorDay: mucusAnchorDay,
+            confidence: mucusConfidence,
             explanation: `Peak Mucus CD ${lastPeak.cycleDay}`
         });
     }
 
     // 4. Calendar (The Fallback)
-    const predictedOv = Math.round(meta.avg_cycle_length - 14);
+    const predictedOv = Math.max(1, Math.round(meta.avg_cycle_length - 14));
     signals.push({
         source: 'CALENDAR',
         anchorDay: predictedOv,
@@ -343,27 +361,55 @@ function fuseSignals(days: EngineDay[], meta: UserMetaV2): EngineResult {
         explanation: `History predicts CD ${predictedOv}`
     });
 
-    // --- FUSION ---
+    // --- HIERARCHICAL FUSION ---
 
-    // Filter out Calendar if we have biometrics
-    const bioSignals = signals.filter(s => s.source !== 'CALENDAR');
-    const activeSignals = bioSignals.length > 0 ? bioSignals : signals; // Fallback to calendar if needed
-
-    // Weighted Average
-    let weightedSum = 0;
-    let totalWeight = 0;
-
-    for (const s of activeSignals) {
-        const w = (WEIGHTS[s.source] || 0.5) * s.confidence;
-        weightedSum += s.anchorDay * w;
-        totalWeight += w;
+    let finalOvulationDay = predictedOv;
+    let confidence = 0.3; // Default to calendar confidence
+    
+    // Select the primary anchor based on hierarchy: LH > BBT > MUCUS > CALENDAR
+    if (lhAnchorDay !== null) {
+        finalOvulationDay = lhAnchorDay;
+        confidence = lhConfidence;
+    } else if (bbtAnchorDay !== null) {
+        finalOvulationDay = bbtAnchorDay;
+        confidence = bbtConfidence;
+    } else if (mucusAnchorDay !== null) {
+        finalOvulationDay = mucusAnchorDay;
+        confidence = mucusConfidence;
     }
 
-    const finalOvulationDay = Math.round(weightedSum / totalWeight);
-    const confidence = totalWeight / activeSignals.length; // Crude confidence score
+    // Adjust confidence based on signal alignment
+    const bioSignals = signals.filter(s => s.source !== 'CALENDAR');
+    const activeSignals = bioSignals.length > 0 ? bioSignals : signals;
+
+    if (bioSignals.length > 1) {
+        // Check if other signals align within ±2 days of the final chosen day
+        let aligningSignals = 0;
+        let conflictingSignals = 0;
+
+        for (const s of bioSignals) {
+            if (s.anchorDay === finalOvulationDay) continue; // Skip the one we used (roughly)
+            
+            const diff = Math.abs(s.anchorDay - finalOvulationDay);
+            if (diff <= 2) {
+                aligningSignals++;
+                confidence += 0.05; // Boost confidence for alignment
+            } else if (diff > 3) {
+                conflictingSignals++;
+                confidence -= 0.1; // Penalty for strong conflict
+            }
+        }
+
+        if (conflictingSignals > 0) {
+            anomalies.push('Conflicting Bio-signals');
+        }
+    }
+    
+    // Clamp confidence between 0.1 and 0.99
+    confidence = Math.max(0.1, Math.min(0.99, confidence));
 
     // Confirmation Check
-    const isConfirmed = bbtTrigger !== null; // Only BBT confirms
+    const isConfirmed = bbtAnchorDay !== null; // Only BBT confirms
 
     // Window Calculation (Standard -5 / +1 rule around anchor)
     const winStart = Math.max(1, finalOvulationDay - 5);
@@ -380,139 +426,69 @@ function fuseSignals(days: EngineDay[], meta: UserMetaV2): EngineResult {
 }
 
 
-// --- Module 6: Explainer ---
-function buildInsightPayload(
-    date: string,
-    status: string,
-    phase: string,
+// --- Module 6: Day Metadata (Lean — no UI text) ---
+function buildDayMeta(
     result: EngineResult,
-    cycles: CycleV2[],
+    cycles: Cycle[],
     cycleDays: EngineDay[],
     today: string,
+    date: string,
     day?: EngineDay
 ) {
-    const signalsText = result.signals.map(s => s.source).join(', ');
-    const reliability = day?.reliability.temp || 1.0;
+    // Primary signal that anchored ovulation
+    const primarySignal: string = result.signals.length > 0 ? result.signals[0].source : 'CALENDAR';
 
-    // --- Card 1: Today ---
-    const notifications: string[] = [];
-    if (result.isConfirmed) notifications.push('Ovulation Confirmed');
-    if (result.anomalies.includes('Multiple LH Surges')) notifications.push('Double LH Surge detected');
-    if (day?.reliability.temp === 0) notifications.push('Temp discarded (Sick/Fever)');
-    if (status === 'fertile' && !result.isConfirmed) notifications.push('Peak fertility - Log now');
+    // Days to ovulation (negative = past)
+    const daysToOvulation = day ? result.ovulationDay - day.cycleDay : null;
 
-    // Predictive & Actionable Notifications
-    if (day && day.cycleDay < result.ovulationDay) {
-        const daysToOv = result.ovulationDay - day.cycleDay;
-        if (daysToOv > 0 && daysToOv <= 5) {
-            notifications.push(`Ovulation in ${daysToOv} days`);
-        }
-    }
-
-    if (day && !day.tempValue && status !== 'period') {
-        notifications.push('Log temperature to confirm');
-    }
-
-    let sourceText = 'Based on cycle history.';
-    if (result.signals.some(s => s.source === 'BBT')) sourceText = 'Confirmed by BBT Shift.';
-    else if (result.signals.some(s => s.source === 'LH')) sourceText = 'Detected by LH Surge.';
-    else if (result.signals.some(s => s.source === 'MUCUS')) sourceText = 'Indicated by Mucus signs.';
-
-    // Format Status Title
-    let statusText = 'Low Fertility';
-    if (status === 'fertile') statusText = 'High Fertility';
-    else if (status === 'period') statusText = 'Period';
-    else if (status === 'unsure') statusText = 'Unsure (Assume Fertile)';
-
-    const todayCard = {
-        card: {
-            title: 'TODAY',
-            description: `Day ${day?.cycleDay || '?'}`,
-            subtitle: statusText,
-            // footer: result.isConfirmed ? 'Ovulation Confirmed' : (signalsText ? `Signals: ${signalsText}` : 'Prediction: Calendar Method')
-        },
-        stats: [
-            { label: 'Phase', value: phase },
-            { label: 'Confidence', value: Math.round(result.confidence * 100) + '%' },
-            result.isConfirmed ? { label: 'Ovulation', value: 'Confirmed', variant: 'success' } : { label: 'Ovulation', value: 'Pending' }
-        ],
-        notifications: notifications,
-        sourceText: sourceText,
-        confidence: {
-            label: result.confidence > 0.8 ? 'High Confidence' : (result.confidence > 0.5 ? 'Medium Confidence' : 'Low Confidence'),
-            score: Math.round(result.confidence * 100),
-            message: result.confidence > 0.8
-                ? 'Strong bio-signals detected.'
-                : 'Based on limited data. Keep logging to improve accuracy.'
-        }
-    };
-
-    // --- Card 2: Cycle Stats ---
+    // Cycle stats (aggregated from completed cycles)
     const completedCycles = cycles.filter(c => c.end_date);
-    const avgLen = completedCycles.length
+    const avgCycleLength = completedCycles.length
         ? Math.round(completedCycles.reduce((a, c) => a + (c.length || 28), 0) / completedCycles.length)
         : 28;
 
     let variation = 0;
     if (completedCycles.length > 1) {
-        const variance = completedCycles.reduce((a, c) => a + Math.pow((c.length || 28) - avgLen, 2), 0) / completedCycles.length;
+        const variance = completedCycles.reduce((a, c) => a + Math.pow((c.length || 28) - avgCycleLength, 2), 0) / completedCycles.length;
         variation = Math.round(Math.sqrt(variance));
     }
 
     const statsCutoff = date > today ? today : date;
     const loggingStats = computeLoggingStats(cycleDays, statsCutoff);
     const completedWithPeriod = completedCycles.filter(c => c.period_length);
-    const avgPeriod = completedWithPeriod.length
+    const avgPeriodLength = completedWithPeriod.length
         ? Math.round(completedWithPeriod.reduce((a, c) => a + (c.period_length || 0), 0) / completedWithPeriod.length)
         : null;
 
-    const cycleStatsCard = {
-        card: {
-            title: 'CYCLE STATS',
-            description: `${avgLen} Days`,
-            subtitle: variation < 3 ? 'Regular Cycle' : 'Irregular Cycle'
-        },
-        stats: [
-            { label: 'Variation', value: `±${variation} days` },
-            { label: 'Logging rate', value: `${loggingStats.rate}%` },
-            { label: 'Avg Period', value: avgPeriod ? `${avgPeriod} days` : '—' },
-            { label: 'Data Gaps', value: loggingStats.maxGap <= 1 ? 'None' : `${loggingStats.maxGap} days` }
-        ],
-        sourceText: `Analysis based on last ${completedCycles.length} cycles.`,
-        notifications: variation < 3 ? ['Cycle length is consistent'] : ['Irregular patterns detected'],
-        confidence: {
-            label: completedCycles.length > 3 ? 'High Confidence' : 'Low Confidence',
-            score: Math.min(100, completedCycles.length * 20),
-            message: `Based on history of ${completedCycles.length} cycles.`
-        }
-    };
-
-    // --- Card 3: Nutrition (Locked) ---
-    const nutritionCard = {
-        card: {
-            title: "NUTRITION",
-            description: "Calcium Intake",
-            subtitle: "Premium Content",
-            isLocked: true,
-            lockLabel: "Premium"
-        },
-        stats: [],
-        sourceText: "Connect your health data source."
-    };
-
     return {
-        today: todayCard,
-        "cycle-stats": cycleStatsCard,
-        nutrition: nutritionCard
+        // Core per-day data
+        cycleDay: day?.cycleDay ?? null,
+        confidenceScore: result.confidence,
+        primarySignal,
+        isConfirmed: result.isConfirmed,
+        daysToOvulation,
+        anomalies: result.anomalies,
+        tempReliability: day?.reliability.temp ?? null,
+        hasTemp: !!day?.tempValue,
+
+        // Aggregated cycle stats (same for every day in a cycle, but cheap to store)
+        stats: {
+            avgCycleLength,
+            variation,
+            loggingRate: loggingStats.rate,
+            maxGap: loggingStats.maxGap,
+            avgPeriodLength,
+            completedCycles: completedCycles.length,
+        }
     };
 }
 
-function isCycleStartBleeding(cycle: CycleV2, logMap: Map<string, LogV2>): boolean {
+function isCycleStartBleeding(cycle: Cycle, logMap: Map<string, Log>): boolean {
     const startLog = logMap.get(cycle.start_date);
     return startLog?.bleeding === 'medium' || startLog?.bleeding === 'heavy';
 }
 
-function getLastLogDateForCycle(cycle: CycleV2, logs: LogV2[]): string | null {
+function getLastLogDateForCycle(cycle: Cycle, logs: Log[]): string | null {
     let lastDate: string | null = null;
     for (const log of logs) {
         if (log.date < cycle.start_date) continue;
@@ -522,7 +498,7 @@ function getLastLogDateForCycle(cycle: CycleV2, logs: LogV2[]): string | null {
     return lastDate;
 }
 
-function calculatePeriodLength(startDate: string, logMap: Map<string, LogV2>): number | null {
+function calculatePeriodLength(startDate: string, logMap: Map<string, Log>): number | null {
     let count = 0;
     let cursor = startDate;
     while (true) {
@@ -557,19 +533,15 @@ function computeLoggingStats(cycleDays: EngineDay[], upToDate: string): { rate: 
 }
 
 // --- Utils ---
-function mergeCycles(newCycles: CycleV2[], oldCycles: CycleV2[]): CycleV2[] {
+function mergeCycles(newCycles: Cycle[], oldCycles: Cycle[]): Cycle[] {
     // Match by start_date (which is stable based on log data)
     return newCycles.map(nc => {
         const match = oldCycles.find(oc => oc.start_date === nc.start_date);
         if (match) {
             // Keep the OLD ID to prevent churn
-            // Keep OLD analysis if we are NOT going to re-process it (handled by relevantCycles filter)
             return {
                 ...nc,
                 id: match.id,
-                // If match has data, use it as baseline, but 'nc' (new cycle) has the fresh length/dates from logs
-                // We only keep the ID mostly. The loop above determines if we re-analyze.
-                // Actually, if we want to PRESERVE analysis of old cycles, we should copy it:
                 ovulation_prediction: match.ovulation_prediction || nc.ovulation_prediction,
                 ovulation_confirmed_date: match.ovulation_confirmed_date || nc.ovulation_confirmed_date,
                 analysis_flags: match.analysis_flags && match.analysis_flags.length > 0 ? match.analysis_flags : nc.analysis_flags
@@ -578,5 +550,3 @@ function mergeCycles(newCycles: CycleV2[], oldCycles: CycleV2[]): CycleV2[] {
         return nc;
     });
 }
-
-// Date helpers are imported from utils/dates.ts

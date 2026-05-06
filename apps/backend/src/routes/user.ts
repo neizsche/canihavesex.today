@@ -33,7 +33,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             })
         }
     }, async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
         const body = req.body;
 
         const { intent, cycle_regularity, context_flags, last_period_start, cycle_length_min, cycle_length_max } = body;
@@ -103,14 +103,14 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
 
     // DELETE /api/v1/user/data (Delete All Data)
     app.delete('/api/v1/user/data', async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
         await deleteAllData(userId);
         return { ok: true, message: 'All data deleted' };
     });
 
     // DELETE /api/v1/user/account (Full Account Delete)
     app.delete('/api/v1/user/account', async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
 
         // 1. Delete all application data (logs, cycles, status)
         await deleteAllData(userId);
@@ -129,7 +129,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
 
     // GET /api/v1/keys (List API keys)
     app.get('/api/v1/keys', async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
         const keys = await apiKeyRepo.listByUserId(userId);
         return {
             keys: keys.map((key) => ({
@@ -152,7 +152,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             }).optional().default({})
         }
     }, async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
         const body = req.body;
         const nameRaw = typeof body.name === 'string' ? body.name.trim() : '';
         const name = nameRaw || `Apple Shortcut ${new Date().toISOString().slice(0, 10)}`;
@@ -191,7 +191,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             })
         }
     }, async (req, reply) => {
-        const userId = (req as any).userId;
+        const userId = req.userId!;
         const keyId = req.params.id;
         await apiKeyRepo.revokeById(userId, keyId);
         return { ok: true };

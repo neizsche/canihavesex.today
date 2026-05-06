@@ -97,9 +97,11 @@ The frontend connects directly to the Fastify backend API:
 ```
 src/
 ├── components/     # React components
+├── hooks/          # Custom React hooks (e.g. useNavigation)
 ├── layouts/        # Astro page layouts
 ├── lib/           # Utilities and API clients
-│   ├── api.ts         # Low-level API functions
+│   ├── api.ts         # API fetch utilities
+│   ├── domain.ts      # Shared domain logic and types
 │   ├── apiWrapper.ts  # High-level API interface
 │   └── config.ts      # Environment configuration
 ├── pages/         # Astro pages/routes

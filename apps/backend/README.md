@@ -27,9 +27,13 @@ apps/backend/
     apiKeys.ts             # API key generation, hashing, extraction
     rateLimiter.ts         # in-memory rate limiter
     engine.ts              # fertility/cycle inference engine
+    plugins/
+      auth.ts              # Fastify plugin for typed authentication
+    services/
+      LogService.ts        # Service layer for log and engine operations
     routes/
       auth.ts              # login/session/signout routes
-      logs.ts              # log read/write routes
+      logs.ts              # log read/write routes (delegates to LogService)
       calendar.ts          # today/calendar/stats routes
       export.ts            # CSV export
       user.ts              # onboarding, deletion, API keys
@@ -72,16 +76,16 @@ apps/backend/
 
 ## Request Flow
 
-Most requests follow this shape:
-
-1. Fastify receives the request.
-2. The request payload (params, querystring, body) is strictly validated against Zod schemas. Invalid requests are immediately rejected with a 400 Bad Request.
-3. The auth hook in `src/index.ts` checks either:
-   - signed `uid` cookie, or
-   - API key for `POST /api/logs`
-4. Route handler creates/uses repository instances.
-4. Repository runs raw SQL through the shared `Db` wrapper.
-5. Some routes also invoke `runFusionEngine()` and then persist derived results.
+ 1. Fastify receives the request.
+ 2. The request payload (params, querystring, body) is strictly validated against Zod schemas. Invalid requests are immediately rejected with a 400 Bad Request.
+ 3. The `authPlugin` in `src/plugins/auth.ts` handles authentication via:
+    - signed `uid` cookie, or
+    - API key (e.g. for API-driven log updates)
+    - It attaches `userId`, `authType`, and `apiKeyId` to the `req` object using TypeScript module augmentation for type safety.
+ 4. Route handler delegates business logic to a Service (e.g. `LogService`).
+ 5. Services use repository instances to interact with the database.
+ 6. Repository runs raw SQL through the shared `Db` wrapper.
+ 7. Complex derived state is computed by the engine in `src/engine.ts`.
 
 ## Main Route Groups
 
@@ -103,17 +107,14 @@ Most requests follow this shape:
 - Reads a single day log
 - Provides log suggestions from yesterday
 - Upserts daily logs
-- Re-runs the fertility engine after writes when the log affects the current cycle
+- Delegates complexity to `LogService`
 
-Write-through behavior:
+LogService handles the "Write-through" behavior:
 
 1. Save log into `logs_v2`
 2. Load all logs + user meta + known cycles
 3. Run `runFusionEngine()`
-4. Persist results into:
-   - `daily_status_v2`
-   - `cycles_v2`
-   - `active_cycles_v2`
+4. Persist results into `daily_status_v2`, `cycles_v2`, and `active_cycles_v2`
 
 ### `src/routes/calendar.ts`
 

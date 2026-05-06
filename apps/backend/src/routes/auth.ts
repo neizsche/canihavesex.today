@@ -173,7 +173,7 @@ export async function authRoutes(
     app.get('/api/session', async (req, reply) => {
         // This route is protected by the /api/* auth preHandler below.
         // If unauthenticated, the preHandler will return 401.
-        const userId = (req as any).userId as string | undefined;
+        const userId = req.userId;
         if (!userId) return reply.send({ userId: null, email: null, onboardingCompleted: false });
 
         const user = await userRepository.findById(userId);

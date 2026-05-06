@@ -1,9 +1,9 @@
 import { Db } from '../db.js';
 import { randomUUID } from 'node:crypto';
 
-export interface LogV2 {
-    id: string;
-    user_id: string;
+export interface Log {
+    id: string; // UUID
+    user_id: string; // UUID
     date: string; // YYYY-MM-DD
     bleeding: 'none' | 'spotting' | 'light' | 'medium' | 'heavy' | null;
     temperature: number | null;
@@ -18,21 +18,19 @@ export interface LogV2 {
 export class LogRepository {
     constructor(private db: Db) { }
 
-    async upsertLog(log: Omit<LogV2, 'created_at'>): Promise<void> {
-        const now = new Date().toISOString();
+    async upsertLog(log: Omit<Log, 'created_at'>): Promise<void> {
         await this.db.query(
-            `INSERT INTO logs_v2 (id, user_id, date, bleeding, temperature, mucus, lh_test, disturbances, symptoms, notes, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
-       ON CONFLICT (user_id, date) DO UPDATE SET
-         bleeding = EXCLUDED.bleeding,
-         temperature = EXCLUDED.temperature,
-         mucus = EXCLUDED.mucus,
-         lh_test = EXCLUDED.lh_test,
-         disturbances = EXCLUDED.disturbances,
-         symptoms = EXCLUDED.symptoms,
-         notes = EXCLUDED.notes,
-         updated_at = EXCLUDED.updated_at
-      `,
+            `INSERT INTO logs (id, user_id, date, bleeding, temperature, mucus, lh_test, disturbances, symptoms, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             ON CONFLICT (user_id, date) DO UPDATE SET
+               bleeding = EXCLUDED.bleeding,
+               temperature = EXCLUDED.temperature,
+               mucus = EXCLUDED.mucus,
+               lh_test = EXCLUDED.lh_test,
+               disturbances = EXCLUDED.disturbances,
+               symptoms = EXCLUDED.symptoms,
+               notes = EXCLUDED.notes
+            `,
             [
                 log.id || randomUUID(),
                 log.user_id,
@@ -43,32 +41,53 @@ export class LogRepository {
                 log.lh_test ?? null,
                 JSON.stringify(log.disturbances || []),
                 JSON.stringify(log.symptoms || []),
-                log.notes ?? null,
-                now
+                log.notes ?? null
             ]
         );
     }
 
-    async getLog(userId: string, date: string): Promise<LogV2 | null> {
+    async getLog(userId: string, date: string): Promise<Log | null> {
         const rows = await this.db.query<any>(
-            `SELECT * FROM logs_v2 WHERE user_id = $1 AND date = $2`,
+            `SELECT * FROM logs WHERE user_id = $1 AND date = $2`,
             [userId, date]
         );
         if (!rows[0]) return null;
         return this.mapLog(rows[0]);
     }
 
-    async getAllLogs(userId: string): Promise<LogV2[]> {
+    async getAllLogs(userId: string): Promise<Log[]> {
         const rows = await this.db.query<any>(
-            `SELECT * FROM logs_v2 WHERE user_id = $1 ORDER BY date ASC`,
+            `SELECT * FROM logs WHERE user_id = $1 ORDER BY date ASC`,
             [userId]
+        );
+        return rows.map(this.mapLog);
+    }
+
+    async getRecentLogs(userId: string, limitDays: number = 90): Promise<Log[]> {
+        const rows = await this.db.query<any>(
+            `SELECT * FROM logs 
+             WHERE user_id = $1 
+             AND date >= CURRENT_DATE - (interval '1 day' * $2)
+             ORDER BY date ASC`,
+            [userId, limitDays]
+        );
+        return rows.map(this.mapLog);
+    }
+
+    async getLogsSince(userId: string, date: string): Promise<Log[]> {
+        const rows = await this.db.query<any>(
+            `SELECT * FROM logs 
+             WHERE user_id = $1 
+             AND date >= $2
+             ORDER BY date ASC`,
+            [userId, date]
         );
         return rows.map(this.mapLog);
     }
 
     async getLatestUpdateTimestamp(userId: string): Promise<string | null> {
         const rows = await this.db.query<any>(
-            `SELECT updated_at FROM logs_v2 WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 1`,
+            `SELECT updated_at FROM logs WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 1`,
             [userId]
         );
         const value = rows[0]?.updated_at;
@@ -78,22 +97,27 @@ export class LogRepository {
     }
 
     async deleteLogsByUserId(userId: string): Promise<void> {
-        await this.db.query(`DELETE FROM logs_v2 WHERE user_id = $1`, [userId]);
+        await this.db.query(`DELETE FROM logs WHERE user_id = $1`, [userId]);
     }
 
-    private mapLog(row: any): LogV2 {
-        return {
-            ...row,
-            date: row.date instanceof Date ? (() => {
-                const d = row.date;
+    private mapLog(row: any): Log {
+        const toIsoDate = (d: any) => {
+            if (d instanceof Date) {
                 const year = d.getFullYear();
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const day = String(d.getDate()).padStart(2, '0');
                 return `${year}-${month}-${day}`;
-            })() : row.date,
-            disturbances: typeof row.disturbances === 'string' ? JSON.parse(row.disturbances) : row.disturbances,
-            symptoms: typeof row.symptoms === 'string' ? JSON.parse(row.symptoms) : row.symptoms,
-            temperature: row.temperature != null ? Number(row.temperature) : null
+            }
+            return d;
+        };
+
+        return {
+            ...row,
+            date: toIsoDate(row.date),
+            disturbances: Array.isArray(row.disturbances) ? row.disturbances : (row.disturbances ? JSON.parse(row.disturbances) : []),
+            symptoms: Array.isArray(row.symptoms) ? row.symptoms : (row.symptoms ? JSON.parse(row.symptoms) : []),
+            temperature: row.temperature != null ? Number(row.temperature) : null,
+            created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at
         };
     }
 }

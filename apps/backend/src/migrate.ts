@@ -1,168 +1,199 @@
 import type { Db } from './db.js';
 
 export async function migrate(db: Db) {
-  // 0. Cleanup Unused Tables
-  // NOTE: Disabled by default to avoid destructive drops on startup.
-  // If needed, re-enable via a one-time maintenance script or env-gated path.
-  // await cleanupLegacyTables(db);
-
-  // 1. Core User Tables
+  // --- 0. Helper Functions & Extensions ---
   await db.exec(`
-    create table if not exists users (
-      id text primary key,
-      email text not null unique,
-      created_at text not null
-    );
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-    create table if not exists user_identities (
-      id text primary key,
-      user_id text not null,
-      provider text not null,
-      provider_user_id text not null,
-      email text,
-      created_at text not null,
-      unique(provider, provider_user_id)
-    );
-
-    create table if not exists user_preferences (
-      user_id text primary key,
-      theme text not null default 'dark',
-      intent text,
-      cycle_regularity text,
-      context_flags text,
-      onboarding_completed_at text,
-      education_global_shown_at text,
-      education_mucus_shown_at text,
-      education_bbt_shown_at text,
-      education_lh_shown_at text,
-      updated_at text not null
-    );
-
-    create table if not exists user_api_keys (
-      id uuid primary key,
-      user_id uuid not null,
-      name text,
-      key_hash text not null unique,
-      key_prefix text not null,
-      created_at timestamp not null,
-      last_used_at timestamp,
-      revoked_at timestamp
-    );
-    
-    -- Waitlist (Legacy but harmless to keep if needed, or remove if truly scrubbing)
-    create table if not exists waitlist (
-      id uuid primary key default gen_random_uuid(),
-      email text not null unique,
-      source text,
-      reason text,
-      created_at timestamp with time zone default now()
-    );
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
   `);
 
-  await db.exec(`
-    create index if not exists idx_user_api_keys_user_id on user_api_keys (user_id);
-    create index if not exists idx_user_api_keys_hash on user_api_keys (key_hash);
-  `);
+  // --- 1. Clean Slate (Destroy Legacy Tables) ---
+  // The user explicitly requested to destroy all current data and start fresh.
+  const legacyTables = [
+    'users_legacy', 'user_identities_legacy', 'user_preferences_legacy', 'user_api_keys_legacy',
+    'logs_v2', 'cycles_v2', 'active_cycles_v2', 'daily_status_v2', 'user_meta_v2',
+    'logs_v2_legacy', 'cycles_v2_legacy', 'active_cycles_v2_legacy', 'daily_status_v2_legacy', 'user_meta_v2_legacy',
+    'waitlist_legacy'
+  ];
 
-  // 2. V5 Engine Tables (Promoted to Primary)
-  // We keep the _v2 suffix in SQL for now to avoid data migration complexity during this cleanup,
-  // or we could rename them if we wanted a hard break.
-  // For safety/continuity of the CURRENT data, we keep the schema referencing logs_v2 etc.
+  for (const t of legacyTables) {
+    await db.exec(`DROP TABLE IF EXISTS "${t}" CASCADE`).catch(() => {});
+  }
 
-  await db.exec(`
-      CREATE TABLE IF NOT EXISTS logs_v2 (
-        id UUID PRIMARY KEY,
-        user_id UUID NOT NULL,
-        date DATE NOT NULL,
-        bleeding TEXT,
-        temperature DECIMAL(5,2),
-        mucus TEXT,
-        lh_test TEXT,
-        disturbances JSONB DEFAULT '[]',
-        symptoms JSONB DEFAULT '[]',
-        notes TEXT,
-        created_at TIMESTAMP,
-        updated_at TIMESTAMP,
-        UNIQUE(user_id, date)
-      );
-
-      CREATE TABLE IF NOT EXISTS cycles_v2 (
-        id UUID PRIMARY KEY,
-        user_id UUID NOT NULL,
-        start_date DATE NOT NULL,
-        end_date DATE NOT NULL,
-        ovulation_prediction DATE,
-        ovulation_confirmed_date DATE,
-        length INTEGER,
-        period_length INTEGER,
-        analysis_flags JSONB DEFAULT '[]'
-      );
-
-      CREATE TABLE IF NOT EXISTS active_cycles_v2 (
-        id UUID PRIMARY KEY,
-        user_id UUID NOT NULL UNIQUE,
-        start_date DATE NOT NULL,
-        end_date DATE,
-        ovulation_prediction DATE,
-        ovulation_confirmed_date DATE,
-        length INTEGER,
-        period_length INTEGER,
-        analysis_flags JSONB DEFAULT '[]'
-      );
-
-      CREATE TABLE IF NOT EXISTS daily_status_v2 (
-        id UUID PRIMARY KEY,
-        user_id UUID NOT NULL,
-        date DATE NOT NULL,
-        fertility_status TEXT NOT NULL,
-        phase TEXT NOT NULL,
-        is_predicted BOOLEAN NOT NULL,
-        insights_payload JSONB NOT NULL,
-        engine_version TEXT NOT NULL,
-        updated_at TIMESTAMP,
-        UNIQUE(user_id, date)
-      );
-
-      CREATE TABLE IF NOT EXISTS user_meta_v2 (
-        user_id UUID PRIMARY KEY,
-        app_mode TEXT DEFAULT 'prevent',
-        baseline_temp_avg DECIMAL(5,2) DEFAULT 36.5,
-        avg_cycle_length DECIMAL(5,2) DEFAULT 28.0
-      );
-  `);
-
-  await db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_logs_v2_user_updated_at
-        ON logs_v2 (user_id, updated_at DESC);
-
-      CREATE INDEX IF NOT EXISTS idx_cycles_v2_user_start_date
-        ON cycles_v2 (user_id, start_date DESC);
-  `);
-
-  console.log('[Migrate] Schema synced.');
-}
-
-async function cleanupLegacyTables(db: Db) {
-  const ALLOWED_TABLES = new Set([
-    'users',
-    'user_identities',
-    'user_preferences',
-    'waitlist',
-    'logs_v2',
-    'cycles_v2',
-    'active_cycles_v2',
-    'daily_status_v2',
-    'user_meta_v2'
-  ]);
-
-  const rows = await db.query<{ tablename: string }>(
-    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+  // Also drop core tables if they are still using the old 'TEXT' ID schema
+  const checkUsers = await db.query<{ data_type: string }>(
+    `SELECT data_type FROM information_schema.columns 
+     WHERE table_name = 'users' AND column_name = 'id' LIMIT 1`
   );
 
-  for (const row of rows) {
-    if (!ALLOWED_TABLES.has(row.tablename)) {
-      console.log(`[Cleanup] Dropping unused table: ${row.tablename}`);
-      await db.exec(`DROP TABLE IF EXISTS "${row.tablename}" CASCADE`);
-    }
+  if (checkUsers.length > 0 && checkUsers[0].data_type === 'text') {
+      console.log('[Migrate] Legacy TEXT schema detected in "users" table. Dropping for fresh UUID start...');
+      const coreTables = ['users', 'user_identities', 'user_preferences', 'user_api_keys', 'waitlist'];
+      for (const t of coreTables) {
+          await db.exec(`DROP TABLE IF EXISTS "${t}" CASCADE`).catch(() => {});
+      }
   }
+
+  // --- 2. Canonical Production Tables ---
+
+  await db.exec(`
+    -- Core User Tables
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      email TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS user_identities (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      provider_user_id TEXT NOT NULL,
+      email TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(provider, provider_user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      theme TEXT NOT NULL DEFAULT 'dark',
+      intent TEXT,
+      cycle_regularity TEXT,
+      context_flags JSONB DEFAULT '[]',
+      onboarding_completed_at TIMESTAMPTZ,
+      education_global_shown_at TIMESTAMPTZ,
+      education_mucus_shown_at TIMESTAMPTZ,
+      education_bbt_shown_at TIMESTAMPTZ,
+      education_lh_shown_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS user_api_keys (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT,
+      key_hash TEXT NOT NULL UNIQUE,
+      key_prefix TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_used_at TIMESTAMPTZ,
+      revoked_at TIMESTAMPTZ
+    );
+
+    -- Physiological Data Tables
+    CREATE TABLE IF NOT EXISTS logs (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      bleeding TEXT,
+      temperature DECIMAL(5,2),
+      mucus TEXT,
+      lh_test TEXT,
+      disturbances JSONB DEFAULT '[]',
+      symptoms JSONB DEFAULT '[]',
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, date)
+    );
+
+    CREATE TABLE IF NOT EXISTS cycles (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      ovulation_prediction DATE,
+      ovulation_confirmed_date DATE,
+      length INTEGER,
+      period_length INTEGER,
+      analysis_flags JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS active_cycles (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      start_date DATE NOT NULL,
+      end_date DATE,
+      ovulation_prediction DATE,
+      ovulation_confirmed_date DATE,
+      length INTEGER,
+      period_length INTEGER,
+      analysis_flags JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS daily_status (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      fertility_status TEXT NOT NULL,
+      phase TEXT NOT NULL,
+      is_predicted BOOLEAN NOT NULL,
+      insights_payload JSONB NOT NULL,
+      engine_version TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, date)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_metadata (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      app_mode TEXT DEFAULT 'prevent',
+      baseline_temp_avg DECIMAL(5,2) DEFAULT 36.5,
+      avg_cycle_length DECIMAL(5,2) DEFAULT 28.0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    -- Waitlist
+    CREATE TABLE IF NOT EXISTS waitlist (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      email TEXT NOT NULL UNIQUE,
+      source TEXT,
+      reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // --- 3. Triggers for updated_at ---
+  const tablesWithUpdatedAt = [
+    'user_preferences',
+    'logs',
+    'cycles',
+    'active_cycles',
+    'daily_status',
+    'user_metadata'
+  ];
+
+  for (const table of tablesWithUpdatedAt) {
+    await db.exec(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_updated_at_${table}') THEN
+          CREATE TRIGGER trg_update_updated_at_${table}
+          BEFORE UPDATE ON ${table}
+          FOR EACH ROW
+          EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+      END $$;
+    `);
+  }
+
+  // --- 4. Indexes ---
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_logs_user_date ON logs (user_id, date DESC);
+    CREATE INDEX IF NOT EXISTS idx_cycles_user_start ON cycles (user_id, start_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_daily_status_user_date ON daily_status (user_id, date DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_id ON user_api_keys (user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_api_keys_hash ON user_api_keys (key_hash);
+  `);
+
+  console.log('[Migrate] Production schema created (Clean Start).');
 }
