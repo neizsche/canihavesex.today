@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { LogService } from '../services/LogService.js';
 import { isoToday, parseTimezoneOffsetMinutes } from '../utils/dates.js';
+import { cacheService } from '../services/CacheService.js';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
@@ -73,12 +74,14 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
         const tzOffsetMinutes = getTzOffsetMinutes(req);
         const today = isoToday(tzOffsetMinutes);
 
-        return await logService.upsertLogAndTriggerEngine({
+        const result = await logService.upsertLogAndTriggerEngine({
             ...req.body,
             userId,
             date: req.params.date,
             authType: req.authType,
             today
         });
+        cacheService.invalidateUser(userId);
+        return result;
     });
 }

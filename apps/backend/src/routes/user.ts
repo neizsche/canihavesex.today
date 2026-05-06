@@ -8,6 +8,7 @@ import { PreferencesRepository } from '../repositories/PreferencesRepository.js'
 import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
 import { ApiKeyRepository } from '../repositories/ApiKeyRepository.js';
 import { generateApiKey } from '../apiKeys.js';
+import { cacheService } from '../services/CacheService.js';
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -78,7 +79,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             period_length: null,
             analysis_flags: []
         }]);
-
+        cacheService.invalidateUser(userId);
         return { ok: true };
     });
 
@@ -105,6 +106,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     app.delete('/api/v1/user/data', async (req, reply) => {
         const userId = req.userId!;
         await deleteAllData(userId);
+        cacheService.invalidateUser(userId);
         return { ok: true, message: 'All data deleted' };
     });
 

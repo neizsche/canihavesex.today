@@ -2,6 +2,10 @@ import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Heart, Activity, CheckCircle2, ChevronRight, TrendingUp } from 'lucide-react';
 
+import cycleImg from '@/assets/images/cards/cycle.png';
+import statsImg from '@/assets/images/cards/stats.png';
+import fertilityImg from '@/assets/images/cards/fertility.png';
+
 import { cn } from '@/lib/utils';
 import { usePremiumFeatures } from '@/lib/featureFlags';
 import { Header } from '@/components/common/Header';
@@ -36,6 +40,30 @@ const STATUS_CONFIG: Record<FertilityStatus, { title: string; subtitle: string; 
     }
 };
 
+const INSIGHTS_CONFIG = [
+    {
+        id: 'today' as InsightType,
+        icon: Activity,
+        bgImage: cycleImg.src || cycleImg,
+        className: "snap-center",
+        shadowColor: "rgba(14, 165, 233, 0.45)" // Sky Blue glow
+    },
+    {
+        id: 'cycle-stats' as InsightType,
+        icon: TrendingUp,
+        bgImage: statsImg.src || statsImg,
+        className: "snap-center",
+        shadowColor: "rgba(139, 92, 246, 0.45)" // Violet glow
+    },
+    {
+        id: 'nutrition' as InsightType,
+        icon: CheckCircle2,
+        bgImage: fertilityImg.src || fertilityImg,
+        className: "snap-center",
+        shadowColor: "rgba(99, 102, 241, 0.45)" // Indigo glow
+    }
+];
+
 export function TodayScreen() {
     const { premiumEnabled } = usePremiumFeatures();
     const { navigate } = useNavigation();
@@ -55,52 +83,27 @@ export function TodayScreen() {
 
     // 🧠 Dynamic Insights Engine - Powered by V5 API
     const apiData = todayQuery.data;
-
-    // Fallback/Loading state handled by query.isLoading checks above, but if data is missing:
     const safeInsights = apiData?.insights || {};
     const dailyLogDone = apiData?.dailyLogDone ?? false;
     const isInsufficient = !apiData || apiData?.status === 'unknown' || !dailyLogDone;
 
-    const insights = [
-        // 1. Today in Cycle
-        {
-            id: 'today' as InsightType,
-            ...safeInsights['today']?.card,
-            // Add lastUpdated for the Insight Screen details
-            lastUpdated: apiData?.date ? new Date(apiData.date).toLocaleDateString(undefined, {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric'
-            }) : undefined,
-            // Map API/Engine specific fields to UI props if needed
-            icon: Activity,
-            bgImage: '/images/cards/cycle.png',
-            className: "snap-center",
-            shadowColor: "rgba(14, 165, 233, 0.45)" // Sky Blue glow
-        },
-        // 2. Cycle Stats
-        {
-            id: 'cycle-stats' as InsightType,
-            ...safeInsights['cycle-stats']?.card,
-            icon: TrendingUp,
-            bgImage: '/images/cards/stats.png',
-            className: "snap-center",
-            shadowColor: "rgba(139, 92, 246, 0.45)" // Violet glow
-        },
-        // 3. Nutrition (Locked)
-        {
-            id: 'nutrition' as InsightType,
-            ...safeInsights['nutrition']?.card,
-            icon: CheckCircle2,
-            bgImage: '/images/cards/fertility.png',
-            className: "snap-center",
-            shadowColor: "rgba(99, 102, 241, 0.45)" // Indigo glow
-        }
-    ].filter(card => {
-        // If premium is disabled, hide locked cards (which are premium features)
-        if (!premiumEnabled && card.isLocked) return false;
-        return true;
-    });
+    const insights = React.useMemo(() => {
+        return INSIGHTS_CONFIG.map(config => {
+            const apiCard = safeInsights[config.id]?.card || {};
+            return {
+                ...config,
+                ...apiCard,
+                lastUpdated: apiData?.date ? new Date(apiData.date).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                }) : undefined,
+            };
+        }).filter(card => {
+            if (!premiumEnabled && (card as any).isLocked) return false;
+            return true;
+        });
+    }, [safeInsights, apiData?.date, premiumEnabled]);
 
     // Handle premium mode click - show upsell and scroll
     const handlePremiumClick = (mode: AppMode) => {
@@ -131,12 +134,8 @@ export function TodayScreen() {
                         "flex overflow-x-auto gap-5 sm:gap-6 px-4 sm:px-6 pb-8 no-scrollbar snap-x snap-mandatory transition-all duration-500 shrink-0 w-fit max-w-full",
                         isInsufficient && "overflow-x-hidden touch-none"
                     )}>
-                        {insights.map((insight, idx) => {
-                            // Check if this specific card should be locked (either global insufficiency or card-specific lock)
-                            // If global 'isInsufficient' is true, it means we need to log today's data -> Label: "Log to Unlock"
-                            // If specific card is locked (e.g. Premium feature) -> Label: "Premium" (from data)
-
-                            const isGlobalLock = !dailyLogDone && insight.id !== 'today'; // Today card always unlocked if no log
+                        {insights.map((insight) => {
+                            const isGlobalLock = !dailyLogDone && insight.id !== 'today';
                             const isCardLocked = isGlobalLock || (insight as any).isLocked;
 
                             let activeLockLabel = (insight as any).lockLabel;
@@ -144,26 +143,17 @@ export function TodayScreen() {
                                 activeLockLabel = "Log to view insights";
                             }
 
-                            // Inject full insight data for the modal/sheet when clicked
-                            const fullData = safeInsights[insight.id as string];
-
                             return (
                                 <RichCard
-                                    key={idx}
+                                    key={insight.id}
                                     {...insight}
-                                    // Pass mapped props explicitly if not in spread
-                                    date={apiData?.date} // Use API date
+                                    date={apiData?.date}
                                     lockLabel={activeLockLabel}
                                     locked={isCardLocked}
                                     showLockIcon={true}
                                     onClick={() => {
                                         if (!isCardLocked) {
                                             setActiveInsight(insight.id as InsightType);
-                                            // Pass the FULL API data to the state so InsightPage can read it
-                                            // We might need to refactor InsightPage or pass it here?
-                                            // Actually InsightPage likely fetches or finds data by ID. 
-                                            // Let's pass the data directly or ensure InsightPage uses the same source.
-                                            // For now, RichCard click sets ID. We need to ensure InsightPage reads from 'safeInsights'.
                                             setActiveCard({ bgImage: insight.bgImage, shadowColor: insight.shadowColor });
                                         }
                                     }}

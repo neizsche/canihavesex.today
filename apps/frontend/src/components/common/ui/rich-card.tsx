@@ -18,7 +18,7 @@ interface RichCardProps {
     onClick?: () => void;
 }
 
-export function RichCard({
+export const RichCard = React.memo(({
     title,
     description,
     sublabel,
@@ -29,7 +29,7 @@ export function RichCard({
     showLockIcon = true,
     lockLabel = "PREMIUM",
     onClick
-}: RichCardProps) {
+}: RichCardProps) => {
     return (
         <div
             onClick={locked ? undefined : onClick}
@@ -105,4 +105,4 @@ export function RichCard({
             )}
         </div>
     );
-}
+});

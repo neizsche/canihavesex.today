@@ -5,6 +5,6 @@ export function useInsights() {
   return useQuery({
     queryKey: ['insights', 'today'],
     queryFn: () => apiJson<any>('/api/v1/insights/today'),
-    staleTime: 15_000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

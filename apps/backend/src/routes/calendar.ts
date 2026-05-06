@@ -9,6 +9,7 @@ import { addDaysIso, daysBetweenIso, isoDateForOffset, isoToday, parseTimezoneOf
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { cacheService } from '../services/CacheService.js';
 
 export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }) {
     const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -25,6 +26,10 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         const userId = req.userId!;
         const tzOffsetMinutes = getTzOffsetMinutes(req);
         const today = isoToday(tzOffsetMinutes);
+
+        const cacheKey = `user:${userId}:insights:today`;
+        const cachedResponse = cacheService.get<any>(cacheKey);
+        if (cachedResponse) return cachedResponse;
 
         // Try fetch cache + today's log in parallel
         const [statusResult, dailyLog] = await Promise.all([
@@ -94,13 +99,16 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         const m = status.insights_payload; // Raw metadata from engine
         const insights = buildInsightCards(status.fertility_status, status.phase, m);
 
-        return {
+        const response = {
             status: status.fertility_status,
             insights,
             date: status.date,
             lastModified: status.updated_at,
             dailyLogDone: !!dailyLog
         };
+
+        cacheService.set(cacheKey, response);
+        return response;
     });
 
     // GET /api/v1/insights/calendar
@@ -119,6 +127,10 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         // Default range if missing
         const s = start || today;
         const e = end || s;
+
+        const cacheKey = `user:${userId}:calendar:${s}:${e}`;
+        const cachedResponse = cacheService.get<any>(cacheKey);
+        if (cachedResponse) return cachedResponse;
 
         const [statuses, cycles, user] = await Promise.all([
             statusRepo.getRangeStatus(userId, s, e),
@@ -213,16 +225,23 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
             }
         }
 
-        return {
+        const response = {
             days,
             quickStats,
             minDate
         };
+
+        cacheService.set(cacheKey, response);
+        return response;
     });
 
     // GET /api/v1/insights/stats
     app.get('/api/v1/insights/stats', async (req, reply) => {
         const userId = req.userId!;
+        const cacheKey = `user:${userId}:insights:stats`;
+        const cachedResponse = cacheService.get<any>(cacheKey);
+        if (cachedResponse) return cachedResponse;
+
         const cycles = await cycleRepo.getCycleHistory(userId);
 
         // Calculate averages
@@ -298,6 +317,9 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                 };
             })
         };
+
+        cacheService.set(cacheKey, response);
+        return response;
     });
 }
 
