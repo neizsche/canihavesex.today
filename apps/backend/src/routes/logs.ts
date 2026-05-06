@@ -36,8 +36,8 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
     // Bootstrap V5 schema on startup (using meta repo as schema manager for now)
     await metaRepo.bootstrap();
 
-    // GET /api/logs/:date
-    app.get('/api/logs/:date', {
+    // GET /api/v1/logs/:date
+    app.get('/api/v1/logs/:date', {
         schema: {
             params: z.object({
                 date: z.string()
@@ -111,8 +111,8 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
         return { found: false, minDate, suggestion };
     });
 
-    // GET /api/logs/suggestion (Smart Prefill - Separate Endpoint)
-    app.get('/api/logs/suggestion', {
+    // GET /api/v1/logs/suggestion (Smart Prefill - Separate Endpoint)
+    app.get('/api/v1/logs/suggestion', {
         schema: {
             querystring: z.object({
                 date: z.string()
@@ -151,9 +151,12 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
         return { available: false };
     });
 
-    // POST /api/logs (Write-Through)
-    app.post('/api/logs', {
+    // PUT /api/v1/logs/:date (Write-Through)
+    app.put('/api/v1/logs/:date', {
         schema: {
+            params: z.object({
+                date: z.string()
+            }),
             body: z.object({
                 date: z.string(),
                 bleeding: z.string().nullable().optional(),
@@ -170,11 +173,12 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
         const tzOffsetMinutes = getTzOffsetMinutes(req);
         const today = isoToday(tzOffsetMinutes);
         const body = req.body;
-        if (!body?.date) {
-            return reply.status(400).send({ error: 'Missing date' });
+        const dateStr = req.params.date;
+        if (!dateStr) {
+            return reply.status(400).send({ error: 'Missing date in path' });
         }
         const isApiKey = (req as any).authType === 'api_key';
-        const existing = isApiKey ? await logRepo.getLog(userId, body.date) : null;
+        const existing = isApiKey ? await logRepo.getLog(userId, dateStr) : null;
 
         const bleeding = isApiKey ? (body.bleeding ?? existing?.bleeding ?? null) : (body.bleeding as any);
         const temperature = isApiKey ? (body.temperature ?? existing?.temperature ?? null) : (body.temperature ?? null);
@@ -194,7 +198,7 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
         await logRepo.upsertLog({
             id: randomUUID(),
             user_id: userId,
-            date: body.date,
+            date: dateStr,
             bleeding: bleeding as any,
             temperature,
             mucus: mucus as any,
@@ -210,7 +214,7 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
 
             // Optimization: Only recompute if the log is in the CURRENT active cycle or future
             const latestCycle = existingCycles[0]; // Sort is DESC by start_date
-            const isCurrentCycle = !latestCycle || body.date >= latestCycle.start_date;
+            const isCurrentCycle = !latestCycle || dateStr >= latestCycle.start_date;
 
             if (isCurrentCycle) {
                 const [logs, meta] = await Promise.all([
@@ -225,7 +229,7 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 await statusRepo.saveDailyStatuses(statuses);
                 await cycleRepo.upsertCycles(cycles);
             } else {
-                req.log.info({ userId, date: body.date, msg: "Skipped engine re-run for historical log" });
+                req.log.info({ userId, date: dateStr, msg: "Skipped engine re-run for historical log" });
             }
         } catch (err) {
             console.error('[Engine Error]', err);

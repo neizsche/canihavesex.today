@@ -20,8 +20,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     const getTzOffsetMinutes = (req: any) =>
         parseTimezoneOffsetMinutes(req.headers['x-timezone-offset'] ?? req.headers['x-tz-offset']);
 
-    // GET /api/today
-    app.get('/api/today', async (req, reply) => {
+    // GET /api/v1/insights/today
+    app.get('/api/v1/insights/today', async (req, reply) => {
         const userId = (req as any).userId;
         const tzOffsetMinutes = getTzOffsetMinutes(req);
         const today = isoToday(tzOffsetMinutes);
@@ -87,8 +87,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         };
     });
 
-    // GET /api/calendar
-    app.get('/api/calendar', {
+    // GET /api/v1/insights/calendar
+    app.get('/api/v1/insights/calendar', {
         schema: {
             querystring: z.object({
                 start: z.string().optional(),
@@ -204,8 +204,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         };
     });
 
-    // GET /api/stats
-    app.get('/api/stats', async (req, reply) => {
+    // GET /api/v1/insights/stats
+    app.get('/api/v1/insights/stats', async (req, reply) => {
         const userId = (req as any).userId;
         const cycles = await cycleRepo.getCycleHistory(userId);
 

@@ -68,7 +68,7 @@ export function SettingsScreen() {
 
     const apiKeysQuery = useQuery({
         queryKey: ['api-keys'],
-        queryFn: () => apiJson<{ keys: ApiKey[] }>('/api/user/api-keys'),
+        queryFn: () => apiJson<{ keys: ApiKey[] }>('/api/v1/keys'),
         enabled: !!session?.userId,
         staleTime: 10_000
     });
@@ -99,7 +99,7 @@ export function SettingsScreen() {
         setApiKeyBusy(true);
         setCopiedKey(false);
         try {
-            const data = await apiJson<{ key: string; keyId: string; keyPrefix: string; name: string }>('/api/user/api-keys', {
+            const data = await apiJson<{ key: string; keyId: string; keyPrefix: string; name: string }>('/api/v1/keys', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ regenerate })
@@ -132,7 +132,7 @@ export function SettingsScreen() {
         if (!revokeTarget) return;
         setApiKeyBusy(true);
         try {
-            await apiJson(`/api/user/api-keys/${revokeTarget.id}`, { method: 'DELETE' });
+            await apiJson(`/api/v1/keys/${revokeTarget.id}`, { method: 'DELETE' });
             if (revokeTarget.id === activeKey?.id) {
                 setNewApiKey(null);
             }
@@ -160,7 +160,7 @@ export function SettingsScreen() {
     async function executeDeleteAllData() {
         setBusy(true);
         try {
-            const data = await apiJson<MutationResponse>('/api/user/data/delete', { method: 'POST' });
+            const data = await apiJson<MutationResponse>('/api/v1/user/data', { method: 'DELETE' });
             updateCacheFromMutation(queryClient, data);
 
             // Clear all queries and redirect to onboarding
@@ -183,7 +183,7 @@ export function SettingsScreen() {
     async function executeDeleteAccount() {
         setBusy(true);
         try {
-            await apiJson('/api/user/account/delete', { method: 'POST' });
+            await apiJson('/api/v1/user/account', { method: 'DELETE' });
             setConfirmAction(null);
             setSuccess({ caption: 'Account Deleted', variant: 'destructive' });
             setTimeout(() => {

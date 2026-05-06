@@ -65,9 +65,9 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
         setBusy(true);
         try {
-            const response = await apiJson<MutationResponse>('/api/user/onboarding/complete', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
+            const response = await apiJson<MutationResponse>('/api/v1/user/preferences', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     intent: data.intent,
                     cycle_regularity: data.cycle_regularity,

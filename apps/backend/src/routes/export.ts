@@ -8,7 +8,7 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
     const app = fastify.withTypeProvider<ZodTypeProvider>();
     const logRepo = new LogRepository(opts.db);
 
-    app.get('/api/export', {
+    app.get('/api/v1/user/export', {
         schema: {
             querystring: z.object({
                 includeNotes: z.string().optional()

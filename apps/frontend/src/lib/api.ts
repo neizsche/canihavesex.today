@@ -31,7 +31,7 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
 }
 
 export async function fetchToday<T = any>(): Promise<T> {
-  return apiJson<T>('/api/today');
+  return apiJson<T>('/api/v1/insights/today');
 }
 
 export function currentReturnTo(): string {

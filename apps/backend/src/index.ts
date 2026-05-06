@@ -200,7 +200,7 @@ export async function createApp() {
 
       const path = req.url.split('?')[0] ?? req.url;
       const apiKey = extractApiKey(req);
-      const apiKeyAllowed = req.method === 'POST' && path === '/api/logs';
+      const apiKeyAllowed = req.method === 'PUT' && path.startsWith('/api/v1/logs/');
 
       if (apiKey) {
         if (!apiKeyAllowed) {

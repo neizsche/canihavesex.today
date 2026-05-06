@@ -74,7 +74,7 @@ export function ExportView({ data }: ExportViewProps) {
                         <button
                             onClick={() => {
                                 // Trigger backend export
-                                window.location.href = `/api/export?includeNotes=${includeNotes}`;
+                                window.location.href = `/api/v1/user/export?includeNotes=${includeNotes}`;
                             }}
                             className="w-full bg-[#007aff] hover:bg-[#006ee6] active:scale-95 transition-all duration-200 text-white font-semibold h-12 rounded-xl text-[17px] shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 mt-4"
                         >

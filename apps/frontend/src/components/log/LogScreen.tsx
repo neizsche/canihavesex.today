@@ -109,7 +109,7 @@ export function LogScreen() {
       minDate?: string;
       suggestion?: { sourceDate: string; bleeding: any; temperature: number; mucusType: any; }
     }> => {
-      return apiJson<{ found: boolean; payload?: any; minDate?: string; suggestion?: any; }>(`/api/logs/${date}`);
+      return apiJson<{ found: boolean; payload?: any; minDate?: string; suggestion?: any; }>(`/api/v1/logs/${date}`);
     },
     staleTime: 0, // Always fetch fresh for edit mode
     refetchOnWindowFocus: false,
@@ -250,9 +250,9 @@ export function LogScreen() {
     };
 
     try {
-      const data = await apiJson<MutationResponse>('/api/logs', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const data = await apiJson<MutationResponse>(`/api/v1/logs/${date}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 

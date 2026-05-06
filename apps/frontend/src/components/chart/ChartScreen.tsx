@@ -82,14 +82,15 @@ export function ChartScreen() {
 
     const calendarQuery = useQuery({
         queryKey: ['calendar', startOfMonth, endOfMonth],
-        queryFn: async (): Promise<CalendarResponse> =>
-            apiJson<CalendarResponse>(`/api/calendar?start=${startOfMonth}&end=${endOfMonth}`)
+        queryFn: async () => {
+            return apiJson<CalendarResponse>(`/api/v1/insights/calendar?start=${startOfMonth}&end=${endOfMonth}`)
+        }
     });
 
     // 2. Stats Data (Cycle History)
     const statsQuery = useQuery({
         queryKey: ['stats'],
-        queryFn: async () => apiJson<any>('/api/stats')
+        queryFn: async () => apiJson<any>('/api/v1/insights/stats')
     });
 
     // Combined Loading State

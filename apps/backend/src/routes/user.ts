@@ -20,8 +20,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     const prefRepo = new PreferencesRepository(opts.db);
     const apiKeyRepo = new ApiKeyRepository(opts.db);
 
-    // POST /api/user/onboarding/complete
-    app.post('/api/user/onboarding/complete', {
+    // PATCH /api/v1/user/preferences
+    app.patch('/api/v1/user/preferences', {
         schema: {
             body: z.object({
                 intent: z.string(),
@@ -101,15 +101,15 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         });
     }
 
-    // POST /api/user/data/delete (Delete All Data)
-    app.post('/api/user/data/delete', async (req, reply) => {
+    // DELETE /api/v1/user/data (Delete All Data)
+    app.delete('/api/v1/user/data', async (req, reply) => {
         const userId = (req as any).userId;
         await deleteAllData(userId);
         return { ok: true, message: 'All data deleted' };
     });
 
-    // POST /api/user/account/delete (Full Account Delete)
-    app.post('/api/user/account/delete', async (req, reply) => {
+    // DELETE /api/v1/user/account (Full Account Delete)
+    app.delete('/api/v1/user/account', async (req, reply) => {
         const userId = (req as any).userId;
 
         // 1. Delete all application data (logs, cycles, status)
@@ -127,8 +127,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         return { ok: true, message: 'Account deleted' };
     });
 
-    // GET /api/user/api-keys (List API keys)
-    app.get('/api/user/api-keys', async (req, reply) => {
+    // GET /api/v1/keys (List API keys)
+    app.get('/api/v1/keys', async (req, reply) => {
         const userId = (req as any).userId;
         const keys = await apiKeyRepo.listByUserId(userId);
         return {
@@ -143,8 +143,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         };
     });
 
-    // POST /api/user/api-keys (Create API key)
-    app.post('/api/user/api-keys', {
+    // POST /api/v1/keys (Create API key)
+    app.post('/api/v1/keys', {
         schema: {
             body: z.object({
                 name: z.string().nullable().optional(),
@@ -183,8 +183,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         };
     });
 
-    // DELETE /api/user/api-keys/:id (Revoke API key)
-    app.delete('/api/user/api-keys/:id', {
+    // DELETE /api/v1/keys/:id (Revoke API key)
+    app.delete('/api/v1/keys/:id', {
         schema: {
             params: z.object({
                 id: z.string()
