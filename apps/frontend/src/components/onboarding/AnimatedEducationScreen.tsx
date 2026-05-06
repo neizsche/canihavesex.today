@@ -41,9 +41,7 @@ export function AnimatedEducationScreen({ title, items, onComplete }: AnimatedEd
     return (
         <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in fade-in duration-500">
             <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center z-50">
-                <div className="text-[22px] tracking-tight text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
-                    {BRAND.PREFIX}<span className="text-rose-500 font-extrabold italic">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
-                </div>
+                <BrandTitle />
             </div>
 
             <div className="flex-1 overflow-y-auto">

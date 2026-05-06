@@ -26,7 +26,7 @@ interface OnboardingFlowProps {
 
 const BrandingHeader = () => (
     <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center z-50">
-        <BrandTitle className="text-[22px] text-zinc-900 dark:text-zinc-100" />
+        <BrandTitle />
     </div>
 );
 

@@ -70,10 +70,11 @@ const brandHref = showNav === false ? '/app#/today' : '/';
   </head>
   <body class="bg-background text-foreground">
     {showBranding ? (
-      <header class="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div class={`mx-auto flex ${maxWidthClass} items-center justify-between px-4 py-3`}>
-          <a href={brandHref} class="text-sm font-semibold tracking-tight text-foreground">{BRAND.PREFIX}<span class="text-rose-500 font-extrabold italic">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}</a>
-          <div class="text-xs text-muted-foreground">Informational only</div>
+      <header class="sticky top-0 z-50 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div class={`mx-auto flex ${maxWidthClass} items-center justify-center px-4 pt-8 pb-4`}>
+          <a href={brandHref} class="text-[22px] font-bold tracking-tight text-foreground select-none">
+            {BRAND.PREFIX}<span class="text-rose-500 font-extrabold italic mx-[1px]">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
+          </a>
         </div>
       </header>
     ) : null}
