@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '../../lib/utils';
 import { BRAND } from '../../lib/siteConfig';
+import { BrandTitle } from '../common/BrandTitle';
 
 export interface AnimatedEducationItem {
     title: string;

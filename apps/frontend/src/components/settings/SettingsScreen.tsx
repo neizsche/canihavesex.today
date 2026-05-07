@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Trash2, LogOut, HelpCircle, CheckCircle2, ChevronRight, Activity, KeyRound, Copy } from 'lucide-react';
+import { Trash2, LogOut, HelpCircle, CheckCircle2, ChevronRight, Activity, KeyRound, Copy, Minus, Plus, Pill, Baby } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { usePremiumFeatures } from '@/lib/featureFlags';
@@ -12,10 +12,28 @@ import { ActionSheet } from '@/components/common/ui/action-sheet';
 import { Button } from '@/components/common/ui/button';
 import { HelpScreen } from './HelpScreen';
 import { AppModeSwitcher, type AppMode } from '@/components/common/ui/app-mode-switcher';
+import { SettingsActionRow, SettingsExpandableRow } from '@/components/common/ui/settings-row';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
-import { CycleSettingsScreen } from './CycleSettingsScreen';
+import { ToggleTile } from '@/components/common/ui/toggle-tile';
+
 import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
 import { useSession } from '@/hooks/queries/useSession';
+
+interface UserProfile {
+    cycle_regularity: string | null;
+    context_flags: string[];
+    intent: string | null;
+    avg_cycle_length: number;
+    last_period_start: string | null;
+    period_length: number;
+}
+
+const CONTEXT_FLAG_OPTIONS = [
+    { id: 'pcos', label: 'PCOS', icon: Activity, bg: 'bg-purple-500/10', text: 'text-purple-500' },
+    { id: 'thyroid', label: 'Thyroid', icon: Activity, bg: 'bg-orange-500/10', text: 'text-orange-500' },
+    { id: 'post_birth_control', label: 'Post-BC', icon: Pill, bg: 'bg-blue-500/10', text: 'text-blue-500' },
+    { id: 'breastfeeding', label: 'Nursing', icon: Baby, bg: 'bg-pink-500/10', text: 'text-pink-500' },
+] as const;
 
 type ConfirmAction = 'reset' | 'delete-all' | 'delete-account' | null;
 
@@ -47,7 +65,8 @@ export function SettingsScreen() {
     const [confirmAction, setConfirmAction] = React.useState<ConfirmAction>(null);
     const [busy, setBusy] = React.useState(false);
     const [success, setSuccess] = React.useState<{ caption: string; variant: 'success' | 'destructive' } | null>(null);
-    const [view, setView] = React.useState<'main' | 'help' | 'cycle-settings'>('main');
+    const [view, setView] = React.useState<'main' | 'help'>('main');
+    const [cycleConfigOpen, setCycleConfigOpen] = React.useState(false);
     const [appMode, setAppMode] = React.useState<AppMode>('tracking');
     const [showPremiumUpsell, setShowPremiumUpsell] = React.useState(false);
     const premiumSectionRef = React.useRef<HTMLDivElement>(null);
@@ -58,14 +77,65 @@ export function SettingsScreen() {
     const [regenConfirmOpen, setRegenConfirmOpen] = React.useState(false);
     const [shortcutOpen, setShortcutOpen] = React.useState(false);
 
-    // Profile data state - Kept here to preserve state across views
+    // Profile data state - Populated from server on load
     const [lastPeriod, setLastPeriod] = React.useState(new Date().toISOString().slice(0, 10));
     const [cycleMin, setCycleMin] = React.useState(26);
     const [cycleMax, setCycleMax] = React.useState(30);
     const [periodLength, setPeriodLength] = React.useState(5);
     const [regularity, setRegularity] = React.useState<'regular' | 'irregular' | 'unsure'>('regular');
+    const [contextFlags, setContextFlags] = React.useState<string[]>([]);
+    const [profileSaved, setProfileSaved] = React.useState(false);
+    const [profileLoaded, setProfileLoaded] = React.useState(false);
+    const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { data: session } = useSession();
+
+    // Fetch profile data from server
+    const profileQuery = useQuery({
+        queryKey: ['user-profile'],
+        queryFn: () => apiJson<UserProfile>('/api/v1/user/profile'),
+        enabled: !!session?.userId,
+        staleTime: 60_000,
+    });
+
+    // Populate local state from server profile
+    React.useEffect(() => {
+        if (profileQuery.data && !profileLoaded) {
+            const p = profileQuery.data;
+            if (p.last_period_start) setLastPeriod(p.last_period_start);
+            if (p.avg_cycle_length) {
+                // Derive min/max from avg (±2 days)
+                const avg = Math.round(p.avg_cycle_length);
+                setCycleMin(Math.max(21, avg - 2));
+                setCycleMax(Math.min(35, avg + 2));
+            }
+            if (p.period_length) setPeriodLength(p.period_length);
+            if (p.cycle_regularity) setRegularity(p.cycle_regularity as 'regular' | 'irregular' | 'unsure');
+            if (p.context_flags) setContextFlags(p.context_flags);
+            setProfileLoaded(true);
+        }
+    }, [profileQuery.data, profileLoaded]);
+
+    // Debounced auto-save helper
+    const saveProfile = React.useCallback((patch: Record<string, any>) => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(async () => {
+            try {
+                await apiJson('/api/v1/user/profile', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(patch)
+                });
+                setProfileSaved(true);
+                setTimeout(() => setProfileSaved(false), 1200);
+                // Invalidate caches that depend on profile
+                queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+                queryClient.invalidateQueries({ queryKey: ['insights-today'] });
+            } catch {
+                // Silent fail — non-critical save
+            }
+        }, 800);
+    }, [queryClient]);
 
     const apiKeysQuery = useQuery({
         queryKey: ['api-keys'],
@@ -212,27 +282,20 @@ export function SettingsScreen() {
         }
     }
 
+    const handleDateBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        const d = new Date(val);
+        if (isNaN(d.getTime()) || val.length !== 10 || !/^\d{4}-\d{2}-\d{2}$/.test(val) || d > new Date()) {
+            setLastPeriod(new Date().toISOString().slice(0, 10)); // Reset to today
+        } else {
+            setLastPeriod(val);
+        }
+    };
+
     if (view === 'help') {
         return <HelpScreen onBack={() => setView('main')} />;
     }
 
-    if (view === 'cycle-settings') {
-        return (
-            <CycleSettingsScreen
-                onBack={() => setView('main')}
-                lastPeriod={lastPeriod}
-                setLastPeriod={setLastPeriod}
-                cycleMin={cycleMin}
-                setCycleMin={setCycleMin}
-                cycleMax={cycleMax}
-                setCycleMax={setCycleMax}
-                periodLength={periodLength}
-                setPeriodLength={setPeriodLength}
-                regularity={regularity}
-                setRegularity={setRegularity}
-            />
-        );
-    }
 
     if (success) {
         return (
@@ -288,21 +351,194 @@ export function SettingsScreen() {
 
                         {/* Profile Link */}
                         <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.profile}>
-                            <button
-                                onClick={() => setView('cycle-settings')}
-                                className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
+                            <SettingsExpandableRow
+                                icon={<Activity className="icon-sm text-white" />}
+                                iconBgColor="bg-pink-500"
+                                title="Cycle Configuration"
+                                open={cycleConfigOpen}
+                                onToggle={() => setCycleConfigOpen((prev) => !prev)}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-7 h-7 rounded-md bg-pink-500 flex items-center justify-center">
-                                        <Activity className="icon-sm text-white" />
+                                    {/* Grouped Settings Card */}
+                                    <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 overflow-hidden">
+                                        <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
+                                            {/* Date Row */}
+                                            <div className="flex items-center justify-between p-3 px-4">
+                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Last Period Start</div>
+                                                <input
+                                                    type="text"
+                                                    value={lastPeriod}
+                                                    onChange={(e) => setLastPeriod(e.target.value)}
+                                                    onBlur={(e) => {
+                                                        handleDateBlur(e);
+                                                        const val = e.target.value;
+                                                        const d = new Date(val);
+                                                        if (!isNaN(d.getTime()) && val.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(val) && d <= new Date()) {
+                                                            saveProfile({ last_period_start: val });
+                                                        }
+                                                    }}
+                                                    placeholder="YYYY-MM-DD"
+                                                    className="w-[140px] text-right bg-transparent border-none focus:ring-0 text-[14px] font-medium text-zinc-900 dark:text-zinc-100 p-0 placeholder:text-zinc-400"
+                                                />
+                                            </div>
+
+                                            {/* Minimum Cycle Length Stepper */}
+                                            <div className="flex items-center justify-between p-3 px-4">
+                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Minimum Length</div>
+                                                <div className="flex items-center gap-3">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const v = Math.max(21, cycleMin - 1);
+                                                            setCycleMin(v);
+                                                            saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                    >
+                                                        <Minus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{cycleMin} days</div>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const v = Math.min(cycleMax, cycleMin + 1);
+                                                            setCycleMin(v);
+                                                            saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Maximum Cycle Length Stepper */}
+                                            <div className="flex items-center justify-between p-3 px-4">
+                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Maximum Length</div>
+                                                <div className="flex items-center gap-3">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const v = Math.max(cycleMin, cycleMax - 1);
+                                                            setCycleMax(v);
+                                                            saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                    >
+                                                        <Minus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{cycleMax} days</div>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const v = Math.min(35, cycleMax + 1);
+                                                            setCycleMax(v);
+                                                            saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Period Length Stepper */}
+                                            <div className="flex items-center justify-between p-3 px-4">
+                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Typical Period</div>
+                                                <div className="flex items-center gap-3">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const v = Math.max(3, periodLength - 1);
+                                                            setPeriodLength(v);
+                                                            saveProfile({ period_length: v });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                    >
+                                                        <Minus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{periodLength} days</div>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const v = Math.min(7, periodLength + 1);
+                                                            setPeriodLength(v);
+                                                            saveProfile({ period_length: v });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
-                                        Cycle Configuration
+
+                                    {/* Segmented Control for Regularity */}
+                                    <div className="space-y-1.5 pt-2">
+                                        <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
+                                            Cycle Regularity
+                                        </div>
+                                        <div className="flex items-center p-1 bg-zinc-100/80 dark:bg-zinc-800/80 rounded-xl">
+                                            {(['regular', 'irregular', 'unsure'] as const).map(option => (
+                                                <button
+                                                    key={option}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setRegularity(option);
+                                                        saveProfile({ cycle_regularity: option });
+                                                    }}
+                                                    className={cn(
+                                                        "flex-1 py-2 text-[12px] font-medium capitalize rounded-lg transition-all duration-200",
+                                                        regularity === option 
+                                                            ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm" 
+                                                            : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                                    )}
+                                                >
+                                                    {option}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                <ChevronRight className="icon-sm text-zinc-300" />
-                            </button>
+
+                                    {/* Context Flags */}
+                                    <div className="space-y-1.5 pt-2">
+                                        <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
+                                            Health Context
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {CONTEXT_FLAG_OPTIONS.map((flag) => (
+                                                <ToggleTile
+                                                    key={flag.id}
+                                                    label={flag.label}
+                                                    icon={flag.icon}
+                                                    activeBgClass={flag.bg}
+                                                    activeTextClass={flag.text}
+                                                    checked={contextFlags.includes(flag.id)}
+                                                    onChange={() => {
+                                                        const newFlags = contextFlags.includes(flag.id)
+                                                            ? contextFlags.filter(f => f !== flag.id)
+                                                            : [...contextFlags, flag.id];
+                                                        setContextFlags(newFlags);
+                                                        saveProfile({ context_flags: newFlags });
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-2 pt-1">
+                                            Helps tune cycle predictions for your situation.
+                                        </div>
+                                    </div>
+
+                                    {/* Saved Indicator */}
+                                    {profileSaved && (
+                                        <div className="flex items-center gap-1.5 pt-1 animate-in fade-in duration-200">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                            <span className="text-[11px] font-medium text-emerald-500">Saved</span>
+                                        </div>
+                                    )}
+                            </SettingsExpandableRow>
                         </InsetGroup>
+
 
                         {/* Account */}
                         <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.account}>
@@ -319,107 +555,50 @@ export function SettingsScreen() {
                                 )}
                                 {session?.email ? (
                                     <>
-                                        <button
+                                        <SettingsActionRow
+                                            icon={<LogOut className="icon-sm text-white" />}
+                                            iconBgColor="bg-zinc-500"
+                                            label={SETTINGS_SCREEN_LABELS.account.signOut}
                                             onClick={signout}
                                             disabled={busy}
-                                            className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700 disabled:opacity-50"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-7 h-7 rounded-md bg-zinc-500 flex items-center justify-center">
-                                                    <LogOut className="icon-sm text-white" />
-                                                </div>
-                                                <span className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
-                                                    {SETTINGS_SCREEN_LABELS.account.signOut}
-                                                </span>
-                                            </div>
-                                            <ChevronRight className="icon-sm text-zinc-300" />
-                                        </button>
-
-                                        <button
+                                        />
+                                        <SettingsActionRow
+                                            icon={<Trash2 className="icon-sm text-white" />}
+                                            iconBgColor="bg-amber-500"
+                                            label={SETTINGS_SCREEN_LABELS.account.deleteAllData}
                                             onClick={() => setConfirmAction('delete-all')}
                                             disabled={busy}
-                                            className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700 disabled:opacity-50"
-                                        >
-                                            <div className="flex items-center gap-3 text-left">
-                                                <div className="w-7 h-7 rounded-md bg-amber-500 flex items-center justify-center">
-                                                    <Trash2 className="icon-sm text-white" />
-                                                </div>
-                                                <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">{SETTINGS_SCREEN_LABELS.account.deleteAllData}</div>
-                                            </div>
-                                            <ChevronRight className="icon-sm text-zinc-300" />
-                                        </button>
-
-                                        <button
+                                        />
+                                        <SettingsActionRow
+                                            icon={<Trash2 className="icon-sm text-white" />}
+                                            iconBgColor="bg-red-600"
+                                            label={SETTINGS_SCREEN_LABELS.account.deleteAccount}
                                             onClick={() => setConfirmAction('delete-account')}
                                             disabled={busy}
-                                            className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-rose-100 dark:hover:bg-rose-950/30 px-4 transition-all duration-200 active:bg-rose-200 dark:active:bg-rose-950/40 disabled:opacity-50"
-                                        >
-                                            <div className="flex items-center gap-3 text-left">
-                                                <div className="w-7 h-7 rounded-md bg-red-600 flex items-center justify-center">
-                                                    <Trash2 className="icon-sm text-white" />
-                                                </div>
-                                                <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">{SETTINGS_SCREEN_LABELS.account.deleteAccount}</div>
-                                            </div>
-                                            <ChevronRight className="icon-sm text-rose-400/50" />
-                                        </button>
+                                            destructive
+                                        />
                                     </>
                                 ) : (
-                                    <button
+                                    <SettingsActionRow
+                                        icon={<LogOut className="icon-sm text-white" style={{ transform: 'scaleX(-1)' }} />}
+                                        iconBgColor="bg-[#007aff]"
+                                        label={SETTINGS_SCREEN_LABELS.account.signIn}
                                         onClick={() => window.dispatchEvent(new Event('auth:open'))}
-                                        className="w-full h-12 sm:h-14 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-7 h-7 rounded-md bg-[#007aff] flex items-center justify-center">
-                                                <LogOut className="icon-sm text-white" style={{ transform: 'scaleX(-1)' }} />
-                                            </div>
-                                            <span className="font-normal text-base sm:text-lg text-zinc-900 dark:text-zinc-100">
-                                                {SETTINGS_SCREEN_LABELS.account.signIn}
-                                            </span>
-                                        </div>
-                                        <ChevronRight className="icon-sm text-zinc-300" />
-                                    </button>
+                                    />
                                 )}
                             </div>
                         </InsetGroup>
 
-                        {/* Shortcuts */}
-                        <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.shortcuts} containerClassName="mb-3">
-                            <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
-                                <button
-                                    type="button"
-                                    onClick={() => setShortcutOpen((prev) => !prev)}
-                                    aria-expanded={shortcutOpen}
-                                    aria-controls="settings-apple-shortcut"
-                                    className="w-full min-h-[44px] sm:min-h-[48px] flex items-center justify-between px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
-                                >
-                                    <div className="flex items-center gap-3 text-left">
-                                        <div className="w-7 h-7 rounded-md bg-emerald-500 flex items-center justify-center shrink-0">
-                                            <KeyRound className="icon-sm text-white" />
-                                        </div>
-                                        <div className="space-y-0.5">
-                                            <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
-                                                Apple Shortcuts
-                                            </div>
-                                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                Log in seconds from the Shortcuts app with a secure key.
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <ChevronRight
-                                        className={cn(
-                                            "icon-sm text-zinc-300 transition-transform",
-                                            shortcutOpen && "rotate-90 text-zinc-500"
-                                        )}
-                                    />
-                                </button>
 
-                                <div
-                                    id="settings-apple-shortcut"
-                                    className={cn(
-                                        "px-4 pt-4 pb-3 space-y-4 transition-all duration-300",
-                                        shortcutOpen ? "opacity-100 max-h-[1200px]" : "opacity-0 max-h-0 overflow-hidden pointer-events-none"
-                                    )}
-                                >
+                        {/* Shortcuts */}
+                        <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.shortcuts}>
+                            <SettingsExpandableRow
+                                icon={<KeyRound className="icon-sm text-white" />}
+                                iconBgColor="bg-emerald-500"
+                                title="Apple Shortcuts"
+                                open={shortcutOpen}
+                                onToggle={() => setShortcutOpen((prev) => !prev)}
+                            >
                                     <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 p-3 space-y-2">
                                         <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-zinc-400">
                                             <span>Secure Key</span>
@@ -505,24 +684,17 @@ export function SettingsScreen() {
                                         <div>2. Paste your key when prompted.</div>
                                         <div>3. Log with one tap from Shortcuts.</div>
                                     </div>
-                                </div>
-                            </div>
+                            </SettingsExpandableRow>
                         </InsetGroup>
 
                         {/* Support */}
                         <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.support}>
-                            <button
+                            <SettingsActionRow
+                                icon={<HelpCircle className="icon-sm text-white" />}
+                                iconBgColor="bg-blue-500"
+                                label={SETTINGS_SCREEN_LABELS.support.helpAndFeedback}
                                 onClick={() => setView('help')}
-                                className="w-full h-11 sm:h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-7 h-7 rounded-md bg-blue-500 flex items-center justify-center">
-                                        <HelpCircle className="icon-sm text-white" />
-                                    </div>
-                                    <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">{SETTINGS_SCREEN_LABELS.support.helpAndFeedback}</div>
-                                </div>
-                                <ChevronRight className="icon-sm text-zinc-300" />
-                            </button>
+                            />
                         </InsetGroup>
 
                         {/* Premium Upsell - Conditionally shown if premium enabled */}

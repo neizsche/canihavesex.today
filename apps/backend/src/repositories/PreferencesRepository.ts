@@ -120,6 +120,29 @@ export class PreferencesRepository {
         };
     }
 
+    async updateProfile(userId: string, data: { cycle_regularity?: string; context_flags?: string[] }): Promise<void> {
+        const setClauses: string[] = [];
+        const values: any[] = [];
+        let idx = 1;
+
+        if (data.cycle_regularity !== undefined) {
+            setClauses.push(`cycle_regularity = $${idx++}`);
+            values.push(data.cycle_regularity);
+        }
+        if (data.context_flags !== undefined) {
+            setClauses.push(`context_flags = $${idx++}`);
+            values.push(JSON.stringify(data.context_flags));
+        }
+
+        if (setClauses.length === 0) return;
+
+        values.push(userId);
+        await this.db.query(
+            `UPDATE user_preferences SET ${setClauses.join(', ')} WHERE user_id = $${idx}`,
+            values
+        );
+    }
+
     async markEducationShown(userId: string, type: 'global' | 'mucus' | 'bbt' | 'lh'): Promise<void> {
         const columnMap = {
             global: 'education_global_shown_at',

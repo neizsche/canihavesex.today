@@ -83,6 +83,89 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         return { ok: true };
     });
 
+    // GET /api/v1/user/profile — Load full profile for settings screen
+    app.get('/api/v1/user/profile', async (req, reply) => {
+        const userId = req.userId!;
+
+        const metaRepo = new UserMetaRepository(opts.db);
+        const [prefs, meta, cycles] = await Promise.all([
+            prefRepo.getOnboardingData(userId),
+            metaRepo.getUserMeta(userId),
+            cycleRepo.getCycleHistory(userId)
+        ]);
+
+        // Find the active cycle (no end_date) for last_period_start
+        const activeCycle = cycles.find(c => !c.end_date);
+        // Find latest completed cycle for period_length
+        const latestCompleted = cycles.find(c => c.end_date && c.period_length);
+
+        return {
+            cycle_regularity: prefs.cycle_regularity,
+            context_flags: prefs.context_flags,
+            intent: prefs.intent,
+            avg_cycle_length: Number(meta.avg_cycle_length),
+            last_period_start: activeCycle?.start_date ?? null,
+            period_length: activeCycle?.period_length ?? latestCompleted?.period_length ?? 5,
+        };
+    });
+
+    // PATCH /api/v1/user/profile — Partial updates from settings
+    app.patch('/api/v1/user/profile', {
+        schema: {
+            body: z.object({
+                cycle_regularity: z.enum(['regular', 'irregular', 'unsure']).optional(),
+                context_flags: z.array(z.string()).optional(),
+                avg_cycle_length: z.number().min(18).max(45).optional(),
+                last_period_start: z.string().optional(),
+                period_length: z.number().min(1).max(10).optional(),
+            })
+        }
+    }, async (req, reply) => {
+        const userId = req.userId!;
+        const body = req.body;
+
+        // 1. Update preferences (regularity, context_flags)
+        if (body.cycle_regularity !== undefined || body.context_flags !== undefined) {
+            await prefRepo.updateProfile(userId, {
+                cycle_regularity: body.cycle_regularity,
+                context_flags: body.context_flags
+            });
+        }
+
+        // 2. Update user_metadata (avg_cycle_length)
+        if (body.avg_cycle_length !== undefined) {
+            const metaRepo = new UserMetaRepository(opts.db);
+            const existing = await metaRepo.getUserMeta(userId);
+            await metaRepo.upsertMeta({
+                ...existing,
+                avg_cycle_length: body.avg_cycle_length
+            });
+        }
+
+        // 3. Update active cycle start_date (last_period_start)
+        if (body.last_period_start !== undefined) {
+            const cycles = await cycleRepo.getCycleHistory(userId);
+            const activeCycle = cycles.find(c => !c.end_date);
+            if (activeCycle) {
+                activeCycle.start_date = body.last_period_start;
+                await cycleRepo.upsertCycles([activeCycle]);
+            }
+        }
+
+        // 4. Update period_length on active cycle
+        if (body.period_length !== undefined) {
+            const cycles = await cycleRepo.getCycleHistory(userId);
+            const activeCycle = cycles.find(c => !c.end_date);
+            if (activeCycle) {
+                activeCycle.period_length = body.period_length;
+                await cycleRepo.upsertCycles([activeCycle]);
+            }
+        }
+
+        cacheService.invalidateUser(userId);
+        return { ok: true };
+    });
+
     const deleteAllData = async (userId: string) => {
         await logRepo.deleteLogsByUserId(userId);
         await statusRepo.deleteStatusByUserId(userId);

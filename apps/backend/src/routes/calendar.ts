@@ -253,7 +253,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
 
         // 1. Insufficient Data Case: Return minimal payload
         if (insufficientData) {
-            return {
+            const response = {
                 insufficientData: true,
                 trends: [
                     {
@@ -262,6 +262,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                     }
                 ]
             };
+            cacheService.set(cacheKey, response);
+            return response;
         }
 
         // 2. Sufficient Data: Calculate Trends
@@ -291,7 +293,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
             msg: `Your typical cycle is ${avg} days long.`
         });
 
-        return {
+        const response = {
             insufficientData: false,
             trends,
             averages: {

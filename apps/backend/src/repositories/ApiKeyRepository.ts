@@ -76,7 +76,7 @@ export class ApiKeyRepository {
 
   async revokeAllByUserId(userId: string): Promise<void> {
     await this.db.query(
-      `UPDATE user_api_keys SET revoked_at = NOW() WHERE user_id = $2 AND revoked_at IS NULL`,
+      `UPDATE user_api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`,
       [userId]
     );
   }
