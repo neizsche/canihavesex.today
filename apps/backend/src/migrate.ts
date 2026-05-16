@@ -35,11 +35,23 @@ export async function migrate(db: Db) {
 
   if (checkUsers.length > 0 && checkUsers[0].data_type === 'text') {
       console.log('[Migrate] Legacy TEXT schema detected in "users" table. Dropping for fresh UUID start...');
-      const coreTables = ['users', 'user_identities', 'user_preferences', 'user_api_keys', 'waitlist'];
+      const coreTables = ['users', 'user_identities', 'user_preferences', 'user_api_keys', 'waitlist', 'cycles', 'active_cycles', 'daily_status', 'logs'];
       for (const t of coreTables) {
           await db.exec(`DROP TABLE IF EXISTS "${t}" CASCADE`).catch(() => {});
       }
   }
+
+  // Ensure 'cycles' table is updated if it exists from a previous v5 run
+  await db.exec(`
+    DO $$ 
+    BEGIN 
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cycles') THEN
+        ALTER TABLE cycles ALTER COLUMN end_date DROP NOT NULL;
+      END IF;
+      -- Drop active_cycles if it exists (now merged into cycles)
+      DROP TABLE IF EXISTS active_cycles CASCADE;
+    END $$;
+  `).catch(() => {});
 
   // --- 2. Canonical Production Tables ---
 
@@ -107,21 +119,7 @@ export async function migrate(db: Db) {
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       start_date DATE NOT NULL,
-      end_date DATE NOT NULL,
-      ovulation_prediction DATE,
-      ovulation_confirmed_date DATE,
-      length INTEGER,
-      period_length INTEGER,
-      analysis_flags JSONB DEFAULT '[]',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE TABLE IF NOT EXISTS active_cycles (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-      start_date DATE NOT NULL,
-      end_date DATE,
+      end_date DATE, -- NULL means active cycle
       ovulation_prediction DATE,
       ovulation_confirmed_date DATE,
       length INTEGER,
@@ -167,7 +165,6 @@ export async function migrate(db: Db) {
     'user_preferences',
     'logs',
     'cycles',
-    'active_cycles',
     'daily_status',
     'user_metadata'
   ];
@@ -190,6 +187,8 @@ export async function migrate(db: Db) {
   await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_logs_user_date ON logs (user_id, date DESC);
     CREATE INDEX IF NOT EXISTS idx_cycles_user_start ON cycles (user_id, start_date DESC);
+    -- Enforce only one active cycle per user
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_cycles_user_active ON cycles (user_id) WHERE end_date IS NULL;
     CREATE INDEX IF NOT EXISTS idx_daily_status_user_date ON daily_status (user_id, date DESC);
     CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_id ON user_api_keys (user_id);
     CREATE INDEX IF NOT EXISTS idx_user_api_keys_hash ON user_api_keys (key_hash);

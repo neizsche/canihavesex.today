@@ -43,44 +43,59 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             return reply.status(400).send({ error: 'Missing required fields' });
         }
 
-        // 1. Save Preferences
-        await prefRepo.completeOnboarding(userId, {
-            intent,
-            cycle_regularity,
-            context_flags: context_flags || []
+        // Use transaction for atomic onboarding
+        const sessionData = await opts.db.transaction(async (txDb: any) => {
+            const txPrefRepo = new PreferencesRepository(txDb);
+            const txMetaRepo = new UserMetaRepository(txDb);
+            const txCycleRepo = new CycleRepository(txDb);
+            const txUserRepo = new UserRepository(txDb);
+
+            // 1. Save Preferences
+            await txPrefRepo.completeOnboarding(userId, {
+                intent,
+                cycle_regularity,
+                context_flags: context_flags || []
+            });
+
+            // 2. Update User Meta (Avg Cycle Length)
+            let avgLength = 28;
+            if (cycle_length_min && cycle_length_max) {
+                avgLength = (cycle_length_min + cycle_length_max) / 2;
+            }
+
+            await txMetaRepo.upsertMeta({
+                user_id: userId,
+                app_mode: intent === 'conceive' ? 'conceive' : 'prevent',
+                baseline_temp_avg: 36.5,
+                avg_cycle_length: avgLength
+            });
+
+            // 3. Create Initial Active Cycle
+            const cycleId = randomUUID();
+            await txCycleRepo.upsertCycles([{
+                id: cycleId,
+                user_id: userId,
+                start_date: last_period_start,
+                end_date: null,
+                ovulation_prediction: null,
+                ovulation_confirmed_date: null,
+                length: null,
+                period_length: null,
+                analysis_flags: []
+            }]);
+
+            // 4. Get User data for session update
+            const user = await txUserRepo.findById(userId);
+            
+            return {
+                userId,
+                email: user?.email ?? null,
+                onboardingCompleted: true
+            };
         });
 
-        // 2. Update User Meta (Avg Cycle Length)
-        // Calculate average if range provided, else default to 28
-        let avgLength = 28;
-        if (cycle_length_min && cycle_length_max) {
-            avgLength = (cycle_length_min + cycle_length_max) / 2;
-        }
-
-        const metaRepo = new UserMetaRepository(opts.db);
-        await metaRepo.upsertMeta({
-            user_id: userId,
-            app_mode: intent === 'conceive' ? 'conceive' : 'prevent',
-            baseline_temp_avg: 36.5,
-            avg_cycle_length: avgLength
-        });
-
-        // 3. Create Initial Active Cycle
-        // We assume the last period start is the start of the current cycle
-        const cycleId = randomUUID();
-        await cycleRepo.upsertCycles([{
-            id: cycleId,
-            user_id: userId,
-            start_date: last_period_start,
-            end_date: null, // Active
-            ovulation_prediction: null, // Engine will fill
-            ovulation_confirmed_date: null,
-            length: null,
-            period_length: null,
-            analysis_flags: []
-        }]);
         cacheService.invalidateUser(userId);
-        return { ok: true };
+        return sessionData;
     });
 
     // GET /api/v1/user/profile — Load full profile for settings screen

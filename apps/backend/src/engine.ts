@@ -117,6 +117,9 @@ export function runFusionEngine(userId: string, context: EngineContext): {
         // We generate status for every day in the cycle (up to today/viewEnd)
         const cycleEnd = cycle.end_date || viewEnd;
         const daysToGen = generateDateRange(cycle.start_date, cycleEnd);
+        
+        // Pre-calculate stats that are the same for the whole cycle
+        const cycleStats = computeCycleStats(cycles);
 
         for (const date of daysToGen) {
             const cycleDay = daysBetween(cycle.start_date, date) + 1;
@@ -162,7 +165,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 is_predicted: date > (lastLogDate || today),
                 engine_version: 'v5.1.0-fusion',
                 updated_at: new Date().toISOString(),
-                insights_payload: buildDayMeta(result, cycles, cycleDays, today, date, dayData)
+                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData)
             });
         }
     }
@@ -427,21 +430,14 @@ function fuseSignals(days: EngineDay[], meta: UserMeta): EngineResult {
 
 
 // --- Module 6: Day Metadata (Lean — no UI text) ---
-function buildDayMeta(
-    result: EngineResult,
-    cycles: Cycle[],
-    cycleDays: EngineDay[],
-    today: string,
-    date: string,
-    day?: EngineDay
-) {
-    // Primary signal that anchored ovulation
-    const primarySignal: string = result.signals.length > 0 ? result.signals[0].source : 'CALENDAR';
+interface CycleStats {
+    avgCycleLength: number;
+    variation: number;
+    avgPeriodLength: number | null;
+    completedCount: number;
+}
 
-    // Days to ovulation (negative = past)
-    const daysToOvulation = day ? result.ovulationDay - day.cycleDay : null;
-
-    // Cycle stats (aggregated from completed cycles)
+function computeCycleStats(cycles: Cycle[]): CycleStats {
     const completedCycles = cycles.filter(c => c.end_date);
     const avgCycleLength = completedCycles.length
         ? Math.round(completedCycles.reduce((a, c) => a + (c.length || 28), 0) / completedCycles.length)
@@ -453,12 +449,35 @@ function buildDayMeta(
         variation = Math.round(Math.sqrt(variance));
     }
 
-    const statsCutoff = date > today ? today : date;
-    const loggingStats = computeLoggingStats(cycleDays, statsCutoff);
     const completedWithPeriod = completedCycles.filter(c => c.period_length);
     const avgPeriodLength = completedWithPeriod.length
         ? Math.round(completedWithPeriod.reduce((a, c) => a + (c.period_length || 0), 0) / completedWithPeriod.length)
         : null;
+
+    return {
+        avgCycleLength,
+        variation,
+        avgPeriodLength,
+        completedCount: completedCycles.length
+    };
+}
+
+function buildDayMeta(
+    result: EngineResult,
+    stats: CycleStats,
+    cycleDays: EngineDay[],
+    today: string,
+    date: string,
+    day?: EngineDay
+) {
+    // Primary signal that anchored ovulation
+    const primarySignal: string = result.signals.length > 0 ? result.signals[0].source : 'CALENDAR';
+
+    // Days to ovulation (negative = past)
+    const daysToOvulation = day ? result.ovulationDay - day.cycleDay : null;
+
+    const statsCutoff = date > today ? today : date;
+    const loggingStats = computeLoggingStats(cycleDays, statsCutoff);
 
     return {
         // Core per-day data
@@ -471,14 +490,14 @@ function buildDayMeta(
         tempReliability: day?.reliability.temp ?? null,
         hasTemp: !!day?.tempValue,
 
-        // Aggregated cycle stats (same for every day in a cycle, but cheap to store)
+        // Aggregated cycle stats (pre-calculated)
         stats: {
-            avgCycleLength,
-            variation,
+            avgCycleLength: stats.avgCycleLength,
+            variation: stats.variation,
             loggingRate: loggingStats.rate,
             maxGap: loggingStats.maxGap,
-            avgPeriodLength,
-            completedCycles: completedCycles.length,
+            avgPeriodLength: stats.avgPeriodLength,
+            completedCycles: stats.completedCount,
         }
     };
 }

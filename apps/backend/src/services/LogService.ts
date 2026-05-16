@@ -59,6 +59,18 @@ export class LogService {
         await this.logRepo.upsertLog(logData);
 
         // 2. Trigger Engine (Write-Through)
+        // Optimization: Only trigger engine if physiological data that affects fertility has changed.
+        const hasPhysiologicalData = 
+            data.bleeding !== undefined || 
+            data.temperature !== undefined || 
+            data.mucusType !== undefined || 
+            data.lhTest !== undefined || 
+            (data.disturbances && data.disturbances.length > 0);
+
+        if (!hasPhysiologicalData) {
+            return { ok: true, engineTriggered: false };
+        }
+
         try {
             const existingCycles = await this.cycleRepo.getCycleHistory(userId);
             const latestCycle = existingCycles[0];

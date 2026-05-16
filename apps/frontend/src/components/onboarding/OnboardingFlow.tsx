@@ -65,27 +65,34 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
         setBusy(true);
         try {
-            const response = await apiJson<MutationResponse>('/api/v1/user/preferences', {
+            const response = await apiJson<any>('/api/v1/user/preferences', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     intent: data.intent,
                     cycle_regularity: data.cycle_regularity,
                     context_flags: data.context_flags,
-                    last_period_start: data.last_period_start
+                    last_period_start: data.last_period_start,
+                    cycle_length_min: data.cycle_length_min,
+                    cycle_length_max: data.cycle_length_max
                 })
             });
 
-            // Update cache with response data
-            updateCacheFromMutation(queryClient, response);
+            // Update session cache with response data (contains userId, email, onboardingCompleted)
+            queryClient.setQueryData(['session'], response);
 
-            // Optimistically mark onboarding as complete in session cache
-            queryClient.setQueryData(['session'], (prev: any) =>
-                prev ? { ...prev, onboardingCompleted: true } : prev
-            );
-
-            // Refetch session to sync server truth
-            await queryClient.invalidateQueries({ queryKey: ['session'] });
+            // Update profile cache if it exists to keep settings in sync
+            queryClient.setQueryData(['user/profile'], (prev: any) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    cycle_regularity: data.cycle_regularity,
+                    context_flags: data.context_flags,
+                    intent: data.intent,
+                    last_period_start: data.last_period_start,
+                    avg_cycle_length: (data.cycle_length_min + data.cycle_length_max) / 2
+                };
+            });
 
             onComplete();
         } catch (err) {
