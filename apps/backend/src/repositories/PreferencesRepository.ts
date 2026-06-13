@@ -6,6 +6,7 @@ export interface UserPreferences {
     intent?: 'avoid_pregnancy' | 'conceive' | 'understand_cycle' | null;
     cycle_regularity?: 'regular' | 'irregular' | 'unsure' | null;
     context_flags?: string[] | null; // Now handled as array/JSONB
+    show_branding: boolean; // Discreet mode: false hides NSFW brand from header
     onboarding_completed_at?: string | null;
     education_global_shown_at?: string | null;
     education_mucus_shown_at?: string | null;
@@ -43,6 +44,7 @@ export class PreferencesRepository {
         return {
             user_id: userId,
             theme: 'dark',
+            show_branding: true,
             updated_at: now
         };
     }
@@ -87,9 +89,9 @@ export class PreferencesRepository {
         return !!(rows[0]?.onboarding_completed_at);
     }
 
-    async getOnboardingData(userId: string): Promise<{ intent: string | null; cycle_regularity: string | null; context_flags: string[] }> {
+    async getOnboardingData(userId: string): Promise<{ intent: string | null; cycle_regularity: string | null; context_flags: string[]; show_branding: boolean }> {
         const rows = await this.db.query<any>(
-            'SELECT intent, cycle_regularity, context_flags FROM user_preferences WHERE user_id = $1',
+            'SELECT intent, cycle_regularity, context_flags, show_branding FROM user_preferences WHERE user_id = $1',
             [userId]
         );
 
@@ -99,7 +101,8 @@ export class PreferencesRepository {
             cycle_regularity: prefs?.cycle_regularity ?? null,
             context_flags: Array.isArray(prefs?.context_flags) 
                 ? prefs.context_flags 
-                : (prefs?.context_flags ? JSON.parse(prefs.context_flags) : [])
+                : (prefs?.context_flags ? JSON.parse(prefs.context_flags) : []),
+            show_branding: prefs?.show_branding ?? true
         };
     }
 
@@ -140,6 +143,13 @@ export class PreferencesRepository {
         await this.db.query(
             `UPDATE user_preferences SET ${setClauses.join(', ')} WHERE user_id = $${idx}`,
             values
+        );
+    }
+
+    async updateShowBranding(userId: string, showBranding: boolean): Promise<void> {
+        await this.db.query(
+            'UPDATE user_preferences SET show_branding = $1 WHERE user_id = $2',
+            [showBranding, userId]
         );
     }
 

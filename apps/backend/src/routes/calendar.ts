@@ -305,7 +305,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                 let ovDay = 14;
                 const ovDate = c.ovulation_confirmed_date || c.ovulation_prediction;
                 if (ovDate && c.start_date) {
-                    ovDay = Math.floor((new Date(ovDate).getTime() - new Date(c.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    ovDay = daysBetweenIso(c.start_date, ovDate) + 1;
                 }
 
                 return {

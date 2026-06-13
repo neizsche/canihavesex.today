@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, PenTool, Settings, ShieldCheck } from 'lucide-react';
+import { BarChart3, ClipboardList, Heart, Settings } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 
@@ -8,8 +8,8 @@ export function BottomNav(props: { active: NavKey }) {
     if (props.active === 'onboarding') return null;
 
     const items: Array<{ key: NavKey; href: string; label: string; Icon: any }> = [
-        { key: 'today', href: '#/today', label: 'Today', Icon: ShieldCheck },
-        { key: 'log', href: '#/log', label: 'Log', Icon: PenTool },
+        { key: 'today', href: '#/today', label: 'Today', Icon: Heart },
+        { key: 'log', href: '#/log', label: 'Log', Icon: ClipboardList },
         { key: 'chart', href: '#/chart', label: 'Chart', Icon: BarChart3 },
         { key: 'settings', href: '#/settings', label: 'Settings', Icon: Settings },
     ];

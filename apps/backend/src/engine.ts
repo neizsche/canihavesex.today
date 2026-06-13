@@ -70,7 +70,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
 
     // 2. Identify Cycles (Start on 'medium' or 'heavy' bleeding)
     // To properly analyze history, we need to segment all logs into cycles first.
-    const rawCycles = identifyCycles(userId, sortedLogs);
+    const rawCycles = identifyCycles(userId, sortedLogs, context.existingCycles || []);
 
     // Merge with Existing Cycles (Preserve IDs and Analysis of finished cycles)
     const cycles = mergeCycles(rawCycles, context.existingCycles || []);
@@ -91,7 +91,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
     const relevantCycles = cycles.filter(c => {
         const isActive = !c.end_date;
         const isRecent = c.end_date && daysBetween(c.end_date, today) < 45; // Last ~1.5 months
-        const isUnanalyzed = (c.analysis_flags || []).length === 0;
+        const isUnanalyzed = !c.ovulation_prediction;
         return isActive || isRecent || isUnanalyzed;
     });
 
@@ -177,46 +177,95 @@ export function runFusionEngine(userId: string, context: EngineContext): {
 }
 
 // --- Module 1: Cycle Identification ---
-function identifyCycles(userId: string, logs: Log[]): Cycle[] {
-    const cycles: Cycle[] = [];
-    let currentStart = logs[0].date;
+function identifyCycles(userId: string, logs: Log[], existingCycles: Cycle[] = []): Cycle[] {
     const logMap = new Map<string, Log>();
     logs.forEach(log => logMap.set(log.date, log));
 
-    for (let i = 0; i < logs.length; i++) {
-        const log = logs[i];
-        const isBleeding = log.bleeding === 'medium' || log.bleeding === 'heavy';
-        const daysSince = daysBetween(currentStart, log.date);
+    if (existingCycles.length === 0) {
+        const cycles: Cycle[] = [];
+        let currentStart = logs[0].date;
 
-        // Start new cycle if bleeding and gap > 18 days
+        for (let i = 0; i < logs.length; i++) {
+            const log = logs[i];
+            const isBleeding = log.bleeding === 'medium' || log.bleeding === 'heavy';
+            const daysSince = daysBetween(currentStart, log.date);
+
+            if (isBleeding && daysSince > 18) {
+                cycles.push({
+                    id: randomUUID(),
+                    user_id: userId,
+                    start_date: currentStart,
+                    end_date: addDays(log.date, -1),
+                    ovulation_prediction: null,
+                    ovulation_confirmed_date: null,
+                    length: daysSince,
+                    period_length: calculatePeriodLength(currentStart, logMap),
+                    analysis_flags: []
+                });
+                currentStart = log.date;
+            }
+        }
+
+        cycles.push({
+            id: randomUUID(),
+            user_id: userId,
+            start_date: currentStart,
+            end_date: null,
+            ovulation_prediction: null,
+            ovulation_confirmed_date: null,
+            length: null,
+            period_length: calculatePeriodLength(currentStart, logMap),
+            analysis_flags: []
+        });
+
+        return cycles;
+    }
+
+    const sortedExisting = [...existingCycles].sort((a, b) => a.start_date.localeCompare(b.start_date));
+    const cycles: Cycle[] = sortedExisting.map(c => ({ ...c }));
+
+    let activeCycle = cycles[cycles.length - 1];
+    if (activeCycle.end_date !== null) {
+        activeCycle = {
+            id: randomUUID(),
+            user_id: userId,
+            start_date: addDays(activeCycle.end_date, 1),
+            end_date: null,
+            ovulation_prediction: null,
+            ovulation_confirmed_date: null,
+            length: null,
+            period_length: null,
+            analysis_flags: []
+        };
+        cycles.push(activeCycle);
+    }
+
+    const newLogs = logs.filter(log => log.date > activeCycle.start_date);
+    for (const log of newLogs) {
+        const isBleeding = log.bleeding === 'medium' || log.bleeding === 'heavy';
+        const daysSince = daysBetween(activeCycle.start_date, log.date);
+
         if (isBleeding && daysSince > 18) {
-            cycles.push({
+            activeCycle.end_date = addDays(log.date, -1);
+            activeCycle.length = daysSince;
+            activeCycle.period_length = calculatePeriodLength(activeCycle.start_date, logMap);
+
+            activeCycle = {
                 id: randomUUID(),
                 user_id: userId,
-                start_date: currentStart,
-                end_date: addDays(log.date, -1),
+                start_date: log.date,
+                end_date: null,
                 ovulation_prediction: null,
                 ovulation_confirmed_date: null,
-                length: daysSince,
-                period_length: calculatePeriodLength(currentStart, logMap),
+                length: null,
+                period_length: calculatePeriodLength(log.date, logMap),
                 analysis_flags: []
-            });
-            currentStart = log.date;
+            };
+            cycles.push(activeCycle);
         }
     }
 
-    // Active cycle
-    cycles.push({
-        id: randomUUID(),
-        user_id: userId,
-        start_date: currentStart,
-        end_date: null,
-        ovulation_prediction: null,
-        ovulation_confirmed_date: null,
-        length: null,
-        period_length: calculatePeriodLength(currentStart, logMap),
-        analysis_flags: []
-    });
+    activeCycle.period_length = calculatePeriodLength(activeCycle.start_date, logMap);
 
     return cycles;
 }
@@ -369,13 +418,13 @@ function fuseSignals(days: EngineDay[], meta: UserMeta): EngineResult {
     let finalOvulationDay = predictedOv;
     let confidence = 0.3; // Default to calendar confidence
     
-    // Select the primary anchor based on hierarchy: LH > BBT > MUCUS > CALENDAR
-    if (lhAnchorDay !== null) {
-        finalOvulationDay = lhAnchorDay;
-        confidence = lhConfidence;
-    } else if (bbtAnchorDay !== null) {
+    // Select the primary anchor based on hierarchy: BBT > LH > MUCUS > CALENDAR
+    if (bbtAnchorDay !== null) {
         finalOvulationDay = bbtAnchorDay;
         confidence = bbtConfidence;
+    } else if (lhAnchorDay !== null) {
+        finalOvulationDay = lhAnchorDay;
+        confidence = lhConfidence;
     } else if (mucusAnchorDay !== null) {
         finalOvulationDay = mucusAnchorDay;
         confidence = mucusConfidence;

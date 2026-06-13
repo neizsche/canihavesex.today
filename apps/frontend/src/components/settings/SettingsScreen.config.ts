@@ -32,6 +32,8 @@ export const SETTINGS_SCREEN_LABELS = {
         signOut: 'Sign Out',
         deleteAllData: 'Erase All Data',
         deleteAccount: 'Delete Account',
+        discreetMode: 'Discreet Mode',
+        discreetModeHint: 'Hides brand name from header',
     },
     support: {
         helpAndFeedback: 'Help & Feedback',

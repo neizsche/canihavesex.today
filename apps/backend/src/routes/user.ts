@@ -9,6 +9,8 @@ import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
 import { ApiKeyRepository } from '../repositories/ApiKeyRepository.js';
 import { generateApiKey } from '../apiKeys.js';
 import { cacheService } from '../services/CacheService.js';
+import { addDaysIso, isoToday } from '../utils/dates.js';
+import { runFusionEngine } from '../engine.js';
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -121,6 +123,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             avg_cycle_length: Number(meta.avg_cycle_length),
             last_period_start: activeCycle?.start_date ?? null,
             period_length: activeCycle?.period_length ?? latestCompleted?.period_length ?? 5,
+            show_branding: prefs.show_branding ?? true,
         };
     });
 
@@ -133,11 +136,14 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 avg_cycle_length: z.number().min(18).max(45).optional(),
                 last_period_start: z.string().optional(),
                 period_length: z.number().min(1).max(10).optional(),
+                show_branding: z.boolean().optional(),
             })
         }
     }, async (req, reply) => {
         const userId = req.userId!;
         const body = req.body;
+
+        let engineTriggerNeeded = false;
 
         // 1. Update preferences (regularity, context_flags)
         if (body.cycle_regularity !== undefined || body.context_flags !== undefined) {
@@ -145,6 +151,11 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 cycle_regularity: body.cycle_regularity,
                 context_flags: body.context_flags
             });
+        }
+
+        // 1b. Update show_branding (discreet mode)
+        if (body.show_branding !== undefined) {
+            await prefRepo.updateShowBranding(userId, body.show_branding);
         }
 
         // 2. Update user_metadata (avg_cycle_length)
@@ -155,6 +166,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 ...existing,
                 avg_cycle_length: body.avg_cycle_length
             });
+            engineTriggerNeeded = true;
         }
 
         // 3. Update active cycle start_date (last_period_start)
@@ -162,8 +174,18 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             const cycles = await cycleRepo.getCycleHistory(userId);
             const activeCycle = cycles.find(c => !c.end_date);
             if (activeCycle) {
+                const activeCycleIdx = cycles.indexOf(activeCycle);
+                const prevCycle = cycles[activeCycleIdx + 1];
                 activeCycle.start_date = body.last_period_start;
-                await cycleRepo.upsertCycles([activeCycle]);
+                const cyclesToUpsert = [activeCycle];
+
+                if (prevCycle) {
+                    prevCycle.end_date = addDaysIso(body.last_period_start, -1);
+                    cyclesToUpsert.push(prevCycle);
+                }
+
+                await cycleRepo.upsertCycles(cyclesToUpsert);
+                engineTriggerNeeded = true;
             }
         }
 
@@ -174,6 +196,40 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             if (activeCycle) {
                 activeCycle.period_length = body.period_length;
                 await cycleRepo.upsertCycles([activeCycle]);
+                engineTriggerNeeded = true;
+            }
+        }
+
+        // Trigger Engine recalculation if required to prevent stale data
+        if (engineTriggerNeeded) {
+            try {
+                const today = isoToday();
+                const existingCycles = await cycleRepo.getCycleHistory(userId);
+
+                let lookbackDate = addDaysIso(today, -120);
+                if (existingCycles.length >= 3) {
+                    lookbackDate = existingCycles[2].start_date;
+                } else if (existingCycles.length > 0) {
+                    lookbackDate = existingCycles[existingCycles.length - 1].start_date;
+                }
+
+                const metaRepo = new UserMetaRepository(opts.db);
+                const [logs, meta] = await Promise.all([
+                    logRepo.getLogsSince(userId, lookbackDate),
+                    metaRepo.getUserMeta(userId)
+                ]);
+
+                const { statuses, cycles } = runFusionEngine(userId, {
+                    logs,
+                    meta,
+                    existingCycles,
+                    today
+                });
+
+                await statusRepo.saveDailyStatuses(statuses);
+                await cycleRepo.upsertCycles(cycles);
+            } catch (err) {
+                app.log.error(err, '[userRoute] Profile update engine trigger error');
             }
         }
 

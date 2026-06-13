@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Trash2, LogOut, HelpCircle, CheckCircle2, ChevronRight, Activity, KeyRound, Copy, Minus, Plus, Pill, Baby } from 'lucide-react';
+import { Trash2, LogOut, HelpCircle, CheckCircle2, ChevronRight, Activity, KeyRound, Copy, Minus, Plus, Pill, Baby, EyeOff } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { usePremiumFeatures } from '@/lib/featureFlags';
@@ -12,7 +12,7 @@ import { ActionSheet } from '@/components/common/ui/action-sheet';
 import { Button } from '@/components/common/ui/button';
 import { HelpScreen } from './HelpScreen';
 import { AppModeSwitcher, type AppMode } from '@/components/common/ui/app-mode-switcher';
-import { SettingsActionRow, SettingsExpandableRow } from '@/components/common/ui/settings-row';
+import { SettingsActionRow, SettingsExpandableRow, SettingsToggleRow } from '@/components/common/ui/settings-row';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 import { ToggleTile } from '@/components/common/ui/toggle-tile';
 
@@ -26,6 +26,7 @@ interface UserProfile {
     avg_cycle_length: number;
     last_period_start: string | null;
     period_length: number;
+    show_branding: boolean;
 }
 
 const CONTEXT_FLAG_OPTIONS = [
@@ -86,6 +87,7 @@ export function SettingsScreen() {
     const [contextFlags, setContextFlags] = React.useState<string[]>([]);
     const [profileSaved, setProfileSaved] = React.useState(false);
     const [profileLoaded, setProfileLoaded] = React.useState(false);
+    const [showBranding, setShowBranding] = React.useState(true);
     const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { data: session } = useSession();
@@ -112,6 +114,7 @@ export function SettingsScreen() {
             if (p.period_length) setPeriodLength(p.period_length);
             if (p.cycle_regularity) setRegularity(p.cycle_regularity as 'regular' | 'irregular' | 'unsure');
             if (p.context_flags) setContextFlags(p.context_flags);
+            setShowBranding(p.show_branding ?? true);
             setProfileLoaded(true);
         }
     }, [profileQuery.data, profileLoaded]);
@@ -553,6 +556,18 @@ export function SettingsScreen() {
                                         </div>
                                     </div>
                                 )}
+                                <SettingsToggleRow
+                                    icon={<EyeOff className="icon-sm text-white" />}
+                                    iconBgColor="bg-indigo-500"
+                                    label={SETTINGS_SCREEN_LABELS.account.discreetMode}
+                                    description={SETTINGS_SCREEN_LABELS.account.discreetModeHint}
+                                    checked={!showBranding}
+                                    onChange={(checked) => {
+                                        const newValue = !checked;
+                                        setShowBranding(newValue);
+                                        saveProfile({ show_branding: newValue });
+                                    }}
+                                />
                                 {session?.email ? (
                                     <>
                                         <SettingsActionRow

@@ -113,3 +113,70 @@ export function SettingsExpandableRow({
         </div>
     );
 }
+
+interface SettingsToggleRowProps {
+    icon: React.ReactNode;
+    iconBgColor: string;
+    label: string;
+    description?: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    disabled?: boolean;
+    className?: string;
+}
+
+export function SettingsToggleRow({
+    icon,
+    iconBgColor,
+    label,
+    description,
+    checked,
+    onChange,
+    disabled,
+    className
+}: SettingsToggleRowProps) {
+    return (
+        <div
+            className={cn(
+                "w-full min-h-[44px] sm:min-h-[48px] flex items-center justify-between px-4 py-3",
+                className
+            )}
+        >
+            <div className="flex items-center gap-3 text-left flex-1 min-w-0">
+                <div className={cn("w-7 h-7 rounded-md flex items-center justify-center shrink-0", iconBgColor)}>
+                    {icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
+                        {label}
+                    </div>
+                    {description && (
+                        <div className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            {description}
+                        </div>
+                    )}
+                </div>
+            </div>
+            {/* iOS-style toggle switch */}
+            <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                aria-label={label}
+                disabled={disabled}
+                onClick={() => onChange(!checked)}
+                className={cn(
+                    "relative inline-flex h-[31px] w-[51px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#007aff] disabled:opacity-50 disabled:cursor-not-allowed",
+                    checked ? "bg-[#34c759]" : "bg-zinc-200 dark:bg-zinc-600"
+                )}
+            >
+                <span
+                    className={cn(
+                        "pointer-events-none inline-block h-[27px] w-[27px] rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ease-in-out",
+                        checked ? "translate-x-5" : "translate-x-0"
+                    )}
+                />
+            </button>
+        </div>
+    );
+}

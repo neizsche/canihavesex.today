@@ -3,7 +3,7 @@ import { ChevronLeft } from 'lucide-react';
 
 import { BRAND } from '../../lib/siteConfig';
 import { BrandTitle } from './BrandTitle';
-
+import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 
 import { HEADER_LABELS } from './Header.config';
 
@@ -13,6 +13,13 @@ interface HeaderProps {
 }
 
 export function Header({ onBack, title }: HeaderProps) {
+    const { showBranding } = useDiscreetMode();
+
+    // Discreet mode: hide the entire header unless a title or back button is needed
+    if (!showBranding && !onBack && !title) {
+        return null;
+    }
+
     return (
         <header className="flex-shrink-0 bg-white/80 dark:bg-black/80 backdrop-blur-xl sticky top-0 z-50 transition-all duration-200">
             <div className="max-w-md mx-auto px-4 pt-8 pb-4 flex items-center justify-center relative">
@@ -34,9 +41,9 @@ export function Header({ onBack, title }: HeaderProps) {
                         <span className="text-[19px] font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
                             {title}
                         </span>
-                    ) : (
+                    ) : showBranding ? (
                         <BrandTitle />
-                    )}
+                    ) : null}
                 </div>
 
                 {/* Right: Placeholder for symmetry */}

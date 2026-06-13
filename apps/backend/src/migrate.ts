@@ -160,6 +160,12 @@ export async function migrate(db: Db) {
     );
   `);
 
+  // --- 2b. Schema Additions (Additive Migrations) ---
+  // Discreet Mode: hide NSFW branding in header/about
+  await db.exec(`
+    ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS show_branding BOOLEAN NOT NULL DEFAULT true;
+  `);
+
   // --- 3. Triggers for updated_at ---
   const tablesWithUpdatedAt = [
     'user_preferences',

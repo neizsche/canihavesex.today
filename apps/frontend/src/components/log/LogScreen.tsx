@@ -633,7 +633,7 @@ export function LogScreen() {
                 <div className="px-4 pb-8 space-y-3">
                   <Button
                     onClick={save}
-                    disabled={saveMutation.isPending || !isDirty || !(bleeding || spotting || bbt || mucus || lhTest || disturbances.length > 0 || notes)}
+                    disabled={saveMutation.isPending || !isDirty || (!hasData && !(bleeding || spotting || bbt || mucus || lhTest || disturbances.length > 0 || notes))}
                     className="w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                   >
                     {saveMutation.isPending ? LOG_SCREEN_LABELS.buttons.saving : LOG_SCREEN_LABELS.buttons.save}
