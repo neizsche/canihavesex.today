@@ -14,7 +14,7 @@ export function useDiscreetMode() {
         queryKey: ['user-profile'],
         queryFn: () => apiJson<{ show_branding: boolean }>('/api/v1/user/profile'),
         enabled: !!session?.userId,
-        staleTime: 60_000,
+        staleTime: 5 * 60 * 1000,
         select: (profile) => profile.show_branding,
     });
 

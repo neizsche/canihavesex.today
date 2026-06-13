@@ -1,11 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
-import { LogRepository } from '../repositories/LogRepository.js';
+import { LogRepository, logHasMeaningfulData } from '../repositories/LogRepository.js';
 import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { runFusionEngine } from '../engine.js';
 import { addDaysIso, daysBetweenIso, isoDateForOffset, isoToday, parseTimezoneOffsetMinutes } from '../utils/dates.js';
+import { buildInsightCards } from '../utils/insights.js';
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -27,7 +28,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         const tzOffsetMinutes = getTzOffsetMinutes(req);
         const today = isoToday(tzOffsetMinutes);
 
-        const cacheKey = `user:${userId}:insights:today`;
+        const cacheKey = `user:${userId}:insights:today:v2`;
         const cachedResponse = cacheService.get<any>(cacheKey);
         if (cachedResponse) return cachedResponse;
 
@@ -37,6 +38,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
             logRepo.getLog(userId, today)
         ]);
         let status = statusResult;
+        const dailyLogDone = logHasMeaningfulData(dailyLog);
 
         // Recompute only when logs change (or cache is missing)
         let shouldRecompute = !status;
@@ -74,11 +76,9 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
             if (!logs.length) {
                 return {
                     status: 'unknown',
-                    insights: {
-                        today: { card: { title: "Welcome", description: "Log your first day" } }
-                    },
+                    insights: { today: {} },
                     date: today,
-                    dailyLogDone: !!dailyLog
+                    dailyLogDone
                 };
             }
 
@@ -104,7 +104,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
             insights,
             date: status.date,
             lastModified: status.updated_at,
-            dailyLogDone: !!dailyLog
+            dailyLogDone
         };
 
         cacheService.set(cacheKey, response);
@@ -323,161 +323,5 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         cacheService.set(cacheKey, response);
         return response;
     });
-}
-
-// --- UI Card Builder (runs at request time, NOT stored in DB) ---
-function buildInsightCards(fertilityStatus: string, phase: string, m: any) {
-    if (!m || typeof m !== 'object') return m;
-
-    const cycleDay = m.cycleDay ?? null;
-    const confidenceScore = Math.round((m.confidenceScore ?? 0.3) * 100);
-    const daysToOv = m.daysToOvulation;
-    const s = m.stats || {};
-    const avgLen = s.avgCycleLength ?? 28;
-    const variation = s.variation ?? 0;
-    const completedCycles = s.completedCycles ?? 0;
-
-    // ── Status subtitle ──
-    const statusTextMap: Record<string, string> = {
-        fertile: 'Fertile Window',
-        period: 'Period',
-        unsure: 'Possibly Fertile',
-        not_fertile: 'Low Fertility',
-    };
-    const statusText = statusTextMap[fertilityStatus] || 'Low Fertility';
-
-    // ── Notifications (max 2, prioritised) ──
-    const pool: string[] = [];
-
-    // Highest priority: anomalies
-    if (m.anomalies?.includes('Multiple LH Surges (PCOS Risk)'))
-        pool.push('Multiple LH surges detected — talk to your doctor.');
-    if (m.anomalies?.includes('Conflicting Bio-signals'))
-        pool.push('Signals don\'t fully agree. Keep logging.');
-
-    // Ovulation timing — only when close
-    if (daysToOv === 0) pool.push('Ovulation day — peak fertility.');
-    else if (daysToOv === 1) pool.push('Ovulation likely tomorrow.');
-    else if (daysToOv !== null && daysToOv > 1 && daysToOv <= 5)
-        pool.push(`Ovulation in ~${daysToOv} days.`);
-
-    // Confirmation
-    if (m.isConfirmed) pool.push('Ovulation confirmed via temp shift.');
-
-    // Period countdown (late luteal only)
-    if (phase === 'Luteal' && m.isConfirmed && cycleDay) {
-        const daysToNextPeriod = avgLen - cycleDay;
-        if (daysToNextPeriod > 0 && daysToNextPeriod <= 5)
-            pool.push(`Period in ~${daysToNextPeriod} days.`);
-    }
-
-    // Temp exclusion
-    if (m.tempReliability === 0) pool.push('Temp excluded (illness) — no impact on prediction.');
-
-    // Gentle nudge — only if we have room and it's relevant
-    if (pool.length < 2 && !m.hasTemp && fertilityStatus === 'fertile')
-        pool.push('Log temp to help confirm ovulation.');
-
-    const notifications = pool.slice(0, 2);
-
-    // ── Source text (one short line) ──
-    const sourceMap: Record<string, string> = {
-        BBT: 'Anchored by temperature shift.',
-        LH: 'Driven by LH surge.',
-        MUCUS: 'Based on mucus pattern.',
-        CALENDAR: 'Based on cycle history.',
-    };
-    const sourceText = sourceMap[m.primarySignal] || sourceMap.CALENDAR;
-
-    // ── Confidence ──
-    let confidenceLabel: string;
-    let confidenceMessage: string;
-
-    if (confidenceScore >= 85) {
-        confidenceLabel = 'Very High';
-        confidenceMessage = 'Strong signal agreement.';
-    } else if (confidenceScore >= 70) {
-        confidenceLabel = 'High';
-        confidenceMessage = 'Consistent data this cycle.';
-    } else if (confidenceScore >= 50) {
-        confidenceLabel = 'Moderate';
-        confidenceMessage = completedCycles < 3 ? 'Improving with more cycles.' : 'Add temp or LH for better accuracy.';
-    } else {
-        confidenceLabel = 'Building';
-        confidenceMessage = 'More data will sharpen predictions.';
-    }
-
-    // ── Ovulation stat ──
-    const ovulationStat = m.isConfirmed
-        ? { label: 'Ovulation', value: 'Confirmed', variant: 'success' as const }
-        : daysToOv !== null && daysToOv > 0 && daysToOv <= 14
-            ? { label: 'Ovulation', value: `in ${daysToOv}d` }
-            : { label: 'Ovulation', value: 'Pending' };
-
-    const todayCard = {
-        card: {
-            title: 'TODAY',
-            description: cycleDay ? `Day ${cycleDay}` : 'Day —',
-            subtitle: statusText,
-        },
-        stats: [
-            { label: 'Phase', value: phase },
-            { label: 'Confidence', value: `${confidenceScore}%` },
-            ovulationStat,
-        ],
-        notifications,
-        sourceText,
-        confidence: { label: confidenceLabel, score: confidenceScore, message: confidenceMessage },
-    };
-
-    // ── Cycle Stats Card ──
-    const cycleSubtitle = completedCycles === 0
-        ? 'First Cycle'
-        : variation <= 2 ? 'Very Regular' : variation <= 4 ? 'Regular' : 'Variable';
-
-    const cycleNotifications: string[] = [];
-    if (completedCycles === 0) {
-        cycleNotifications.push('Complete a cycle to see patterns.');
-    } else if (completedCycles < 3) {
-        cycleNotifications.push(`${3 - completedCycles} more cycle${3 - completedCycles > 1 ? 's' : ''} for reliable trends.`);
-    } else if (variation > 4) {
-        cycleNotifications.push('Variable cycles widen the prediction window.');
-    }
-    if ((s.loggingRate ?? 0) >= 80) cycleNotifications.push('Great logging consistency.');
-    else if ((s.loggingRate ?? 0) > 0 && (s.loggingRate ?? 0) < 50) cycleNotifications.push('More frequent logging improves accuracy.');
-
-    const cycleStatsConfScore = Math.min(100, completedCycles * 25);
-
-    const cycleStatsCard = {
-        card: {
-            title: 'CYCLE STATS',
-            description: `${avgLen} Days`,
-            subtitle: cycleSubtitle,
-        },
-        stats: [
-            { label: 'Variation', value: variation === 0 ? 'None' : `±${variation}d` },
-            { label: 'Logged', value: `${s.loggingRate ?? 0}%` },
-            { label: 'Period', value: s.avgPeriodLength ? `${s.avgPeriodLength}d avg` : '—' },
-            { label: 'Gaps', value: (s.maxGap ?? 0) <= 1 ? 'None' : `${s.maxGap}d` },
-        ],
-        sourceText: completedCycles === 0
-            ? 'Start logging to build your profile.'
-            : `From ${completedCycles} completed cycle${completedCycles > 1 ? 's' : ''}.`,
-        notifications: cycleNotifications.slice(0, 2),
-        confidence: {
-            label: cycleStatsConfScore >= 75 ? 'Strong' : cycleStatsConfScore >= 40 ? 'Growing' : 'New',
-            score: cycleStatsConfScore,
-            message: cycleStatsConfScore >= 75 ? 'Enough data for reliable trends.' : 'More cycles will improve insights.',
-        },
-    };
-
-    // ── Nutrition Card (Locked) ──
-    const nutritionCard = {
-        card: { title: 'NUTRITION', description: 'Calcium Intake', subtitle: 'Premium', isLocked: true, lockLabel: 'Premium' },
-        stats: [],
-        sourceText: 'Phase-based nutrition guidance.',
-    };
-
-    return { today: todayCard, 'cycle-stats': cycleStatsCard, nutrition: nutritionCard };
 }
 

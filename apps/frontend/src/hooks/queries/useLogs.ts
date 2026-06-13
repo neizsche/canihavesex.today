@@ -4,9 +4,9 @@ import { apiJson } from '@/lib/api';
 export function useLog(date: string) {
   return useQuery({
     queryKey: ['log-day', date],
-    queryFn: () => apiJson<{ found: boolean; payload?: any; minDate?: string; suggestion?: any; }>(`/api/v1/logs/${date}`),
+    queryFn: () => apiJson<{ found: boolean; hasData?: boolean; payload?: any; minDate?: string; suggestion?: any; }>(`/api/v1/logs/${date}`),
     enabled: !!date,
-    staleTime: 0, // Always fetch fresh for the editor
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -42,14 +42,16 @@ export function useSaveLog() {
         queryClient.setQueryData(['log-day', date], context.previousLog);
       }
     },
-    // Always refetch after error or success to guarantee sync
+    onSuccess: (data) => {
+      if (data?.today) {
+        queryClient.setQueryData(['insights', 'today'], data.today);
+      }
+    },
     onSettled: (_, __, { date }) => {
       queryClient.invalidateQueries({ queryKey: ['log-day', date] });
-      queryClient.invalidateQueries({ queryKey: ['insights'] });
+      queryClient.invalidateQueries({ queryKey: ['insights', 'today'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      queryClient.invalidateQueries({ queryKey: ['user-status'] });
-      queryClient.invalidateQueries({ queryKey: ['today'] });
     },
   });
 }

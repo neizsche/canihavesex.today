@@ -1,5 +1,5 @@
 import { Db } from '../db.js';
-import { LogRepository, Log } from '../repositories/LogRepository.js';
+import { LogRepository, Log, logHasMeaningfulData } from '../repositories/LogRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
@@ -7,6 +7,7 @@ import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
 import { runFusionEngine } from '../engine.js';
 import { randomUUID } from 'node:crypto';
 import { addDaysIso } from '../utils/dates.js';
+import { buildInsightCards } from '../utils/insights.js';
 
 export interface LogUpsertData {
     userId: string;
@@ -68,7 +69,8 @@ export class LogService {
             (data.disturbances && data.disturbances.length > 0);
 
         if (!hasPhysiologicalData) {
-            return { ok: true, engineTriggered: false };
+            const todayStatus = await this.statusRepo.getTodayStatus(userId, today || date);
+            return { ok: true, engineTriggered: false, today: this.buildTodayResponse(todayStatus) };
         }
 
         try {
@@ -105,7 +107,19 @@ export class LogService {
             throw err;
         }
 
-        return { ok: true };
+        const todayStatus = await this.statusRepo.getTodayStatus(userId, today || date);
+        return { ok: true, today: this.buildTodayResponse(todayStatus) };
+    }
+
+    private buildTodayResponse(status: any) {
+        if (!status) return null;
+        const insights = buildInsightCards(status.fertility_status, status.phase, status.insights_payload);
+        return {
+            status: status.fertility_status,
+            insights,
+            date: status.date,
+            dailyLogDone: true,
+        };
     }
 
     async getLogWithSuggestion(userId: string, date: string, today: string) {
@@ -125,6 +139,7 @@ export class LogService {
         if (log) {
             return {
                 found: true,
+                hasData: logHasMeaningfulData(log),
                 payload: {
                     date: log.date,
                     bleeding: log.bleeding || 'none',
@@ -153,6 +168,6 @@ export class LogService {
             }
         }
 
-        return { found: false, minDate, suggestion };
+        return { found: false, hasData: false, minDate, suggestion };
     }
 }

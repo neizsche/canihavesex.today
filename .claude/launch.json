@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["astro", "dev", "--root", "apps/frontend"],
+      "port": 3116,
+      "autoPort": true
+    }
+  ]
+}

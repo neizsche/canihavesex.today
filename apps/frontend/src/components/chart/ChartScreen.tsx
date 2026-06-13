@@ -4,6 +4,7 @@ import { TrendingUp, AlertCircle, Info, Lock } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
+import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { ChartsView } from './charts/ChartsView';
@@ -32,6 +33,7 @@ export function ChartScreen() {
     const { premiumEnabled } = usePremiumFeatures();
 
 
+    const { showBranding } = useDiscreetMode();
     // Viewed Month State
     const [viewDate, setViewDate] = React.useState(new Date());
     const [activeTab, setActiveTab] = React.useState<'calendar' | 'stats' | 'export' | 'today'>('calendar');
@@ -145,7 +147,7 @@ export function ChartScreen() {
         <div className="h-full bg-background font-sans flex flex-col">
             <Header />
             <div className="flex-1 flex flex-col min-h-0">
-                <div className="px-6 py-4 flex flex-col h-full">
+                <div className={cn("px-6 py-4 flex flex-col h-full", !showBranding && "pt-10 sm:pt-12")}>
                     <div className="max-w-md mx-auto w-full flex flex-col h-full">
 
                         {/* Tab Navigation */}
@@ -186,11 +188,11 @@ export function ChartScreen() {
                         </div>
 
                         {/* Tab Content - fills remaining space */}
-                        <div className="flex-1 min-h-0 overflow-y-auto">
+                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
 
                             {/* Calendar Tab */}
                             {activeTab === 'calendar' && (
-                                <div className="h-full flex flex-col pt-2 px-3 pb-2">
+                                <div className="pt-2 px-3 pb-6">
                                     {/* Simple Container Card */}
                                     <div
                                         className="w-full max-w-sm mx-auto bg-white dark:bg-zinc-900/50 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col"

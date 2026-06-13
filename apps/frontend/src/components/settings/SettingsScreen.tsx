@@ -36,7 +36,7 @@ const CONTEXT_FLAG_OPTIONS = [
     { id: 'breastfeeding', label: 'Nursing', icon: Baby, bg: 'bg-pink-500/10', text: 'text-pink-500' },
 ] as const;
 
-type ConfirmAction = 'reset' | 'delete-all' | 'delete-account' | null;
+type ConfirmAction = 'delete-all' | 'delete-account' | null;
 
 const SHORTCUT_INSTALL_URL = 'https://example.com/shortcut';
 
@@ -131,9 +131,14 @@ export function SettingsScreen() {
                 });
                 setProfileSaved(true);
                 setTimeout(() => setProfileSaved(false), 1200);
-                // Invalidate caches that depend on profile
-                queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-                queryClient.invalidateQueries({ queryKey: ['insights-today'] });
+                // Push the patch into the shared ['user-profile'] cache instead of refetching.
+                // This keeps consumers like useDiscreetMode in sync instantly with no extra
+                // network call (PATCH returns nothing reusable, and local state already reflects it).
+                queryClient.setQueryData<UserProfile>(['user-profile'], (old) =>
+                    old ? { ...old, ...patch } : old
+                );
+                // Insights still need refreshing since cycle config affects predictions.
+                queryClient.invalidateQueries({ queryKey: ['insights'] });
             } catch {
                 // Silent fail — non-critical save
             }
@@ -143,7 +148,8 @@ export function SettingsScreen() {
     const apiKeysQuery = useQuery({
         queryKey: ['api-keys'],
         queryFn: () => apiJson<{ keys: ApiKey[] }>('/api/v1/keys'),
-        enabled: !!session?.userId,
+        // Only fetch when the Apple Shortcuts section is actually opened
+        enabled: !!session?.userId && shortcutOpen,
         staleTime: 10_000
     });
 
@@ -173,13 +179,26 @@ export function SettingsScreen() {
         setApiKeyBusy(true);
         setCopiedKey(false);
         try {
-            const data = await apiJson<{ key: string; keyId: string; keyPrefix: string; name: string }>('/api/v1/keys', {
+            const data = await apiJson<{ key: string; keyId: string; keyPrefix: string; name: string; createdAt: string }>('/api/v1/keys', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ regenerate })
             });
             setNewApiKey(data.key);
-            await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+            // The POST already returns the new key — write it into cache directly
+            // instead of triggering a redundant GET. On regenerate the server revoked
+            // all prior keys, so replace the list rather than appending.
+            const newEntry: ApiKey = {
+                id: data.keyId,
+                name: data.name,
+                keyPrefix: data.keyPrefix,
+                createdAt: data.createdAt,
+                lastUsedAt: null,
+                revokedAt: null
+            };
+            queryClient.setQueryData<{ keys: ApiKey[] }>(['api-keys'], (old) => ({
+                keys: [newEntry, ...(regenerate ? [] : (old?.keys ?? []))]
+            }));
         } catch (err) {
             alert('Could not create API key. Please try again.');
         }
@@ -210,26 +229,17 @@ export function SettingsScreen() {
             if (revokeTarget.id === activeKey?.id) {
                 setNewApiKey(null);
             }
-            await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+            // Drop the revoked key from cache directly — no need to refetch the list.
+            queryClient.setQueryData<{ keys: ApiKey[] }>(['api-keys'], (old) =>
+                old ? { keys: old.keys.filter((k) => k.id !== revokeTarget.id) } : old
+            );
         } catch (err) {
             alert('Could not revoke API key. Please try again.');
         }
         setApiKeyBusy(false);
     }
 
-    async function executeResetCycle() {
-        setBusy(true);
-        try {
-            const data = await apiJson<MutationResponse>('/api/cycles/reset', { method: 'POST' });
-            updateCacheFromMutation(queryClient, data);
-            setConfirmAction(null);
-            setSuccess({ caption: 'Cycle Reset', variant: 'success' });
-            setTimeout(() => setSuccess(null), 1000);
-        } catch (err) {
-            alert('Could not reset cycle. Please try again.');
-        }
-        setBusy(false);
-    }
+
 
     async function executeDeleteAllData() {
         setBusy(true);
@@ -271,8 +281,7 @@ export function SettingsScreen() {
     }
 
     async function handleConfirmAction() {
-        if (confirmAction === 'reset') await executeResetCycle();
-        else if (confirmAction === 'delete-all') await executeDeleteAllData();
+        if (confirmAction === 'delete-all') await executeDeleteAllData();
         else if (confirmAction === 'delete-account') await executeDeleteAccount();
     }
 
@@ -330,26 +339,13 @@ export function SettingsScreen() {
     return (
         <div className="h-full bg-background font-sans flex flex-col">
             <Header />
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
                 <div className="pb-24 pt-6 sm:pt-8 section-content">
                     <div className="max-w-md mx-auto space-y-6 sm:space-y-8">
                         <div className="px-4 flex flex-col gap-4">
                             <h1 className="text-[34px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
                                 {SETTINGS_SCREEN_LABELS.header}
                             </h1>
-
-                            {/* App Mode - Clean "Pill" Style */}
-                            {premiumEnabled && (
-                                <div className="flex flex-col items-center gap-3 py-2">
-                                    <AppModeSwitcher
-                                        value={appMode}
-                                        onChange={setAppMode}
-                                        variant="pill"
-                                        onPremiumClick={handlePremiumClick}
-                                        showHint={true}
-                                    />
-                                </div>
-                            )}
                         </div>
 
                         {/* Profile Link */}
@@ -361,184 +357,184 @@ export function SettingsScreen() {
                                 open={cycleConfigOpen}
                                 onToggle={() => setCycleConfigOpen((prev) => !prev)}
                             >
-                                    {/* Grouped Settings Card */}
-                                    <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 overflow-hidden">
-                                        <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
-                                            {/* Date Row */}
-                                            <div className="flex items-center justify-between p-3 px-4">
-                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Last Period Start</div>
-                                                <input
-                                                    type="text"
-                                                    value={lastPeriod}
-                                                    onChange={(e) => setLastPeriod(e.target.value)}
-                                                    onBlur={(e) => {
-                                                        handleDateBlur(e);
-                                                        const val = e.target.value;
-                                                        const d = new Date(val);
-                                                        if (!isNaN(d.getTime()) && val.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(val) && d <= new Date()) {
-                                                            saveProfile({ last_period_start: val });
-                                                        }
-                                                    }}
-                                                    placeholder="YYYY-MM-DD"
-                                                    className="w-[140px] text-right bg-transparent border-none focus:ring-0 text-[14px] font-medium text-zinc-900 dark:text-zinc-100 p-0 placeholder:text-zinc-400"
-                                                />
-                                            </div>
-
-                                            {/* Minimum Cycle Length Stepper */}
-                                            <div className="flex items-center justify-between p-3 px-4">
-                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Minimum Length</div>
-                                                <div className="flex items-center gap-3">
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const v = Math.max(21, cycleMin - 1);
-                                                            setCycleMin(v);
-                                                            saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
-                                                        }}
-                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                                                    >
-                                                        <Minus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{cycleMin} days</div>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const v = Math.min(cycleMax, cycleMin + 1);
-                                                            setCycleMin(v);
-                                                            saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
-                                                        }}
-                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Maximum Cycle Length Stepper */}
-                                            <div className="flex items-center justify-between p-3 px-4">
-                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Maximum Length</div>
-                                                <div className="flex items-center gap-3">
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const v = Math.max(cycleMin, cycleMax - 1);
-                                                            setCycleMax(v);
-                                                            saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
-                                                        }}
-                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                                                    >
-                                                        <Minus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{cycleMax} days</div>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const v = Math.min(35, cycleMax + 1);
-                                                            setCycleMax(v);
-                                                            saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
-                                                        }}
-                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Period Length Stepper */}
-                                            <div className="flex items-center justify-between p-3 px-4">
-                                                <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Typical Period</div>
-                                                <div className="flex items-center gap-3">
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const v = Math.max(3, periodLength - 1);
-                                                            setPeriodLength(v);
-                                                            saveProfile({ period_length: v });
-                                                        }}
-                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                                                    >
-                                                        <Minus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{periodLength} days</div>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const v = Math.min(7, periodLength + 1);
-                                                            setPeriodLength(v);
-                                                            saveProfile({ period_length: v });
-                                                        }}
-                                                        className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </div>
+                                {/* Grouped Settings Card */}
+                                <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 overflow-hidden">
+                                    <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
+                                        {/* Date Row */}
+                                        <div className="flex items-center justify-between p-3 px-4">
+                                            <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Last Period Start</div>
+                                            <input
+                                                type="text"
+                                                value={lastPeriod}
+                                                onChange={(e) => setLastPeriod(e.target.value)}
+                                                onBlur={(e) => {
+                                                    handleDateBlur(e);
+                                                    const val = e.target.value;
+                                                    const d = new Date(val);
+                                                    if (!isNaN(d.getTime()) && val.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(val) && d <= new Date()) {
+                                                        saveProfile({ last_period_start: val });
+                                                    }
+                                                }}
+                                                placeholder="YYYY-MM-DD"
+                                                className="w-[140px] text-right bg-transparent border-none focus:ring-0 text-[14px] font-medium text-zinc-900 dark:text-zinc-100 p-0 placeholder:text-zinc-400"
+                                            />
                                         </div>
-                                    </div>
 
-                                    {/* Segmented Control for Regularity */}
-                                    <div className="space-y-1.5 pt-2">
-                                        <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
-                                            Cycle Regularity
-                                        </div>
-                                        <div className="flex items-center p-1 bg-zinc-100/80 dark:bg-zinc-800/80 rounded-xl">
-                                            {(['regular', 'irregular', 'unsure'] as const).map(option => (
+                                        {/* Minimum Cycle Length Stepper */}
+                                        <div className="flex items-center justify-between p-3 px-4">
+                                            <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Minimum Length</div>
+                                            <div className="flex items-center gap-3">
                                                 <button
-                                                    key={option}
                                                     type="button"
                                                     onClick={() => {
-                                                        setRegularity(option);
-                                                        saveProfile({ cycle_regularity: option });
+                                                        const v = Math.max(21, cycleMin - 1);
+                                                        setCycleMin(v);
+                                                        saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
                                                     }}
-                                                    className={cn(
-                                                        "flex-1 py-2 text-[12px] font-medium capitalize rounded-lg transition-all duration-200",
-                                                        regularity === option 
-                                                            ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm" 
-                                                            : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-                                                    )}
+                                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                                                 >
-                                                    {option}
+                                                    <Minus className="w-3.5 h-3.5" />
                                                 </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Context Flags */}
-                                    <div className="space-y-1.5 pt-2">
-                                        <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
-                                            Health Context
-                                        </div>
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {CONTEXT_FLAG_OPTIONS.map((flag) => (
-                                                <ToggleTile
-                                                    key={flag.id}
-                                                    label={flag.label}
-                                                    icon={flag.icon}
-                                                    activeBgClass={flag.bg}
-                                                    activeTextClass={flag.text}
-                                                    checked={contextFlags.includes(flag.id)}
-                                                    onChange={() => {
-                                                        const newFlags = contextFlags.includes(flag.id)
-                                                            ? contextFlags.filter(f => f !== flag.id)
-                                                            : [...contextFlags, flag.id];
-                                                        setContextFlags(newFlags);
-                                                        saveProfile({ context_flags: newFlags });
+                                                <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{cycleMin} days</div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const v = Math.min(cycleMax, cycleMin + 1);
+                                                        setCycleMin(v);
+                                                        saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
                                                     }}
-                                                />
-                                            ))}
+                                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-2 pt-1">
-                                            Helps tune cycle predictions for your situation.
+
+                                        {/* Maximum Cycle Length Stepper */}
+                                        <div className="flex items-center justify-between p-3 px-4">
+                                            <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Maximum Length</div>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const v = Math.max(cycleMin, cycleMax - 1);
+                                                        setCycleMax(v);
+                                                        saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
+                                                    }}
+                                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                >
+                                                    <Minus className="w-3.5 h-3.5" />
+                                                </button>
+                                                <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{cycleMax} days</div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const v = Math.min(35, cycleMax + 1);
+                                                        setCycleMax(v);
+                                                        saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
+                                                    }}
+                                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Period Length Stepper */}
+                                        <div className="flex items-center justify-between p-3 px-4">
+                                            <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Typical Period</div>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const v = Math.max(3, periodLength - 1);
+                                                        setPeriodLength(v);
+                                                        saveProfile({ period_length: v });
+                                                    }}
+                                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                >
+                                                    <Minus className="w-3.5 h-3.5" />
+                                                </button>
+                                                <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">{periodLength} days</div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const v = Math.min(7, periodLength + 1);
+                                                        setPeriodLength(v);
+                                                        saveProfile({ period_length: v });
+                                                    }}
+                                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
 
-                                    {/* Saved Indicator */}
-                                    {profileSaved && (
-                                        <div className="flex items-center gap-1.5 pt-1 animate-in fade-in duration-200">
-                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                            <span className="text-[11px] font-medium text-emerald-500">Saved</span>
-                                        </div>
-                                    )}
+                                {/* Segmented Control for Regularity */}
+                                <div className="space-y-1.5 pt-2">
+                                    <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
+                                        Cycle Regularity
+                                    </div>
+                                    <div className="flex items-center p-1 bg-zinc-100/80 dark:bg-zinc-800/80 rounded-xl">
+                                        {(['regular', 'irregular', 'unsure'] as const).map(option => (
+                                            <button
+                                                key={option}
+                                                type="button"
+                                                onClick={() => {
+                                                    setRegularity(option);
+                                                    saveProfile({ cycle_regularity: option });
+                                                }}
+                                                className={cn(
+                                                    "flex-1 py-2 text-[12px] font-medium capitalize rounded-lg transition-all duration-200",
+                                                    regularity === option
+                                                        ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                                                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                                )}
+                                            >
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Context Flags */}
+                                <div className="space-y-1.5 pt-2">
+                                    <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
+                                        Health Context
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {CONTEXT_FLAG_OPTIONS.map((flag) => (
+                                            <ToggleTile
+                                                key={flag.id}
+                                                label={flag.label}
+                                                icon={flag.icon}
+                                                activeBgClass={flag.bg}
+                                                activeTextClass={flag.text}
+                                                checked={contextFlags.includes(flag.id)}
+                                                onChange={() => {
+                                                    const newFlags = contextFlags.includes(flag.id)
+                                                        ? contextFlags.filter(f => f !== flag.id)
+                                                        : [...contextFlags, flag.id];
+                                                    setContextFlags(newFlags);
+                                                    saveProfile({ context_flags: newFlags });
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-2 pt-1">
+                                        Helps tune cycle predictions for your situation.
+                                    </div>
+                                </div>
+
+                                {/* Saved Indicator */}
+                                {profileSaved && (
+                                    <div className="flex items-center gap-1.5 pt-1 animate-in fade-in duration-200">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                        <span className="text-[11px] font-medium text-emerald-500">Saved</span>
+                                    </div>
+                                )}
                             </SettingsExpandableRow>
                         </InsetGroup>
 
@@ -614,91 +610,91 @@ export function SettingsScreen() {
                                 open={shortcutOpen}
                                 onToggle={() => setShortcutOpen((prev) => !prev)}
                             >
-                                    <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 p-3 space-y-2">
-                                        <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-zinc-400">
-                                            <span>Secure Key</span>
-                                            <span>{activeKey ? `Last used ${formatShortDate(activeKey.lastUsedAt)}` : 'Not connected'}</span>
-                                        </div>
-                                        {newApiKey ? (
-                                            <textarea
-                                                readOnly
-                                                rows={2}
-                                                value={newApiKey}
-                                                onFocus={(e) => e.currentTarget.select()}
-                                                className="w-full resize-none rounded-lg border border-zinc-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-950/40 px-2 py-2 text-[12px] font-mono text-zinc-900 dark:text-zinc-100"
-                                            />
-                                        ) : activeKey ? (
-                                            <div className="text-[13px] font-mono text-zinc-700 dark:text-zinc-200">
-                                                {activeKey.keyPrefix}…
-                                            </div>
-                                        ) : (
-                                            <div className="text-[13px] text-zinc-600 dark:text-zinc-300">
-                                                Generate a key to connect Shortcuts.
-                                            </div>
-                                        )}
-                                        {newApiKey && (
-                                            <div className="text-[11px] text-amber-600/90 dark:text-amber-200/80">
-                                                Shown once. Save it to your Shortcut now.
-                                            </div>
-                                        )}
+                                <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 p-3 space-y-2">
+                                    <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-zinc-400">
+                                        <span>Secure Key</span>
+                                        <span>{activeKey ? `Last used ${formatShortDate(activeKey.lastUsedAt)}` : 'Not connected'}</span>
                                     </div>
+                                    {newApiKey ? (
+                                        <textarea
+                                            readOnly
+                                            rows={2}
+                                            value={newApiKey}
+                                            onFocus={(e) => e.currentTarget.select()}
+                                            className="w-full resize-none rounded-lg border border-zinc-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-950/40 px-2 py-2 text-[12px] font-mono text-zinc-900 dark:text-zinc-100"
+                                        />
+                                    ) : activeKey ? (
+                                        <div className="text-[13px] font-mono text-zinc-700 dark:text-zinc-200">
+                                            {activeKey.keyPrefix}…
+                                        </div>
+                                    ) : (
+                                        <div className="text-[13px] text-zinc-600 dark:text-zinc-300">
+                                            Generate a key to connect Shortcuts.
+                                        </div>
+                                    )}
+                                    {newApiKey && (
+                                        <div className="text-[11px] text-amber-600/90 dark:text-amber-200/80">
+                                            Shown once. Save it to your Shortcut now.
+                                        </div>
+                                    )}
+                                </div>
 
-                                    <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        className="h-9 px-4 text-sm"
+                                    >
+                                        <a href={SHORTCUT_INSTALL_URL} target="_blank" rel="noreferrer">
+                                            Install Shortcut
+                                        </a>
+                                    </Button>
+                                    {!activeKey && (
                                         <Button
-                                            asChild
-                                            variant="outline"
+                                            onClick={() => createApiKey(false)}
+                                            disabled={apiKeyBusy}
                                             className="h-9 px-4 text-sm"
                                         >
-                                            <a href={SHORTCUT_INSTALL_URL} target="_blank" rel="noreferrer">
-                                                Install Shortcut
-                                            </a>
+                                            Generate Key
                                         </Button>
-                                        {!activeKey && (
+                                    )}
+                                    {activeKey && (
+                                        <>
                                             <Button
-                                                onClick={() => createApiKey(false)}
+                                                onClick={() => setRegenConfirmOpen(true)}
                                                 disabled={apiKeyBusy}
                                                 className="h-9 px-4 text-sm"
                                             >
-                                                Generate Key
+                                                Regenerate Key
                                             </Button>
-                                        )}
-                                        {activeKey && (
-                                            <>
-                                                <Button
-                                                    onClick={() => setRegenConfirmOpen(true)}
-                                                    disabled={apiKeyBusy}
-                                                    className="h-9 px-4 text-sm"
-                                                >
-                                                    Regenerate Key
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => setRevokeTarget(activeKey)}
-                                                    disabled={apiKeyBusy}
-                                                    className="h-9 px-3 text-sm"
-                                                >
-                                                    Revoke Key
-                                                </Button>
-                                            </>
-                                        )}
-                                        {newApiKey && (
                                             <Button
                                                 variant="outline"
-                                                onClick={copyApiKey}
+                                                onClick={() => setRevokeTarget(activeKey)}
                                                 disabled={apiKeyBusy}
                                                 className="h-9 px-3 text-sm"
                                             >
-                                                <Copy className="icon-sm mr-2" />
-                                                {copiedKey ? 'Copied' : 'Copy Key'}
+                                                Revoke Key
                                             </Button>
-                                        )}
-                                    </div>
+                                        </>
+                                    )}
+                                    {newApiKey && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={copyApiKey}
+                                            disabled={apiKeyBusy}
+                                            className="h-9 px-3 text-sm"
+                                        >
+                                            <Copy className="icon-sm mr-2" />
+                                            {copiedKey ? 'Copied' : 'Copy Key'}
+                                        </Button>
+                                    )}
+                                </div>
 
-                                    <div className="rounded-xl border border-border/30 bg-zinc-50/60 dark:bg-zinc-900/40 p-3 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-1">
-                                        <div>1. Add the Shortcut.</div>
-                                        <div>2. Paste your key when prompted.</div>
-                                        <div>3. Log with one tap from Shortcuts.</div>
-                                    </div>
+                                <div className="rounded-xl border border-border/30 bg-zinc-50/60 dark:bg-zinc-900/40 p-3 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-1">
+                                    <div>1. Add the Shortcut.</div>
+                                    <div>2. Paste your key when prompted.</div>
+                                    <div>3. Log with one tap from Shortcuts.</div>
+                                </div>
                             </SettingsExpandableRow>
                         </InsetGroup>
 
@@ -735,26 +731,20 @@ export function SettingsScreen() {
                         isOpen={confirmAction !== null}
                         onClose={() => setConfirmAction(null)}
                         title={
-                            confirmAction === 'reset'
-                                ? SETTINGS_SCREEN_LABELS.dialogs.reset.title
-                                : confirmAction === 'delete-all'
-                                    ? SETTINGS_SCREEN_LABELS.dialogs.deleteAll.title
-                                    : SETTINGS_SCREEN_LABELS.dialogs.deleteAccount.title
+                            confirmAction === 'delete-all'
+                                ? SETTINGS_SCREEN_LABELS.dialogs.deleteAll.title
+                                : SETTINGS_SCREEN_LABELS.dialogs.deleteAccount.title
                         }
                         description={
-                            confirmAction === 'reset'
-                                ? SETTINGS_SCREEN_LABELS.dialogs.reset.description
-                                : confirmAction === 'delete-all'
-                                    ? SETTINGS_SCREEN_LABELS.dialogs.deleteAll.description
-                                    : SETTINGS_SCREEN_LABELS.dialogs.deleteAccount.description
+                            confirmAction === 'delete-all'
+                                ? SETTINGS_SCREEN_LABELS.dialogs.deleteAll.description
+                                : SETTINGS_SCREEN_LABELS.dialogs.deleteAccount.description
                         }
                         actions={[
                             {
-                                label: confirmAction === 'reset'
-                                    ? SETTINGS_SCREEN_LABELS.dialogs.reset.action
-                                    : confirmAction === 'delete-all'
-                                        ? SETTINGS_SCREEN_LABELS.dialogs.deleteAll.action
-                                        : SETTINGS_SCREEN_LABELS.dialogs.deleteAccount.action,
+                                label: confirmAction === 'delete-all'
+                                    ? SETTINGS_SCREEN_LABELS.dialogs.deleteAll.action
+                                    : SETTINGS_SCREEN_LABELS.dialogs.deleteAccount.action,
                                 onClick: handleConfirmAction,
                                 isDestructive: true
                             }

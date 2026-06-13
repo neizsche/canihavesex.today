@@ -28,29 +28,7 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
         return await logService.getLogWithSuggestion(userId, dateStr, today);
     });
 
-    // GET /api/v1/logs/suggestion (Smart Prefill)
-    app.get('/api/v1/logs/suggestion', {
-        schema: {
-            querystring: z.object({
-                date: z.string()
-            })
-        }
-    }, async (req, reply) => {
-        const userId = req.userId!;
-        const targetDate = req.query.date;
-        const tzOffsetMinutes = getTzOffsetMinutes(req);
-        const today = isoToday(tzOffsetMinutes);
 
-        if (targetDate !== today) {
-            return { available: false };
-        }
-
-        const result = await logService.getLogWithSuggestion(userId, targetDate, today);
-        if (result.suggestion) {
-            return { available: true, suggestion: result.suggestion };
-        }
-        return { available: false };
-    });
 
     // PUT /api/v1/logs/:date
     app.put('/api/v1/logs/:date', {

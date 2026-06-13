@@ -59,7 +59,7 @@ export function updateCacheFromMutation(
     response: MutationResponse
 ): void {
     if (response.today) {
-        queryClient.setQueryData(['today'], response.today);
+        queryClient.setQueryData(['insights', 'today'], response.today);
     }
 
     if (response.chart) {

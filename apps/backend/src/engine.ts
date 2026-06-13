@@ -538,6 +538,8 @@ function buildDayMeta(
         anomalies: result.anomalies,
         tempReliability: day?.reliability.temp ?? null,
         hasTemp: !!day?.tempValue,
+        hasLh: !!day?.log?.lh_test,
+        hasMucus: !!day?.log?.mucus,
 
         // Aggregated cycle stats (pre-calculated)
         stats: {

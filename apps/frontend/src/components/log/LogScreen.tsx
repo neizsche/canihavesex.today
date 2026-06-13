@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Thermometer, Droplets, Activity, ChevronRight, CheckCircle2, Lock, TestTube, AlertTriangle, FileText, Sparkles, X
+  Thermometer, Droplets, Activity, ChevronRight, CheckCircle2, Lock, TestTube, Info, FileText, Sparkles, X,
+  Smile, Zap, Moon, HeartPulse, Heart
 } from 'lucide-react';
 
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
@@ -14,8 +15,8 @@ import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
+import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 
-// --- Constants from V2 ---
 const MUCUS_OPTIONS = [
   { id: 'dry', label: LOG_SCREEN_LABELS.options.mucus[0] },
   { id: 'sticky', label: LOG_SCREEN_LABELS.options.mucus[1] },
@@ -29,6 +30,44 @@ const FLOW_OPTIONS = [
   { id: 'heavy', label: LOG_SCREEN_LABELS.options.flow.heavy }
 ];
 
+const BODY_SYMPTOM_IDS: readonly string[] = LOG_SCREEN_LABELS.bodySignals.symptoms.map(o => o.id);
+
+function encodeSymptoms(
+  bodySymptoms: string[],
+  mood: string | null,
+  energy: string | null,
+  sleepQuality: string | null,
+  libido: string | null,
+  sexActivity: string | null
+): string[] {
+  return [
+    ...bodySymptoms,
+    ...(mood ? [`mood:${mood}`] : []),
+    ...(energy ? [`energy:${energy}`] : []),
+    ...(sleepQuality ? [`sleep:${sleepQuality}`] : []),
+    ...(libido ? [`libido:${libido}`] : []),
+    ...(sexActivity && sexActivity !== 'none' ? [`sex:${sexActivity}`] : []),
+  ];
+}
+
+function decodeSymptoms(symptoms: string[]): {
+  bodySymptoms: string[];
+  mood: string | null;
+  energy: string | null;
+  sleepQuality: string | null;
+  libido: string | null;
+  sexActivity: string | null;
+} {
+  return {
+    bodySymptoms: symptoms.filter(s => BODY_SYMPTOM_IDS.includes(s)),
+    mood: symptoms.find(s => s.startsWith('mood:'))?.split(':')[1] || null,
+    energy: symptoms.find(s => s.startsWith('energy:'))?.split(':')[1] || null,
+    sleepQuality: symptoms.find(s => s.startsWith('sleep:'))?.split(':')[1] || null,
+    libido: symptoms.find(s => s.startsWith('libido:'))?.split(':')[1] || null,
+    sexActivity: symptoms.find(s => s.startsWith('sex:'))?.split(':')[1] || null,
+  };
+}
+
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -39,9 +78,44 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+interface SavedState {
+  bleeding: boolean;
+  flow: string | null;
+  spotting: boolean;
+  bbt: string;
+  mucus: string | null;
+  lhTest: string | null;
+  disturbances: string[];
+  notes: string;
+  bodySymptoms: string[];
+  mood: string | null;
+  energy: string | null;
+  sleepQuality: string | null;
+  libido: string | null;
+  sexActivity: string | null;
+}
+
+const EMPTY_SAVED_STATE: SavedState = {
+  bleeding: false,
+  flow: null,
+  spotting: false,
+  bbt: '',
+  mucus: null,
+  lhTest: null,
+  disturbances: [],
+  notes: '',
+  bodySymptoms: [],
+  mood: null,
+  energy: null,
+  sleepQuality: null,
+  libido: null,
+  sexActivity: null,
+};
+
 export function LogScreen() {
   const { premiumEnabled } = usePremiumFeatures();
   const { isPremium } = usePremiumStatus();
+  const { showBranding } = useDiscreetMode();
   const queryClient = useQueryClient();
   const [date, setDate] = React.useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -55,51 +129,33 @@ export function LogScreen() {
     return todayIso();
   });
 
-  /* State from V2 */
+  // Core FAM state
   const [bleeding, setBleeding] = React.useState<boolean>(false);
   const [flow, setFlow] = React.useState<string | null>(null);
   const [spotting, setSpotting] = React.useState<boolean>(false);
-
   const [bbt, setBbt] = React.useState<string>('');
   const [mucus, setMucus] = React.useState<string | null>(null);
   const [lhTest, setLhTest] = React.useState<string | null>(null);
   const [disturbances, setDisturbances] = React.useState<string[]>([]);
   const [notes, setNotes] = React.useState<string>('');
 
-  // Prefill State
+  // Body signals state
+  const [bodySymptoms, setBodySymptoms] = React.useState<string[]>([]);
+  const [mood, setMood] = React.useState<string | null>(null);
+  const [energy, setEnergy] = React.useState<string | null>(null);
+  const [sleepQuality, setSleepQuality] = React.useState<string | null>(null);
+  const [libido, setLibido] = React.useState<string | null>(null);
+  const [sexActivity, setSexActivity] = React.useState<string | null>(null);
+
+  // UI state
   const [isPrefilled, setIsPrefilled] = React.useState(false);
-
-  // Collapsible sections
-  const [showSymptoms, setShowSymptoms] = React.useState(false);
-  const [showNotes, setShowNotes] = React.useState(false);
-
-  // UI States
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
-  const [showPremiumUpsell, setShowPremiumUpsell] = React.useState(false);
   const premiumSectionRef = React.useRef<HTMLDivElement>(null);
 
-  // Track saved state for dirty checking
-  const [savedState, setSavedState] = React.useState<{
-    bleeding: boolean;
-    flow: string | null;
-    spotting: boolean;
-    bbt: string;
-    mucus: string | null;
-    lhTest: string | null;
-    disturbances: string[];
-    notes: string;
-  }>({
-    bleeding: false,
-    flow: null,
-    spotting: false,
-    bbt: '',
-    mucus: null,
-    lhTest: null,
-    disturbances: [],
-    notes: ''
-  });
+  // Dirty checking
+  const [savedState, setSavedState] = React.useState<SavedState>({ ...EMPTY_SAVED_STATE });
 
-  /* Combined Query: Fetches Log + Suggestion + MinDate */
   const query = useLog(date);
   const saveMutation = useSaveLog();
 
@@ -112,9 +168,7 @@ export function LogScreen() {
     premiumSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  // Populate state on load
   React.useEffect(() => {
-    // Safety check: Don't allow future dates
     if (date > todayIso()) {
       setDate(todayIso());
       window.location.hash = `#/log?date=${todayIso()}`;
@@ -146,6 +200,8 @@ export function LogScreen() {
       if (p.disturbances) newDisturbances = p.disturbances;
       if (p.notes) newNotes = p.notes;
 
+      const decoded = decodeSymptoms(p.symptoms || []);
+
       setBleeding(newBleeding);
       setFlow(newFlow);
       setSpotting(newSpotting);
@@ -154,12 +210,27 @@ export function LogScreen() {
       setLhTest(newLhTest);
       setDisturbances(newDisturbances);
       setNotes(newNotes);
-      setSavedState({ bleeding: newBleeding, flow: newFlow, spotting: newSpotting, bbt: newBbt, mucus: newMucus, lhTest: newLhTest, disturbances: newDisturbances, notes: newNotes });
+      setBodySymptoms(decoded.bodySymptoms);
+      setMood(decoded.mood);
+      setEnergy(decoded.energy);
+      setSleepQuality(decoded.sleepQuality);
+      setLibido(decoded.libido);
+      setSexActivity(decoded.sexActivity);
+
+      const hasAdvancedData = p.temperature || (p.lhTest && p.lhTest !== 'notTaken') ||
+        (p.disturbances && p.disturbances.length > 0) || p.notes;
+      setShowAdvanced(!!hasAdvancedData);
+
+      setSavedState({
+        bleeding: newBleeding, flow: newFlow, spotting: newSpotting, bbt: newBbt,
+        mucus: newMucus, lhTest: newLhTest, disturbances: newDisturbances, notes: newNotes,
+        bodySymptoms: decoded.bodySymptoms, mood: decoded.mood, energy: decoded.energy,
+        sleepQuality: decoded.sleepQuality, libido: decoded.libido, sexActivity: decoded.sexActivity,
+      });
 
     } else if (query.data && !query.data.found) {
 
       if (query.data.suggestion) {
-        // PREFILL FROM SUGGESTION
         const s = query.data.suggestion;
 
         let newBleeding = false;
@@ -175,26 +246,29 @@ export function LogScreen() {
         }
         if (s.temperature) newBbt = String(s.temperature);
         if (s.mucusType) newMucus = s.mucusType;
-        // suggestions don't include notes/disturbances per requirements
 
         setBleeding(newBleeding);
         setFlow(newFlow);
         setSpotting(newSpotting);
         setBbt(newBbt);
         setMucus(newMucus);
-
         setLhTest(null);
         setDisturbances([]);
         setNotes('');
+        setBodySymptoms([]);
+        setMood(null);
+        setEnergy(null);
+        setSleepQuality(null);
+        setLibido(null);
+        setSexActivity(null);
 
-        // CRITICAL: We DO NOT update savedState. Prefilled data is "unsaved" changes.
-        // But we need to reset savedState to empty to ensure diff works.
-        setSavedState({ bleeding: false, flow: null, spotting: false, bbt: '', mucus: null, lhTest: null, disturbances: [], notes: '' });
+        if (s.temperature) setShowAdvanced(true);
+        else setShowAdvanced(false);
 
+        setSavedState({ ...EMPTY_SAVED_STATE });
         setIsPrefilled(true);
 
       } else {
-        // Reset if no log and no suggestion
         setBleeding(false);
         setFlow(null);
         setSpotting(false);
@@ -203,7 +277,14 @@ export function LogScreen() {
         setLhTest(null);
         setDisturbances([]);
         setNotes('');
-        setSavedState({ bleeding: false, flow: null, spotting: false, bbt: '', mucus: null, lhTest: null, disturbances: [], notes: '' });
+        setBodySymptoms([]);
+        setMood(null);
+        setEnergy(null);
+        setSleepQuality(null);
+        setLibido(null);
+        setSexActivity(null);
+        setShowAdvanced(false);
+        setSavedState({ ...EMPTY_SAVED_STATE });
       }
     }
   }, [query.data, date]);
@@ -217,33 +298,82 @@ export function LogScreen() {
       mucus !== savedState.mucus ||
       lhTest !== savedState.lhTest ||
       JSON.stringify(disturbances) !== JSON.stringify(savedState.disturbances) ||
-      notes !== savedState.notes
+      notes !== savedState.notes ||
+      JSON.stringify(bodySymptoms) !== JSON.stringify(savedState.bodySymptoms) ||
+      mood !== savedState.mood ||
+      energy !== savedState.energy ||
+      sleepQuality !== savedState.sleepQuality ||
+      libido !== savedState.libido ||
+      sexActivity !== savedState.sexActivity
     );
-  }, [bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes, savedState]);
+  }, [bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes, bodySymptoms, mood, energy, sleepQuality, libido, sexActivity, savedState]);
+
+  const hasAnyInput = bleeding || spotting || bbt || mucus || lhTest ||
+    disturbances.length > 0 || notes || bodySymptoms.length > 0 ||
+    mood || energy || sleepQuality || libido || (sexActivity && sexActivity !== 'none');
+
+  function clearAll() {
+    setBleeding(false);
+    setFlow(null);
+    setSpotting(false);
+    setBbt('');
+    setMucus(null);
+    setLhTest(null);
+    setDisturbances([]);
+    setNotes('');
+    setBodySymptoms([]);
+    setMood(null);
+    setEnergy(null);
+    setSleepQuality(null);
+    setLibido(null);
+    setSexActivity(null);
+    setIsPrefilled(false);
+
+    if (hasData) {
+      const emptyPayload = {
+        date,
+        bleeding: 'none',
+        temperature: null,
+        mucusType: null,
+        lhTest: 'notTaken',
+        disturbances: [],
+        symptoms: [],
+        notes: ''
+      };
+      saveMutation.mutate({ date, payload: emptyPayload }, {
+        onSuccess: () => setSavedState({ ...EMPTY_SAVED_STATE }),
+        onError: () => alert('Could not clear entry. Please try again.'),
+      });
+    }
+  }
 
   async function save() {
     const payload = {
       date,
-      // Derived fields
       bleeding: spotting ? 'spotting' : (bleeding ? (flow || 'medium') : 'none'),
       temperature: bbt ? parseFloat(bbt) : null,
       mucusType: mucus,
       lhTest: lhTest || 'notTaken',
       disturbances,
-
-      // Reset others
-      sex: [],
+      symptoms: encodeSymptoms(bodySymptoms, mood, energy, sleepQuality, libido, sexActivity),
       notes: notes
     };
 
     saveMutation.mutate({ date, payload }, {
       onSuccess: () => {
-        setSavedState({ bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes });
+        setSavedState({
+          bleeding, flow, spotting, bbt, mucus, lhTest, disturbances, notes,
+          bodySymptoms, mood, energy, sleepQuality, libido, sexActivity,
+        });
         setIsPrefilled(false);
         setSuccess(true);
         setTimeout(() => {
           setSuccess(false);
-          window.location.hash = '#/today';
+          if (date === todayIso()) {
+            window.location.hash = '#/today';
+          } else {
+            window.location.hash = '#/chart';
+          }
         }, 800);
       },
       onError: (err: any) => {
@@ -270,8 +400,6 @@ export function LogScreen() {
     );
   }
 
-  // const isFormEmpty = !bleeding && !spotting && !bbt && !mucus && !lhTest;
-
   const minDate = query.data?.minDate || '2020-01-01';
   const isAtMinDate = date <= minDate;
 
@@ -279,7 +407,7 @@ export function LogScreen() {
     <div className="h-full bg-[#F2F2F7] dark:bg-black font-sans flex flex-col">
       <Header />
       <div className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar pb-20">
-        <div className="w-full max-w-md mx-auto min-h-full flex flex-col pt-safe-offset-2 sm:pt-4">
+        <div className={cn("w-full max-w-md mx-auto min-h-full flex flex-col pt-safe-offset-2 sm:pt-4", !showBranding && "pt-10 sm:pt-12")}>
 
           <DateNavigator
             label={(() => {
@@ -310,17 +438,7 @@ export function LogScreen() {
                 </span>
               </div>
               <button
-                onClick={() => {
-                  setBleeding(false);
-                  setFlow(null);
-                  setSpotting(false);
-                  setBbt('');
-                  setMucus(null);
-                  setLhTest(null);
-                  setDisturbances([]);
-                  setNotes('');
-                  setIsPrefilled(false);
-                }}
+                onClick={clearAll}
                 className="p-2 rounded-full hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-all active:scale-90"
                 aria-label="Clear prefilled data"
               >
@@ -337,8 +455,8 @@ export function LogScreen() {
             >
               <div className={cn("mt-4 flex flex-col gap-3", isLockedPast && "opacity-60 pointer-events-none select-none grayscale-[0.2]")}>
 
-                {/* CYCLE TRACKING */}
-                <InsetGroup containerClassName="mb-0">
+                {/* ═══ ZONE 1: Daily Observations ═══ */}
+                <InsetGroup title={LOG_SCREEN_LABELS.sections.dailyObservations} containerClassName="mb-0">
 
                   {/* Period Row */}
                   <div className="flex flex-col">
@@ -350,17 +468,14 @@ export function LogScreen() {
                         <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.period}</span>
                       </div>
 
-                      {/* iOS Style Switch */}
                       <button
                         onClick={() => {
                           const newState = !bleeding;
                           setBleeding(newState);
                           if (newState) {
-                            // Default to Spotting when turning on
                             setSpotting(true);
                             setFlow(null);
                           } else {
-                            // Reset when turning off
                             setSpotting(false);
                             setFlow(null);
                           }
@@ -377,17 +492,13 @@ export function LogScreen() {
                       </button>
                     </div>
 
-                    {/* Expanded Flow Options */}
                     <div className={cn(
                       "overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
                       bleeding ? "max-h-52 opacity-100" : "max-h-0 opacity-0"
                     )}>
                       <div className="px-4 pb-4 pt-0 space-y-4">
                         <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-0" />
-
-                        {/* Unified Flow + Spotting Control */}
                         <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-                          {/* Spotting Option */}
                           <button
                             onClick={() => { setSpotting(true); setFlow(null); }}
                             className={cn(
@@ -399,8 +510,6 @@ export function LogScreen() {
                           >
                             Spotting
                           </button>
-
-                          {/* Flow Options */}
                           {FLOW_OPTIONS.map((opt) => (
                             <button
                               key={opt.id}
@@ -422,30 +531,7 @@ export function LogScreen() {
 
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
-                  {/* Basal Body Temperature */}
-                  <div className="px-4 py-3 flex items-center justify-between min-h-[52px]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-sm bg-orange-500 flex items-center justify-center shadow-sm">
-                        <Thermometer className="icon-sm text-white" />
-                      </div>
-                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.basalTemp}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="--"
-                        value={bbt}
-                        onChange={(e) => setBbt(e.target.value)}
-                        className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
-                      />
-                      <span className="text-zinc-400 text-[17px]">{LOG_SCREEN_LABELS.units.temperature}</span>
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Cervical Mucus - Navigation Style */}
+                  {/* Cervical Fluid */}
                   <div className="flex flex-col py-3 px-4 gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-7 h-7 rounded-sm bg-blue-500 flex items-center justify-center shadow-sm">
@@ -471,63 +557,169 @@ export function LogScreen() {
                     </div>
                   </div>
 
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+                </InsetGroup>
 
-                  {/* LH Test */}
+                {/* ═══ ZONE 2: Body Signals ═══ */}
+                <InsetGroup title={LOG_SCREEN_LABELS.sections.bodySignals} containerClassName="mb-0">
+
+                  {/* Symptoms */}
                   <div className="py-3 px-4 flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-sm bg-indigo-500 flex items-center justify-center shadow-sm">
-                        <TestTube className="icon-sm text-white" />
+                      <div className="w-7 h-7 rounded-sm bg-green-500 flex items-center justify-center shadow-sm">
+                        <Activity className="icon-sm text-white" />
                       </div>
-                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.lhTest}</span>
+                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.symptoms}</span>
                     </div>
-
-                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-                      <button
-                        onClick={() => setLhTest(curr => curr === 'negative' ? null : 'negative')}
-                        className={cn(
-                          "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow",
-                          lhTest === 'negative'
-                            ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
-                            : "text-zinc-500 dark:text-zinc-400"
-                        )}
-                      >
-                        {LOG_SCREEN_LABELS.options.lhTest.negative}
-                      </button>
-                      <button
-                        onClick={() => setLhTest(curr => curr === 'positive' ? null : 'positive')}
-                        className={cn(
-                          "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow",
-                          lhTest === 'positive'
-                            ? "bg-white dark:bg-zinc-600 text-rose-500 dark:text-rose-300 shadow-sm ring-1 ring-black/5"
-                            : "text-zinc-500 dark:text-zinc-400"
-                        )}
-                      >
-                        {LOG_SCREEN_LABELS.options.lhTest.positive}
-                      </button>
+                    <div className="flex flex-wrap gap-2">
+                      {LOG_SCREEN_LABELS.bodySignals.symptoms.map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setBodySymptoms(curr => curr.includes(opt.id) ? curr.filter(x => x !== opt.id) : [...curr, opt.id])}
+                          className={cn(
+                            "py-1.5 px-3 rounded-full text-[13px] font-medium border transition-all shadow-sm",
+                            bodySymptoms.includes(opt.id)
+                              ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                              : "bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
-                  {/* Disturbances (Safety) */}
+                  {/* Mood */}
                   <div className="py-3 px-4 flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-sm bg-red-500 flex items-center justify-center shadow-sm">
-                        <AlertTriangle className="icon-sm text-white" />
+                      <div className="w-7 h-7 rounded-sm bg-amber-500 flex items-center justify-center shadow-sm">
+                        <Smile className="icon-sm text-white" />
                       </div>
-                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.symptoms.disturbances.title}</span>
+                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.mood}</span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {LOG_SCREEN_LABELS.symptoms.disturbances.options.map(opt => (
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                      {LOG_SCREEN_LABELS.bodySignals.mood.map((opt) => (
                         <button
                           key={opt.id}
-                          onClick={() => setDisturbances(curr => curr.includes(opt.id) ? curr.filter(x => x !== opt.id) : [...curr, opt.id])}
+                          onClick={() => setMood(curr => curr === opt.id ? null : opt.id)}
                           className={cn(
-                            "py-1.5 px-3 rounded-full text-[13px] font-medium border transition-all shadow-sm",
-                            disturbances.includes(opt.id)
-                              ? "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
-                              : "bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm",
+                            mood === opt.id
+                              ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400 shadow-none bg-transparent"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Energy */}
+                  <div className="py-3 px-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-sm bg-sky-500 flex items-center justify-center shadow-sm">
+                        <Zap className="icon-sm text-white" />
+                      </div>
+                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.energy}</span>
+                    </div>
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                      {LOG_SCREEN_LABELS.bodySignals.energy.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setEnergy(curr => curr === opt.id ? null : opt.id)}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm",
+                            energy === opt.id
+                              ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400 shadow-none bg-transparent"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Sleep */}
+                  <div className="py-3 px-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-sm bg-indigo-500 flex items-center justify-center shadow-sm">
+                        <Moon className="icon-sm text-white" />
+                      </div>
+                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.sleep}</span>
+                    </div>
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                      {LOG_SCREEN_LABELS.bodySignals.sleep.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setSleepQuality(curr => curr === opt.id ? null : opt.id)}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm",
+                            sleepQuality === opt.id
+                              ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400 shadow-none bg-transparent"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Libido */}
+                  <div className="py-3 px-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-sm bg-pink-500 flex items-center justify-center shadow-sm">
+                        <HeartPulse className="icon-sm text-white" />
+                      </div>
+                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.libido}</span>
+                    </div>
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                      {LOG_SCREEN_LABELS.bodySignals.libido.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setLibido(curr => curr === opt.id ? null : opt.id)}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm",
+                            libido === opt.id
+                              ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400 shadow-none bg-transparent"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Sexual Activity */}
+                  <div className="py-3 px-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-sm bg-purple-500 flex items-center justify-center shadow-sm">
+                        <Heart className="icon-sm text-white" />
+                      </div>
+                      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.sexActivity}</span>
+                    </div>
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                      {LOG_SCREEN_LABELS.bodySignals.sexActivity.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setSexActivity(curr => curr === opt.id ? null : opt.id)}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm",
+                            sexActivity === opt.id
+                              ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400 shadow-none bg-transparent"
                           )}
                         >
                           {opt.label}
@@ -538,86 +730,128 @@ export function LogScreen() {
 
                 </InsetGroup>
 
-                {/* SYMPTOMS & PREMIUM */}
-                {premiumEnabled && (
-                  <InsetGroup containerClassName="mb-0">
-                    <button
-                      onClick={() => {
-                        setShowSymptoms(!showSymptoms);
-                        if (!showSymptoms) {
-                          setShowPremiumUpsell(true);
-                          setTimeout(() => {
-                            premiumSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }, 100);
-                        }
-                      }}
-                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-sm bg-purple-500 flex items-center justify-center shadow-sm">
-                          <Activity className="icon-sm text-white" />
-                        </div>
-                        <span className="text-[17px] text-zinc-900 dark:text-white font-medium">
-                          {LOG_SCREEN_LABELS.fields.trackSymptoms}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Lock className="icon-xs text-zinc-400" />
-                        <ChevronRight className={cn("icon-sm text-zinc-300 transition-transform duration-300", showSymptoms && "rotate-90")} />
-                      </div>
-                    </button>
-
-                    {/* Collapsible Placeholder Content for Symptoms */}
-                    <div className={cn(
-                      "overflow-hidden transition-all duration-300 ease-out",
-                      showSymptoms ? "max-h-[500px] opacity-100 border-t border-zinc-100 dark:border-zinc-800" : "max-h-0 opacity-0"
-                    )}>
-                      <PremiumUnlockCard
-                        title={LOG_SCREEN_LABELS.premium.title}
-                        description={LOG_SCREEN_LABELS.premium.description}
-                      />
-                    </div>
-                  </InsetGroup>
-                )}
-
-                {/* NOTES - Collapsible */}
-                <InsetGroup containerClassName="mb-0">
+                {/* ═══ ZONE 3: Advanced (Collapsible) ═══ */}
+                <InsetGroup title={LOG_SCREEN_LABELS.sections.advanced} containerClassName="mb-0">
                   <button
-                    onClick={() => setShowNotes(!showNotes)}
-                    className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-7 h-7 rounded-sm bg-yellow-500/10 flex items-center justify-center shrink-0">
-                        <FileText className="icon-sm text-yellow-500" />
-                      </div>
-                      <div className="flex flex-col items-start min-w-0 overflow-hidden">
-                        <span className="text-[17px] text-zinc-900 dark:text-white font-normal">
-                          {LOG_SCREEN_LABELS.sections?.notes || 'Daily Notes'}
-                        </span>
-                        {!showNotes && notes && (
-                          <span className="text-[13px] text-zinc-500 dark:text-zinc-400 truncate w-full text-left">
-                            {notes}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight className={cn("icon-sm text-zinc-300 transition-transform duration-300 shrink-0", showNotes && "rotate-90")} />
+                    <span className="text-[15px] text-zinc-500 dark:text-zinc-400 font-medium">
+                      Temperature, LH test & more
+                    </span>
+                    <ChevronRight className={cn("icon-sm text-zinc-300 transition-transform duration-300", showAdvanced && "rotate-90")} />
                   </button>
 
-                  {/* Collapsible Notes Content */}
                   <div className={cn(
                     "overflow-hidden transition-all duration-300 ease-out",
-                    showNotes ? "max-h-[300px] opacity-100 border-t border-zinc-100 dark:border-zinc-800" : "max-h-0 opacity-0"
+                    showAdvanced ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
                   )}>
-                    <div className="px-4 py-2.5 bg-zinc-50/50 dark:bg-zinc-900/30">
+
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                    {/* Basal Body Temperature */}
+                    <div className="px-4 py-3 flex items-center justify-between min-h-[52px]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-sm bg-orange-500 flex items-center justify-center shadow-sm">
+                          <Thermometer className="icon-sm text-white" />
+                        </div>
+                        <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.basalTemp}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="--"
+                          value={bbt}
+                          onChange={(e) => setBbt(e.target.value)}
+                          className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
+                        />
+                        <span className="text-zinc-400 text-[17px]">{LOG_SCREEN_LABELS.units.temperature}</span>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                    {/* LH Test */}
+                    <div className="py-3 px-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-sm bg-indigo-500 flex items-center justify-center shadow-sm">
+                          <TestTube className="icon-sm text-white" />
+                        </div>
+                        <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.lhTest}</span>
+                      </div>
+                      <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                        <button
+                          onClick={() => setLhTest(curr => curr === 'negative' ? null : 'negative')}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow",
+                            lhTest === 'negative'
+                              ? "bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400"
+                          )}
+                        >
+                          {LOG_SCREEN_LABELS.options.lhTest.negative}
+                        </button>
+                        <button
+                          onClick={() => setLhTest(curr => curr === 'positive' ? null : 'positive')}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow",
+                            lhTest === 'positive'
+                              ? "bg-white dark:bg-zinc-600 text-rose-500 dark:text-rose-300 shadow-sm ring-1 ring-black/5"
+                              : "text-zinc-500 dark:text-zinc-400"
+                          )}
+                        >
+                          {LOG_SCREEN_LABELS.options.lhTest.positive}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                    {/* Factors (Disturbances) */}
+                    <div className="py-3 px-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-sm bg-zinc-400 dark:bg-zinc-600 flex items-center justify-center shadow-sm">
+                          <Info className="icon-sm text-white" />
+                        </div>
+                        <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.symptoms.disturbances.title}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {LOG_SCREEN_LABELS.symptoms.disturbances.options.map(opt => (
+                          <button
+                            key={opt.id}
+                            onClick={() => setDisturbances(curr => curr.includes(opt.id) ? curr.filter(x => x !== opt.id) : [...curr, opt.id])}
+                            className={cn(
+                              "py-1.5 px-3 rounded-full text-[13px] font-medium border transition-all shadow-sm",
+                              disturbances.includes(opt.id)
+                                ? "bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200"
+                                : "bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                    {/* Notes */}
+                    <div className="py-3 px-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-sm bg-yellow-500/10 flex items-center justify-center shrink-0">
+                          <FileText className="icon-sm text-yellow-500" />
+                        </div>
+                        <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{LOG_SCREEN_LABELS.fields.notes}</span>
+                      </div>
                       <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         maxLength={100}
                         placeholder="Add a note..."
-                        className="w-full min-h-[80px] text-[15px] font-normal bg-transparent border-none focus:ring-0 focus:outline-none p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 resize-none"
+                        className="w-full min-h-[60px] text-[15px] font-normal bg-zinc-50/50 dark:bg-zinc-900/30 rounded-xl border-none focus:ring-0 focus:outline-none p-3 text-zinc-900 dark:text-white placeholder:text-zinc-300 resize-none"
                       />
-                      <div className="flex justify-end pt-1">
+                      <div className="flex justify-end">
                         <span className={cn(
                           "text-[11px] font-medium tracking-tight",
                           notes.length >= 100 ? "text-red-500" : "text-zinc-400"
@@ -626,6 +860,7 @@ export function LogScreen() {
                         </span>
                       </div>
                     </div>
+
                   </div>
                 </InsetGroup>
 
@@ -633,25 +868,15 @@ export function LogScreen() {
                 <div className="px-4 pb-8 space-y-3">
                   <Button
                     onClick={save}
-                    disabled={saveMutation.isPending || !isDirty || (!hasData && !(bleeding || spotting || bbt || mucus || lhTest || disturbances.length > 0 || notes))}
+                    disabled={saveMutation.isPending || !isDirty || (!hasData && !hasAnyInput)}
                     className="w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                   >
                     {saveMutation.isPending ? LOG_SCREEN_LABELS.buttons.saving : LOG_SCREEN_LABELS.buttons.save}
                   </Button>
 
-                  {/* Clear Form Button - Always visible if there is data to clear */}
-                  {(bleeding || spotting || bbt || mucus || lhTest || disturbances.length > 0 || notes) && (
+                  {hasAnyInput && (
                     <button
-                      onClick={() => {
-                        setBleeding(false);
-                        setFlow(null);
-                        setSpotting(false);
-                        setBbt('');
-                        setMucus(null);
-                        setLhTest(null);
-                        setDisturbances([]);
-                        setNotes('');
-                      }}
+                      onClick={clearAll}
                       disabled={saveMutation.isPending}
                       className="w-full py-2.5 text-[15px] font-medium text-red-500 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
                     >
@@ -665,8 +890,8 @@ export function LogScreen() {
                       className="animate-in fade-in slide-in-from-bottom-2 pt-2"
                     >
                       <PremiumUnlockCard
-                        title="Unlock History"
-                        description="Editing past logs is a premium feature. Upgrade to unlock full history editing."
+                        title={LOG_SCREEN_LABELS.premium.title}
+                        description={LOG_SCREEN_LABELS.premium.description}
                       />
                     </div>
                   )}
@@ -693,8 +918,8 @@ export function LogScreen() {
                 className="px-4 pb-12 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200"
               >
                 <PremiumUnlockCard
-                  title="Unlock History"
-                  description="Editing past logs is a premium feature. Upgrade to unlock full history editing."
+                  title={LOG_SCREEN_LABELS.premium.title}
+                  description={LOG_SCREEN_LABELS.premium.description}
                 />
               </div>
             </div>

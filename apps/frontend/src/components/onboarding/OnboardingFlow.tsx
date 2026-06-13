@@ -82,7 +82,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             queryClient.setQueryData(['session'], response);
 
             // Update profile cache if it exists to keep settings in sync
-            queryClient.setQueryData(['user/profile'], (prev: any) => {
+            queryClient.setQueryData(['user-profile'], (prev: any) => {
                 if (!prev) return prev;
                 return {
                     ...prev,

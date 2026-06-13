@@ -30,10 +30,6 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
   return (await res.json()) as T;
 }
 
-export async function fetchToday<T = any>(): Promise<T> {
-  return apiJson<T>('/api/v1/insights/today');
-}
-
 export function currentReturnTo(): string {
   if (typeof window === 'undefined') return '/';
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;

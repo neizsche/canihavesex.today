@@ -1,15 +1,22 @@
 export const LOG_SCREEN_LABELS = {
     sections: {
-        cycleTracking: 'Cycle Details',
-        notes: 'Daily Notes',
-        symptoms: 'Body Signals',
+        dailyObservations: 'Daily Observations',
+        bodySignals: 'Body Signals',
+        advanced: 'Advanced',
     },
     fields: {
         period: 'Menstruation',
         basalTemp: 'Temperature',
         cervicalMucus: 'Cervical Fluid',
-        lhTest: 'LH Test (Ovulation)',
-        trackSymptoms: 'Log Body Signals',
+        lhTest: 'LH Test',
+        mood: 'Mood',
+        energy: 'Energy',
+        sleep: 'Sleep',
+        libido: 'Libido',
+        sexActivity: 'Sexual Activity',
+        symptoms: 'Symptoms',
+        factors: 'Factors',
+        notes: 'Notes',
     },
     options: {
         no: 'No',
@@ -26,27 +33,49 @@ export const LOG_SCREEN_LABELS = {
             positive: 'Positive',
         },
     },
+    bodySignals: {
+        symptoms: [
+            { id: 'breast_tenderness', label: 'Breast Tender' },
+            { id: 'cramps', label: 'Cramps' },
+            { id: 'bloating', label: 'Bloating' },
+            { id: 'headache', label: 'Headache' },
+        ],
+        mood: [
+            { id: 'calm', label: 'Calm' },
+            { id: 'anxious', label: 'Anxious' },
+            { id: 'irritable', label: 'Irritable' },
+            { id: 'sad', label: 'Sad' },
+        ],
+        energy: [
+            { id: 'low', label: 'Low' },
+            { id: 'normal', label: 'Normal' },
+            { id: 'high', label: 'High' },
+        ],
+        sleep: [
+            { id: 'poor', label: 'Poor' },
+            { id: 'fair', label: 'Fair' },
+            { id: 'good', label: 'Good' },
+        ],
+        libido: [
+            { id: 'low', label: 'Low' },
+            { id: 'normal', label: 'Normal' },
+            { id: 'high', label: 'High' },
+        ],
+        sexActivity: [
+            { id: 'none', label: 'None' },
+            { id: 'protected', label: 'Protected' },
+            { id: 'unprotected', label: 'Unprotected' },
+        ],
+    },
     symptoms: {
-        physical: {
-            title: 'Physical',
-            options: ['Cramps', 'Headache', 'Bloating', 'Acne'],
-        },
-        mood: {
-            title: 'Mood',
-            options: ['Happy', 'Anxious', 'Stressed', 'Weepy'],
-        },
-        sexualActivity: {
-            title: 'Intimacy',
-            options: ['Protected', 'Unprotected', 'Pill Taken'],
-        },
         disturbances: {
-            title: 'Safety Factors',
+            title: 'Factors',
             options: [
-                { id: 'sick', label: 'Sick (Fever)' },
-                { id: 'bad_sleep', label: 'Bad Sleep' },
+                { id: 'sick', label: 'Illness' },
+                { id: 'bad_sleep', label: 'Poor Sleep' },
                 { id: 'alcohol', label: 'Alcohol' },
-                { id: 'semen_exposure', label: 'Unprotected Sex / Semen' },
-                { id: 'infection', label: 'Infection / Yeast' }
+                { id: 'semen_exposure', label: 'Semen Exposure' },
+                { id: 'infection', label: 'Infection' }
             ]
         },
     },
@@ -60,8 +89,8 @@ export const LOG_SCREEN_LABELS = {
         editEntry: 'Edit',
     },
     premium: {
-        title: 'Unlock Body Signals',
-        description: 'Log physical symptoms, moods, and intimacy to gain deeper insights.',
+        title: 'Unlock History',
+        description: 'Editing past logs is a premium feature.',
     },
     units: {
         temperature: '°C',

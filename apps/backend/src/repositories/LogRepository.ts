@@ -15,6 +15,20 @@ export interface Log {
     created_at: string;
 }
 
+export function logHasMeaningfulData(log: Pick<Log, 'bleeding' | 'temperature' | 'mucus' | 'lh_test' | 'disturbances' | 'symptoms' | 'notes'> | null | undefined): boolean {
+    if (!log) return false;
+
+    return (
+        (!!log.bleeding && log.bleeding !== 'none') ||
+        log.temperature != null ||
+        !!log.mucus ||
+        (!!log.lh_test && String(log.lh_test) !== 'notTaken') ||
+        (Array.isArray(log.disturbances) && log.disturbances.length > 0) ||
+        (Array.isArray(log.symptoms) && log.symptoms.length > 0) ||
+        !!log.notes?.trim()
+    );
+}
+
 export class LogRepository {
     constructor(private db: Db) { }
 

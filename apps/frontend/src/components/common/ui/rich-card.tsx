@@ -51,29 +51,27 @@ export const RichCard = React.memo(({
             )}
 
             {/* Gradient Overlays for Readability */}
-            <div className={`absolute inset-0 bg-gradient-to-br from-black/5 via-transparent to-transparent opacity-80`} />
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent`} />
+            <div className={`absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 opacity-90`} />
 
-            {/* Content Section */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
-                {/* Title */}
-                <h3 className="text-[12px] font-bold tracking-widest text-white/70 uppercase mb-1">
+            {/* Top Label */}
+            <div className="absolute top-0 left-0 p-6 z-10">
+                <h3 className="text-[13px] font-bold tracking-[0.15em] text-white/90 uppercase drop-shadow-md">
                     {title}
                 </h3>
+            </div>
 
+            {/* Bottom Content Section */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
                 {/* Main Hero Text */}
                 {description && (
-                    <div className="text-[32px] sm:text-[36px] font-bold text-white leading-tight mb-2 drop-shadow-sm">
+                    <div className="text-[30px] sm:text-[34px] font-extrabold text-white leading-[1.1] mb-2 tracking-tight drop-shadow-lg">
                         {description}
                     </div>
                 )}
 
-                {/* Horizontal Divider */}
-                <div className="h-0.5 w-12 bg-white/30 rounded-full mb-3" />
-
                 {/* Sublabel */}
                 {sublabel && (
-                    <p className="text-[15px] font-medium text-white/90">
+                    <p className="text-[16px] font-medium text-white/80 drop-shadow-md leading-snug">
                         {sublabel}
                     </p>
                 )}
