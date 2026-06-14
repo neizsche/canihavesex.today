@@ -1,9 +1,7 @@
 import * as React from 'react';
 import { CheckCircle2, FileText, CalendarRange, Download, Lock } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import { usePremiumFeatures } from '../../../lib/featureFlags';
 import { type CycleData, downloadCSV } from '../../../lib/mock-data';
-import { PremiumUnlockCard } from '../../common/ui/PremiumUnlockCard';
 import { EXPORT_VIEW_LABELS } from './ExportView.config';
 
 interface ExportViewProps {
@@ -11,7 +9,6 @@ interface ExportViewProps {
 }
 
 export function ExportView({ data }: ExportViewProps) {
-    const { premiumEnabled } = usePremiumFeatures();
     const [includeNotes, setIncludeNotes] = React.useState(false);
 
     return (
@@ -45,31 +42,6 @@ export function ExportView({ data }: ExportViewProps) {
                             </button>
                         </div>
 
-                        {/* Option 2: Doctor's Report (PDF) - Conditionally shown if premium */}
-                        {premiumEnabled && (
-                            <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 opacity-70">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">{EXPORT_VIEW_LABELS.options.doctorReport}</span>
-                                    <Lock className="w-3.5 h-3.5 text-zinc-400" />
-                                </div>
-                                {/* Disabled Toggle Appearance */}
-                                <div className="w-11 h-6 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center px-0.5 cursor-not-allowed">
-                                    <div className="w-5 h-5 bg-white/50 dark:bg-zinc-600 rounded-full shadow-sm" />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Option 3: Date Range Filter - Conditionally shown if premium */}
-                        {premiumEnabled && (
-                            <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 opacity-70 cursor-not-allowed">
-                                <span className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">{EXPORT_VIEW_LABELS.options.dateRange}</span>
-                                <div className="flex items-center gap-2 bg-zinc-200 dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-zinc-500">
-                                    <span className="text-[13px] font-medium">{EXPORT_VIEW_LABELS.options.allTime}</span>
-                                    <Lock className="w-3.5 h-3.5" />
-                                </div>
-                            </div>
-                        )}
-
                         {/* Main Action */}
                         <button
                             onClick={() => {
@@ -83,15 +55,6 @@ export function ExportView({ data }: ExportViewProps) {
                         </button>
                     </div>
 
-                    {/* Premium Component (Bottom) - Conditionally shown */}
-                    {premiumEnabled && (
-                        <div className="w-full mt-auto pt-8">
-                            <PremiumUnlockCard
-                                title={EXPORT_VIEW_LABELS.premium.title}
-                                description={EXPORT_VIEW_LABELS.premium.description}
-                            />
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

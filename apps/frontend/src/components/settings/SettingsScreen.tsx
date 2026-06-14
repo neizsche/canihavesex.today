@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Trash2, LogOut, HelpCircle, CheckCircle2, ChevronRight, Activity, KeyRound, Copy, Minus, Plus, Pill, Baby, EyeOff } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { usePremiumFeatures } from '@/lib/featureFlags';
 
 import { apiJson } from '@/lib/api';
 import { updateCacheFromMutation, type MutationResponse } from '@/lib/cacheUtils';
@@ -11,12 +10,9 @@ import { InsetGroup } from '@/components/common/ui/inset-group';
 import { ActionSheet } from '@/components/common/ui/action-sheet';
 import { Button } from '@/components/common/ui/button';
 import { HelpScreen } from './HelpScreen';
-import { AppModeSwitcher, type AppMode } from '@/components/common/ui/app-mode-switcher';
 import { SettingsActionRow, SettingsExpandableRow, SettingsToggleRow } from '@/components/common/ui/settings-row';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 import { ToggleTile } from '@/components/common/ui/toggle-tile';
-
-import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
 import { useSession } from '@/hooks/queries/useSession';
 
 interface UserProfile {
@@ -62,15 +58,11 @@ function formatShortDate(value?: string | null): string {
 
 export function SettingsScreen() {
     const queryClient = useQueryClient();
-    const { premiumEnabled } = usePremiumFeatures();
     const [confirmAction, setConfirmAction] = React.useState<ConfirmAction>(null);
     const [busy, setBusy] = React.useState(false);
     const [success, setSuccess] = React.useState<{ caption: string; variant: 'success' | 'destructive' } | null>(null);
     const [view, setView] = React.useState<'main' | 'help'>('main');
     const [cycleConfigOpen, setCycleConfigOpen] = React.useState(false);
-    const [appMode, setAppMode] = React.useState<AppMode>('tracking');
-    const [showPremiumUpsell, setShowPremiumUpsell] = React.useState(false);
-    const premiumSectionRef = React.useRef<HTMLDivElement>(null);
     const [apiKeyBusy, setApiKeyBusy] = React.useState(false);
     const [newApiKey, setNewApiKey] = React.useState<string | null>(null);
     const [copiedKey, setCopiedKey] = React.useState(false);
@@ -161,19 +153,6 @@ export function SettingsScreen() {
         document.documentElement.classList.add('dark');
         localStorage.setItem('theme', 'dark');
     }, []);
-
-    // Hide premium upsell on component mount (screen reload)
-    React.useEffect(() => {
-        setShowPremiumUpsell(false);
-    }, []);
-
-    const handlePremiumClick = (mode: AppMode) => {
-        setShowPremiumUpsell(true);
-        // Smooth scroll to premium section after a short delay
-        setTimeout(() => {
-            premiumSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-    };
 
     async function createApiKey(regenerate = false) {
         setApiKeyBusy(true);
@@ -707,23 +686,6 @@ export function SettingsScreen() {
                                 onClick={() => setView('help')}
                             />
                         </InsetGroup>
-
-                        {/* Premium Upsell - Conditionally shown if premium enabled */}
-                        {premiumEnabled && showPremiumUpsell && (
-                            <div
-                                className={cn(
-                                    "w-full px-4 transition-all duration-500 ease-out overflow-hidden shrink-0 animate-in fade-in slide-in-from-bottom-4"
-                                )}
-                            >
-                                <div ref={premiumSectionRef}>
-                                    <PremiumUnlockCard
-                                        title="Premium Feature"
-                                        description="Upgrade to unlock advanced cycle modes and personalized insights"
-                                        className="max-w-md mx-auto"
-                                    />
-                                </div>
-                            </div>
-                        )}
 
                     </div>
 

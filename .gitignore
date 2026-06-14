@@ -30,7 +30,3 @@ dist/
 .idea/
 .vscode/
 .agent/
-
-# Open Core - Premium
-apps/backend/src/features/
-apps/backend/src/server-premium.ts

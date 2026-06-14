@@ -12,7 +12,7 @@ Thanks for your interest in contributing! We welcome contributions from everyone
     *   Frontend: `npm run dev:frontend`
     *   Both: `npm run dev`
 
-See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for detailed instructions.
+See the [Local development](./README.md#local-development) section of the README for details.
 
 ## Code Quality
 

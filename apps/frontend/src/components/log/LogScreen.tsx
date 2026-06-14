@@ -7,11 +7,9 @@ import {
 
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { usePremiumFeatures, usePremiumStatus } from '@/lib/featureFlags';
 import { Button } from '@/components/common/ui/button';
 import { Header } from '@/components/common/Header';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
-import { PremiumUnlockCard } from '@/components/common/ui/PremiumUnlockCard';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
@@ -113,8 +111,6 @@ const EMPTY_SAVED_STATE: SavedState = {
 };
 
 export function LogScreen() {
-  const { premiumEnabled } = usePremiumFeatures();
-  const { isPremium } = usePremiumStatus();
   const { showBranding } = useDiscreetMode();
   const queryClient = useQueryClient();
   const [date, setDate] = React.useState<string>(() => {
@@ -151,7 +147,6 @@ export function LogScreen() {
   const [isPrefilled, setIsPrefilled] = React.useState(false);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
-  const premiumSectionRef = React.useRef<HTMLDivElement>(null);
 
   // Dirty checking
   const [savedState, setSavedState] = React.useState<SavedState>({ ...EMPTY_SAVED_STATE });
@@ -161,12 +156,6 @@ export function LogScreen() {
 
   const isHistorical = date < todayIso();
   const hasData = query.data?.found;
-  const isLockedPast = isHistorical && !isPremium;
-  const isLockedEmpty = isLockedPast && !hasData;
-
-  const scrollToPremium = () => {
-    premiumSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
 
   React.useEffect(() => {
     if (date > todayIso()) {
@@ -426,7 +415,7 @@ export function LogScreen() {
             nextDisabled={saveMutation.isPending || date === todayIso()}
           />
 
-          {isPrefilled && !isLockedPast && (
+          {isPrefilled && (
             <div className="mx-4 mt-3 mb-1 bg-zinc-100/80 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl p-3.5 flex items-center gap-3.5 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-500 shadow-sm transition-all group">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center shrink-0">
                 <Sparkles className="icon-sm text-blue-600 dark:text-blue-400" />
@@ -448,12 +437,9 @@ export function LogScreen() {
           )}
 
 
-          {!isLockedEmpty ? (
-            <div
-              className="relative cursor-default"
-              onClick={isLockedPast ? scrollToPremium : undefined}
-            >
-              <div className={cn("mt-4 flex flex-col gap-3", isLockedPast && "opacity-60 pointer-events-none select-none grayscale-[0.2]")}>
+          {(
+            <div className="relative cursor-default">
+              <div className="mt-4 flex flex-col gap-3">
 
                 {/* ═══ ZONE 1: Daily Observations ═══ */}
                 <InsetGroup title={LOG_SCREEN_LABELS.sections.dailyObservations} containerClassName="mb-0">
@@ -884,43 +870,7 @@ export function LogScreen() {
                     </button>
                   )}
 
-                  {isLockedPast && (
-                    <div
-                      ref={premiumSectionRef}
-                      className="animate-in fade-in slide-in-from-bottom-2 pt-2"
-                    >
-                      <PremiumUnlockCard
-                        title={LOG_SCREEN_LABELS.premium.title}
-                        description={LOG_SCREEN_LABELS.premium.description}
-                      />
-                    </div>
-                  )}
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div
-              className="flex flex-col pt-10 cursor-pointer"
-              onClick={scrollToPremium}
-            >
-              <div className="flex flex-col items-center justify-center py-20 px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                  <FileText className="w-10 h-10 text-zinc-400 dark:text-zinc-500" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mb-3">No Data Found</h3>
-                <p className="text-[16px] text-zinc-500 dark:text-zinc-400 max-w-[300px] leading-relaxed">
-                  You haven't recorded any fertility data for this day.
-                </p>
-              </div>
-
-              <div
-                ref={premiumSectionRef}
-                className="px-4 pb-12 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200"
-              >
-                <PremiumUnlockCard
-                  title={LOG_SCREEN_LABELS.premium.title}
-                  description={LOG_SCREEN_LABELS.premium.description}
-                />
               </div>
             </div>
           )}

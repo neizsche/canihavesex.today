@@ -10,7 +10,7 @@ import { loadEnv } from 'vite';
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Hosting platform detection
-const allowedHosts = [
+const allowedHosts = isProduction ? [
   'canihavesex.today',
   'www.canihavesex.today',
   'app.canihavesex.today',
@@ -28,7 +28,7 @@ const allowedHosts = [
   '.fly.dev',
   // Digital Ocean App Platform
   '.ondigitalocean.app',
-];
+] : true;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -12,7 +12,6 @@ import { ExportView } from './charts/ExportView';
 import { type ChartDay } from '@/lib/mock-data';
 import { QuickStats } from './charts/QuickStats';
 import { useSwipe } from '@/components/common/hooks/useSwipe';
-import { usePremiumFeatures } from '@/lib/featureFlags';
 import { apiJson } from '@/lib/api';
 // Removed local ChartDay/ChartData types below
 
@@ -28,11 +27,6 @@ function riskColor(risk: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA') {
 
 
 export function ChartScreen() {
-    // If usePremiumFeatures isn't available, default to false or mock it. 
-    // Assuming standard hook usage.
-    const { premiumEnabled } = usePremiumFeatures();
-
-
     const { showBranding } = useDiscreetMode();
     // Viewed Month State
     const [viewDate, setViewDate] = React.useState(new Date());

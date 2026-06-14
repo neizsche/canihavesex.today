@@ -27,10 +27,13 @@ const authPlugin: FastifyPluginAsync<AuthPluginOptions> = async (fastify, opts) 
     fastify.addHook('onRequest', async (req, reply) => {
         // Skip auth for non-API routes or specific public API routes
         const isApiRoute = req.url.startsWith('/api/');
-        const isPublicRoute = 
-            req.url.startsWith('/api/auth/oauth/') || 
-            req.url === '/api/signout' || 
-            req.url === '/api/session/check' || 
+        const isPublicRoute =
+            req.url.startsWith('/api/auth/oauth/') ||
+            req.url === '/api/auth/register' ||
+            req.url === '/api/auth/login' ||
+            req.url === '/api/auth/providers' ||
+            req.url === '/api/signout' ||
+            req.url === '/api/session/check' ||
             req.url.startsWith('/api/waitlist') ||
             req.url === '/health';
 

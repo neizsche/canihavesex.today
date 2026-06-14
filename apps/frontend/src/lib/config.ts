@@ -8,10 +8,7 @@ export const config = {
 
     // Default to production API
     if (!base) {
-      if (import.meta.env.DEV) {
-        return 'http://localhost:1299';
-      }
-      // Default to empty string - paths already include /api/, and Vercel proxies /api/* to Railway
+      // Use relative paths in development as well, since Vite/Astro proxies /api to backend
       return '';
     }
 

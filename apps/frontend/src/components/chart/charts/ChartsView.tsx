@@ -4,9 +4,6 @@ import { CycleLengthChart } from './CycleLengthChart';
 import { PeriodHistoryChart } from './PeriodHistoryChart';
 
 import { MOCK_CYCLES } from '../../../lib/mock-data';
-import { PremiumUnlockCard } from '../../common/ui/PremiumUnlockCard';
-import { usePremiumFeatures } from '../../../lib/featureFlags';
-import { CHARTS_VIEW_LABELS } from './ChartsView.config';
 
 interface ChartsViewProps {
     data: any[]; // CycleHistory[]
@@ -15,8 +12,6 @@ interface ChartsViewProps {
 }
 
 export function ChartsView({ data = [], insufficientData = false, trends = [] }: ChartsViewProps) {
-    const { premiumEnabled } = usePremiumFeatures();
-
     return (
         <div className="flex flex-col h-full bg-background dark:bg-black">
             <div className="flex-1 overflow-y-auto min-h-0">
@@ -48,15 +43,6 @@ export function ChartsView({ data = [], insufficientData = false, trends = [] }:
                         </section>
                     )}
 
-
-
-                    {/* Section 4: Premium Predictions (Conditionally shown) */}
-                    {premiumEnabled && !insufficientData && (
-                        <PremiumUnlockCard
-                            title={CHARTS_VIEW_LABELS.premium.title}
-                            description={CHARTS_VIEW_LABELS.premium.description}
-                        />
-                    )}
                 </div>
             </div>
         </div>

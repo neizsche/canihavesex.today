@@ -2,7 +2,10 @@ import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
+import fastifyStatic from '@fastify/static';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider, hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 
 import { createDb } from './db.js';
@@ -124,12 +127,27 @@ export async function createApp() {
   });
 
 
-  // Validate required environment variables
-  const requiredEnvVars = ['COOKIE_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
+  // Validate required environment variables.
+  // Only COOKIE_SECRET is mandatory. Google OAuth is optional — email + password
+  // login works out of the box, which keeps self-hosting dependency-free.
+  const requiredEnvVars = ['COOKIE_SECRET'];
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
   if (missingVars.length > 0) {
     console.error(`Missing required environment variables: ${missingVars.join(', ')}`);
     process.exit(1);
+  }
+  // Refuse to boot with a weak or placeholder cookie secret — otherwise session
+  // cookies are signed with a guessable key and can be forged.
+  const cookieSecret = process.env.COOKIE_SECRET ?? '';
+  if (cookieSecret.length < 32 || cookieSecret.includes('CHANGE_ME')) {
+    console.error(
+      'COOKIE_SECRET is too short or still the placeholder. ' +
+      'Set a strong random value before starting, e.g.:  openssl rand -hex 32'
+    );
+    process.exit(1);
+  }
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.warn('[auth] Google OAuth not configured; email + password login is available.');
   }
 
   // 1. Register Core Plugins
@@ -207,6 +225,21 @@ export async function createApp() {
   app.register(calendarRoutes, { db });
   app.register(userRoutes, { db });
   app.register(exportRoutes, { db });
+
+  // Serve the built frontend SPA (single-image deployment). FRONTEND_DIST points
+  // at the directory of built static files. When unset (e.g. API-only local dev
+  // where Vite serves the frontend), this is skipped entirely.
+  const frontendDir = process.env.FRONTEND_DIST ? resolve(process.env.FRONTEND_DIST) : null;
+  if (frontendDir && existsSync(frontendDir)) {
+    await app.register(fastifyStatic, { root: frontendDir });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === 'GET' && !req.url.startsWith('/api/') && !req.url.startsWith('/health')) {
+        return reply.sendFile('index.html'); // SPA fallback (client-side hash routing)
+      }
+      return reply.status(404).send({ error: 'Not Found' });
+    });
+    app.log.info({ frontendDir }, 'Serving frontend from disk (single-image mode)');
+  }
 
 
 

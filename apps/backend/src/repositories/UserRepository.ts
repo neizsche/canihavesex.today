@@ -3,6 +3,7 @@ import type { Db } from '../db.js';
 export interface User {
     id: string; // UUID
     email: string;
+    password_hash?: string | null;
     created_at: string;
 }
 
@@ -33,6 +34,10 @@ export class UserRepository {
             'INSERT INTO users (id, email, created_at) VALUES ($1, $2, $3)',
             [user.id, user.email, user.created_at || new Date().toISOString()]
         );
+    }
+
+    async setPassword(userId: string, passwordHash: string): Promise<void> {
+        await this.db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
     }
 
     async delete(id: string): Promise<void> {

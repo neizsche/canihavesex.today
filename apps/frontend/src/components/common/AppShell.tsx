@@ -62,7 +62,7 @@ export function AppShell() {
         {/* Persistent Hidden Preloader for Static Assets */}
         <div className="hidden" aria-hidden="true">
           {ASSETS_TO_PRELOAD.map((asset, idx) => (
-            <img key={idx} src={asset.src || asset} alt="" />
+            <img key={idx} src={asset.src} alt="" />
           ))}
         </div>
 

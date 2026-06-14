@@ -1,14 +1,19 @@
 import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type { UserRepository } from '../repositories/UserRepository.js';
 import type { PreferencesRepository } from '../repositories/PreferencesRepository.js';
+import { hashPassword, verifyPassword } from '../password.js';
 import {
     appBase,
+    ensureUserForEmail,
+    googleConfigured,
     linkIdentity,
     oauthRedirectUri,
     OauthProvider,
     publicBackendBase,
     safeReturnTo,
+    setSessionCookie,
     verifyGoogleIdToken,
 } from '../auth.js';
 
@@ -17,6 +22,57 @@ export async function authRoutes(
     opts: { userRepository: UserRepository; preferencesRepository: PreferencesRepository }
 ) {
     const { userRepository, preferencesRepository } = opts;
+
+    const credsSchema = z.object({
+        email: z.string().email().transform((s) => s.trim().toLowerCase()),
+        password: z.string().min(8).max(200),
+    });
+
+    // Which auth providers are enabled (driven by env). The sign-in page reads this
+    // to render only the buttons that are available for this deployment.
+    app.get('/api/auth/providers', async (_req, reply) => {
+        return reply.send({ password: true, google: googleConfigured(), oidc: false });
+    });
+
+    // Email + password: create account
+    app.post('/api/auth/register', async (req, reply) => {
+        const parsed = credsSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return reply.status(400).send({ error: 'invalid_input', message: 'Enter a valid email and a password of at least 8 characters.' });
+        }
+        const { email, password } = parsed.data;
+
+        const existing = await userRepository.findByEmail(email);
+        if (existing) {
+            return reply.status(409).send({ error: 'email_taken', message: 'An account with this email already exists.' });
+        }
+
+        const userId = await ensureUserForEmail(userRepository, preferencesRepository, email);
+        await userRepository.setPassword(userId, await hashPassword(password));
+
+        setSessionCookie(reply, userId);
+        const onboardingCompleted = await preferencesRepository.hasCompletedOnboarding(userId);
+        return reply.send({ userId, email, onboardingCompleted });
+    });
+
+    // Email + password: sign in
+    app.post('/api/auth/login', async (req, reply) => {
+        const parsed = credsSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return reply.status(400).send({ error: 'invalid_input', message: 'Enter a valid email and password.' });
+        }
+        const { email, password } = parsed.data;
+
+        const user = await userRepository.findByEmail(email);
+        // Same response whether the email is unknown or the password is wrong (no enumeration).
+        if (!user || !user.password_hash || !(await verifyPassword(password, user.password_hash))) {
+            return reply.status(401).send({ error: 'invalid_credentials', message: 'Incorrect email or password.' });
+        }
+
+        setSessionCookie(reply, user.id);
+        const onboardingCompleted = await preferencesRepository.hasCompletedOnboarding(user.id);
+        return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
+    });
 
     app.get<{ Params: { provider: string } }>('/api/auth/oauth/:provider/start', async (req, reply) => {
         const provider = req.params.provider as OauthProvider;

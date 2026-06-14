@@ -105,3 +105,25 @@ export function safeReturnTo(v: unknown): string {
     if (s.startsWith('//')) return '/';
     return s;
 }
+
+/** Whether Google OAuth is configured via env (drives the providers endpoint). */
+export function googleConfigured(): boolean {
+    return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+export function sessionCookieOptions() {
+    // COOKIE_SAMESITE=none enables cross-domain cookies (split frontend/backend);
+    // default 'lax' is correct for the same-origin single-image deployment.
+    const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
+    const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
+    return { path: '/', httpOnly: true, sameSite, secure } as const;
+}
+
+/** Issue the signed `uid` session cookie (shared by OAuth and email/password). */
+export function setSessionCookie(reply: any, userId: string): void {
+    reply.setCookie('uid', userId, {
+        ...sessionCookieOptions(),
+        signed: true,
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+}

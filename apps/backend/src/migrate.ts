@@ -27,18 +27,22 @@ export async function migrate(db: Db) {
     await db.exec(`DROP TABLE IF EXISTS "${t}" CASCADE`).catch(() => {});
   }
 
-  // Also drop core tables if they are still using the old 'TEXT' ID schema
-  const checkUsers = await db.query<{ data_type: string }>(
-    `SELECT data_type FROM information_schema.columns 
-     WHERE table_name = 'users' AND column_name = 'id' LIMIT 1`
-  );
+  // Also drop core tables if they are still using the old 'TEXT' ID schema.
+  // DESTRUCTIVE: this wipes ALL user data. It is gated behind an explicit
+  // opt-in flag so it never runs on a normal self-hosted install or upgrade.
+  if (process.env.MIGRATE_ALLOW_DESTRUCTIVE === '1') {
+    const checkUsers = await db.query<{ data_type: string }>(
+      `SELECT data_type FROM information_schema.columns
+       WHERE table_name = 'users' AND column_name = 'id' LIMIT 1`
+    );
 
-  if (checkUsers.length > 0 && checkUsers[0].data_type === 'text') {
-      console.log('[Migrate] Legacy TEXT schema detected in "users" table. Dropping for fresh UUID start...');
-      const coreTables = ['users', 'user_identities', 'user_preferences', 'user_api_keys', 'waitlist', 'cycles', 'active_cycles', 'daily_status', 'logs'];
-      for (const t of coreTables) {
-          await db.exec(`DROP TABLE IF EXISTS "${t}" CASCADE`).catch(() => {});
-      }
+    if (checkUsers.length > 0 && checkUsers[0].data_type === 'text') {
+        console.log('[Migrate] Legacy TEXT schema detected in "users" table. Dropping for fresh UUID start...');
+        const coreTables = ['users', 'user_identities', 'user_preferences', 'user_api_keys', 'waitlist', 'cycles', 'active_cycles', 'daily_status', 'logs'];
+        for (const t of coreTables) {
+            await db.exec(`DROP TABLE IF EXISTS "${t}" CASCADE`).catch(() => {});
+        }
+    }
   }
 
   // Ensure 'cycles' table is updated if it exists from a previous v5 run
@@ -60,8 +64,12 @@ export async function migrate(db: Db) {
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       email TEXT NOT NULL UNIQUE,
+      password_hash TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    -- Email + password login. Nullable: a user may sign in via OAuth only.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 
     CREATE TABLE IF NOT EXISTS user_identities (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

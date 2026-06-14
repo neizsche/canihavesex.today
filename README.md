@@ -1,137 +1,107 @@
-# canihavesex.today (MVP)
+# canihavesex.today
 
-Mobile-first Micro‑SaaS PWA for **today’s biological pregnancy risk** estimation.
+A private, open-source **period + fertility-awareness** app. It answers one honest
+question — *am I likely fertile today?* — and tracks your cycle, with no ads, no
+tracking, and no data-harvesting.
 
-## Philosophy / constraints (non‑negotiable)
+> Not medical advice, and not a contraceptive. See the [Disclaimer](#disclaimer).
 
-- This app **does not** predict periods.
-- This app **does not** generate a future calendar or “safe days”.
-- This app **does not** promise contraception or safety.
-- This app shows only:
-  - **Today’s risk**: `HIGH` / `MEDIUM` / `LOW`
-  - A short, conservative explanation
-- If uncertain: **assume fertile**.
+## What it is
 
-Every screen shows the disclaimer:
+canihavesex.today brings together period tracking and fertility awareness — two
+sides of one cycle. From the signals you log (bleeding, basal body temperature,
+cervical fluid, LH tests), it estimates today's fertility status alongside your
+cycle context (cycle day, fertile window, next-period estimate).
 
-> This is not medical advice. This does not guarantee pregnancy prevention.
+Design principles:
 
-## Tech
+- **Fertility-led and honest.** Today's status is the headline; period insights sit
+  alongside it. When the signal is unclear, it assumes you're fertile — it never
+  implies contraceptive safety.
+- **Calm and minimal.** No ads, no upsells, no gamification. (See [BRAND.md](./BRAND.md).)
+- **Yours.** Your data stays on your own instance. Self-host it in minutes.
 
-- Frontend: Astro (mobile-first minimal UI)
-- Backend: Node.js (Fastify) + TypeScript
-- DB: PostgreSQL (required via `DATABASE_URL`)
+## Features
 
-## Repo layout
+- Daily logging: bleeding/flow, BBT, cervical fluid, LH tests — plus symptoms,
+  mood, energy, sleep, libido, and notes
+- Today's fertility status with a confidence signal
+- Cycle context: cycle day, fertile window, next-period estimate, calendar, trends
+- Email + password accounts out of the box (Google / OIDC optional)
+- CSV export of your own data
+- Mobile-first PWA with light and dark themes
 
-- `apps/backend` Fastify API + fertility engine
-- `apps/frontend` Astro UI (Today / Log / Chart / Settings)
+## Tech stack
 
-## Deployment
+- **Frontend:** Astro + React (static SPA), Tailwind
+- **Backend:** Node.js (Fastify) + TypeScript
+- **Database:** PostgreSQL
 
-See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for deployment instructions using Railway + Vercel.
+## Self-hosting
 
-## Run locally 
+The easiest path is Docker:
 
-See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for complete local development setup.
+```bash
+git clone https://github.com/OWNER/canihavesex.today.git
+cd canihavesex.today
+printf 'COOKIE_SECRET=%s\nPOSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 16)" > .env
+docker compose up -d --build
+```
 
-### Quick Start
+Open <http://localhost:3000> and create an account. Migrations run automatically on
+boot and are non-destructive. Full guide: [SELF_HOSTING.md](./SELF_HOSTING.md).
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+## Local development
 
-2. **Set up environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and fill in your values (DATABASE_URL, GOOGLE_CLIENT_ID, etc.)
-   ```
+Requires Node 22 and a PostgreSQL database.
 
-3. **Run backend**:
-   ```bash
-   npm run dev:backend
-   ```
-   Backend runs on `http://localhost:1299`
+```bash
+npm install
+cp .env.example .env     # set COOKIE_SECRET (openssl rand -hex 32) and DATABASE_URL
+npm run dev              # backend on :1299, frontend on :3112
+```
 
-4. **Run frontend** (in a new terminal):
-   ```bash
-   npm run dev:frontend
-   ```
-   Frontend runs on `http://localhost:3112`
+- A single `.env` at the repo root configures both apps.
+- `COOKIE_SECRET` (≥ 32 chars) and `DATABASE_URL` are required; Google OAuth is optional.
 
-5. **Or run both together**:
-   ```bash
-   npm run dev
-   ```
+## Authentication
 
-### Important Notes
+Email + password is the built-in default, so a fresh install needs no external
+accounts. Google OAuth and generic OIDC activate automatically when their env vars
+are set — the sign-in screen adapts to whatever is configured. See `.env.example`.
 
-- **PostgreSQL is required**: Set `DATABASE_URL` in `.env` (use Supabase Connection Pooling URL)
-- **OAuth setup**: Add `http://localhost:1299/api/auth/oauth/google/callback` to Google OAuth redirect URIs
-- **Environment variables**: See `.env.example` for all required variables
+## Project layout
 
-## API endpoints
+- `apps/backend` — Fastify API + the fertility engine (`src/engine.ts`)
+- `apps/frontend` — Astro/React UI (Today / Log / Chart / Settings)
 
-- `GET /api/auth/oauth/:provider/start` – start OAuth flow (supports `google`)
-- `GET /api/auth/oauth/:provider/callback` – OAuth callback
-- `POST /api/signout` – logout
-- `GET /api/session` – get current session (authenticated)
-- `GET /api/session/check` – lightweight session check (unauthenticated)
-- `GET /api/today` – returns today's status + insights
-- `GET /api/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD` – calendar range + quick stats
-- `GET /api/stats` – cycle stats + history
-- `GET /api/logs/:date` – get log for a date
-- `GET /api/logs/suggestion?date=YYYY-MM-DD` – smart prefill suggestion
-- `POST /api/logs` – upsert daily log
-- `GET /api/export?includeNotes=true|false` – CSV export
-- `POST /api/user/onboarding/complete` – complete onboarding
-- `POST /api/user/data/delete` – delete all user data
-- `POST /api/user/account/delete` – delete account + data
-- `GET /health` – system health check
+## How the fertility engine works
 
+The engine (`apps/backend/src/engine.ts`) is the single source of truth; the
+frontend only displays its results.
 
-## Data model (MVP)
+1. **Cycle segmentation** — a new cycle starts on medium/heavy bleeding after at
+   least 18 days.
+2. **Signals** — BBT shift, LH surge, peak (egg-white) cervical fluid, and a
+   calendar fallback from average cycle length.
+3. **Fusion** — a weighted blend (LH > BBT > fluid > calendar) estimates the
+   ovulation day and a confidence score.
+4. **Fertile window** — ovulation day −5 through +1.
+5. **Daily status** — `period` on bleeding, `fertile` inside the window,
+   `not_fertile` outside it, and `unsure` when the window has passed without a
+   temperature-confirmed ovulation.
 
-Tables:
+## Disclaimer
 
-- `users`
-- `cycles`
-- `daily_logs`
-
-`daily_logs` fields:
-
-- `date`
-- `mucusType`
-- `sensation`
-- `bleeding`
-- `temperature` (optional)
-- `lhTest`
-- `createdAt`
-
-## Fertility engine (authoritative)
-
-All fertility logic lives in:
-
-- `apps/backend/src/engine.ts` (Fusion engine)
-
-Frontend only displays backend results.
-
-### Engine overview (v5 fusion)
-
-1. Cycle segmentation: a new cycle starts on `medium` or `heavy` bleeding after at least 18 days since the last cycle start.
-2. Signals used for ovulation estimation: BBT shift (3 days above the mean of the previous 6), LH surge (ovulation ~1 day after), peak eggwhite mucus, and a calendar fallback from average cycle length.
-3. Fusion: a weighted average of available signals (LH > BBT > mucus > calendar) produces an estimated ovulation day and confidence score.
-4. Fertile window: estimated ovulation day minus 5 days through plus 1 day.
-5. Daily status: `period` on bleeding, `fertile` inside the window, `not_fertile` outside the window, and `unsure` if the window has passed without BBT confirmation.
-
-The engine also emits an `insights_payload` with confidence, notifications, and cycle stats for the UI.
-
+This is fertility-awareness software. It is **not medical advice** and **not a
+contraceptive**, and it does not guarantee pregnancy prevention. When in doubt,
+assume you are fertile, and consult a healthcare professional for medical decisions.
 
 ## Contributing
 
-Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for details on how to contribute to this project.
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-All rights reserved.
+[GNU AGPL-3.0](./LICENSE). If you run a modified version as a network service, you
+must make your source available under the same license.
