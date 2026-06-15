@@ -27,25 +27,34 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     app.patch('/api/v1/user/preferences', {
         schema: {
             body: z.object({
-                intent: z.string(),
-                cycle_regularity: z.string(),
-                context_flags: z.array(z.string()).optional(),
-                last_period_start: z.string(),
-                cycle_length_min: z.number().optional(),
-                cycle_length_max: z.number().optional()
+                intent: z.enum(['avoid_pregnancy', 'conceive', 'understand_cycle']),
+                cycle_regularity: z.enum(['regular', 'irregular', 'unsure']),
+                context_flags: z.array(z.string()).max(20).optional(),
+                last_period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+                cycle_length_min: z.number().int().min(18).max(45).optional(),
+                cycle_length_max: z.number().int().min(18).max(45).optional()
             })
         }
     }, async (req, reply) => {
         const userId = req.userId!;
         const body = req.body;
 
-        const { intent, cycle_regularity, context_flags, last_period_start, cycle_length_min, cycle_length_max } = body;
+        const { intent, cycle_regularity, context_flags } = body;
+        let { last_period_start, cycle_length_min, cycle_length_max } = body;
 
-        if (!intent || !cycle_regularity || !last_period_start) {
-            return reply.status(400).send({ error: 'Missing required fields' });
+        // Normalize: last_period_start cannot be in the future (clamp to today).
+        const today = isoToday();
+        if (last_period_start > today) {
+            last_period_start = today;
         }
 
-        // Use transaction for atomic onboarding
+        // Normalize: ensure min <= max when both supplied.
+        if (cycle_length_min && cycle_length_max && cycle_length_min > cycle_length_max) {
+            [cycle_length_min, cycle_length_max] = [cycle_length_max, cycle_length_min];
+        }
+
+        // Use transaction for atomic onboarding. Idempotent: re-running onboarding
+        // (e.g. a client retry after a perceived failure) must not duplicate state.
         const sessionData = await opts.db.transaction(async (txDb: any) => {
             const txPrefRepo = new PreferencesRepository(txDb);
             const txMetaRepo = new UserMetaRepository(txDb);
@@ -72,8 +81,13 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 avg_cycle_length: avgLength
             });
 
-            // 3. Create Initial Active Cycle
-            const cycleId = randomUUID();
+            // 3. Create/Update Initial Active Cycle.
+            // Reuse the existing active cycle (no end_date) instead of always
+            // inserting a fresh UUID — otherwise a retry leaves duplicate active cycles.
+            const existingCycles = await txCycleRepo.getCycleHistory(userId);
+            const activeCycle = existingCycles.find((c) => !c.end_date);
+            const cycleId = activeCycle?.id ?? randomUUID();
+
             await txCycleRepo.upsertCycles([{
                 id: cycleId,
                 user_id: userId,
@@ -82,13 +96,13 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 ovulation_prediction: null,
                 ovulation_confirmed_date: null,
                 length: null,
-                period_length: null,
+                period_length: activeCycle?.period_length ?? null,
                 analysis_flags: []
             }]);
 
             // 4. Get User data for session update
             const user = await txUserRepo.findById(userId);
-            
+
             return {
                 userId,
                 email: user?.email ?? null,
@@ -124,6 +138,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             last_period_start: activeCycle?.start_date ?? null,
             period_length: activeCycle?.period_length ?? latestCompleted?.period_length ?? 5,
             show_branding: prefs.show_branding ?? true,
+            theme: prefs.theme ?? 'dark',
         };
     });
 
@@ -137,6 +152,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 last_period_start: z.string().optional(),
                 period_length: z.number().min(1).max(10).optional(),
                 show_branding: z.boolean().optional(),
+                theme: z.enum(['light', 'dark']).optional(),
             })
         }
     }, async (req, reply) => {
@@ -156,6 +172,11 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         // 1b. Update show_branding (discreet mode)
         if (body.show_branding !== undefined) {
             await prefRepo.updateShowBranding(userId, body.show_branding);
+        }
+
+        // 1c. Update theme (light/dark)
+        if (body.theme !== undefined) {
+            await prefRepo.updateTheme(userId, body.theme);
         }
 
         // 2. Update user_metadata (avg_cycle_length)

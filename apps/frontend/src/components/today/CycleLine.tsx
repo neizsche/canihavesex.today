@@ -8,8 +8,7 @@ interface CycleLineProps {
   fertileEndDay: number | null;
 }
 
-const pct = (value: number, length: number) =>
-  Math.max(0, Math.min(100, (value / length) * 100));
+const pct = (value: number, length: number) => Math.max(0, Math.min(100, (value / length) * 100));
 
 function nextPeriodLabel(days: number | null): string | null {
   if (days === null) return null;

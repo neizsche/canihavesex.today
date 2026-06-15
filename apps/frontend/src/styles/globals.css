@@ -5,43 +5,43 @@
 @layer base {
   :root {
     --background: #f2f2f7;
-    /* App-wide background color */
+    /* iOS systemGroupedBackground — gray canvas so white cells pop */
     --foreground: #000000;
-    /* Default text and icon color */
+    /* iOS label — primary text and icon color */
 
-    --color-risk-high: #C94A4A;
+    --color-risk-high: #c94a4a;
     /* High fertility risk accent */
-    --color-risk-medium: #C28B1E;
+    --color-risk-medium: #c28b1e;
     /* Medium fertility risk accent */
-    --color-risk-low: #3F8F5F;
+    --color-risk-low: #3f8f5f;
     /* Low fertility risk accent */
     --color-bg: #f2f2f7;
     /* Legacy/fallback background */
     --color-text-primary: #000000;
     /* Primary text */
-    --color-text-muted: #636366;
-    /* De-emphasized text */
+    --color-text-muted: #6c6c70;
+    /* iOS secondaryLabel — de-emphasized text */
 
     --card: #ffffff;
-    /* Card/Section background */
+    /* iOS secondarySystemGroupedBackground — white cells/sections */
     --card-foreground: #000000;
     /* Text inside cards */
 
     --popover: #ffffff;
-    /* Modal/Sheet background */
+    /* Modal/Sheet surface (white) */
     --popover-foreground: #000000;
     /* Text inside popovers */
 
-    --muted: #f2f2f7;
-    /* Subtle element background */
-    --muted-foreground: #636366;
-    /* Metadata/Placeholder text */
+    --muted: #e5e5ea;
+    /* iOS systemGray5 — subtle fills (segmented tracks, chips) */
+    --muted-foreground: #6c6c70;
+    /* iOS secondaryLabel — metadata/placeholder text */
 
     --border: transparent;
     /* No visible outer border (Inset Grouped) */
     --input: #e5e5ea;
     /* Form input border */
-    --ring: #007AFF;
+    --ring: #007aff;
     /* Apple Blue focus accent */
 
     --primary: #000000;
@@ -49,8 +49,8 @@
     --primary-foreground: #ffffff;
     /* Text on primary actions */
 
-    --secondary: #f2f2f7;
-    /* Secondary button background */
+    --secondary: #e5e5ea;
+    /* iOS systemGray5 — secondary button background */
     --secondary-foreground: #000000;
     /* Text on secondary actions */
 
@@ -79,7 +79,7 @@
   }
 
   /* Small Screen Scaling - More aggressive for tight layouts */
-  [data-scale="small"] {
+  [data-scale='small'] {
     --scale-factor: 0.85;
     --row-h: 2.5rem;
     --inset-gap: 0.5rem;
@@ -88,7 +88,7 @@
   }
 
   /* Large Screen Scaling - More generous spacing */
-  [data-scale="large"] {
+  [data-scale='large'] {
     --scale-factor: 1.15;
     --row-h: 3.5rem;
     --inset-gap: 2rem;
@@ -104,52 +104,52 @@
   .dark {
     --background: #000000;
     /* Dark mode app background */
-    --foreground: #FFFFFF;
+    --foreground: #ffffff;
     /* Primary text color */
 
-    --card: #1C1C1E;
+    --card: #1c1c1e;
     /* Section/Card background */
-    --card-foreground: #FFFFFF;
+    --card-foreground: #ffffff;
     /* Text on sections/cards */
 
-    --popover: #2C2C2E;
+    --popover: #2c2c2e;
     /* Modal/Sheet background */
-    --popover-foreground: #FFFFFF;
+    --popover-foreground: #ffffff;
     /* Text on popovers */
 
-    --muted: #1C1C1E;
+    --muted: #1c1c1e;
     /* Subtle element background */
-    --muted-foreground: #8E8E93;
+    --muted-foreground: #8e8e93;
     /* Secondary label color */
 
     --border: transparent;
     /* No visible outer border (Inset Grouped) */
-    --input: #38383A;
+    --input: #38383a;
     /* Form field border */
-    --ring: #0A84FF;
+    --ring: #0a84ff;
     /* System blue focus accent */
 
-    --primary: #FFFFFF;
+    --primary: #ffffff;
     /* Primary action background */
     --primary-foreground: #000000;
     /* Primary action text */
 
-    --secondary: #1C1C1E;
+    --secondary: #1c1c1e;
     /* Secondary action background */
-    --secondary-foreground: #FFFFFF;
+    --secondary-foreground: #ffffff;
     /* Secondary action text */
 
-    --destructive: #FF453A;
+    --destructive: #ff453a;
     /* System red (Dark Mode) */
-    --destructive-foreground: #FFFFFF;
+    --destructive-foreground: #ffffff;
     /* Destructive text */
 
     /* Dark Mode Risk Tones */
-    --risk-high: #FF453A;
-    --risk-high-bg: #2C1414;
-    --risk-medium: #FF9F0A;
-    --risk-medium-bg: #2C2010;
-    --risk-low: #32D74B;
+    --risk-high: #ff453a;
+    --risk-high-bg: #2c1414;
+    --risk-medium: #ff9f0a;
+    --risk-medium-bg: #2c2010;
+    --risk-low: #32d74b;
     --risk-low-bg: #102414;
   }
 
@@ -160,7 +160,9 @@
   body {
     min-height: 100%;
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
   }
 
   * {

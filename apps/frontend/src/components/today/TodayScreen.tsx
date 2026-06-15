@@ -3,6 +3,7 @@ import { Activity, ChevronRight, TrendingUp } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
+import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useNavigation } from '@/hooks/useNavigation';
 import { useInsights } from '@/hooks/queries/useInsights';
 import { CycleLine } from './CycleLine';
@@ -62,6 +63,7 @@ const SIGNAL_KEYS = [
 
 export function TodayScreen() {
   const { navigate } = useNavigation();
+  const { showBranding: brandingVisible } = useDiscreetMode();
   const todayQuery = useInsights();
 
   const apiData = todayQuery.data;
@@ -69,8 +71,7 @@ export function TodayScreen() {
   // While refetching stale data, treat as not-logged to avoid flashing old status
   const dailyLogDone = todayQuery.isFetching ? false : (apiData?.dailyLogDone ?? false);
 
-  const activeStatus: FertilityStatus =
-    (apiData?.status as FertilityStatus) || 'not_fertile';
+  const activeStatus: FertilityStatus = (apiData?.status as FertilityStatus) || 'not_fertile';
   const status = STATUS_CONFIG[activeStatus] || STATUS_CONFIG['not_fertile'];
 
   const todayData = safeInsights['today'];
@@ -83,17 +84,21 @@ export function TodayScreen() {
   const confidenceMessage = todayData?.confidence?.message || '';
 
   const notifications: string[] = todayData?.notifications || [];
-  const dynamicSubtitle =
-    notifications[0] || status.fallbackSubtitle;
+  const dynamicSubtitle = notifications[0] || status.fallbackSubtitle;
 
   const sourceText: string = todayData?.sourceText || '';
   const basisShort = BASIS_SHORT[sourceText] || 'Calendar';
 
   return (
-    <div className="h-full bg-[#F2F2F7] dark:bg-black font-sans flex flex-col">
+    <div className="h-full bg-background font-sans flex flex-col">
       <Header />
 
-      <div className="flex-1 flex flex-col w-full min-h-0 overflow-y-auto">
+      <div
+        className={cn(
+          'flex-1 flex flex-col w-full min-h-0 overflow-y-auto',
+          !brandingVisible && 'pt-10 sm:pt-12'
+        )}
+      >
         {!dailyLogDone ? (
           /* ── Not Logged ── */
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
@@ -132,9 +137,7 @@ export function TodayScreen() {
                     status.accent
                   )}
                 >
-                  <div
-                    className={cn('w-1.5 h-1.5 rounded-full', status.dot)}
-                  />
+                  <div className={cn('w-1.5 h-1.5 rounded-full', status.dot)} />
                   {phase}
                 </div>
               )}
@@ -204,9 +207,7 @@ export function TodayScreen() {
                     <span
                       className={cn(
                         'w-1.5 h-1.5 rounded-full',
-                        active
-                          ? status.dot
-                          : 'bg-zinc-300 dark:bg-zinc-600'
+                        active ? status.dot : 'bg-zinc-300 dark:bg-zinc-600'
                       )}
                     />
                     {label}
@@ -240,10 +241,7 @@ export function TodayScreen() {
                     i === arr.length - 1 && 'rounded-b-[14px]'
                   )}
                 >
-                  <Icon
-                    className={cn('h-[18px] w-[18px]', color)}
-                    strokeWidth={2.5}
-                  />
+                  <Icon className={cn('h-[18px] w-[18px]', color)} strokeWidth={2.5} />
                   <span className="flex-1 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
                     {label}
                   </span>

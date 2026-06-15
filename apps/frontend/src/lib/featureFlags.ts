@@ -5,17 +5,17 @@
  */
 
 export function isPremiumEnabled(): boolean {
-    return true;
+  return true;
 }
 
 export function usePremiumFeatures() {
-    return { premiumEnabled: true, isPremium: true };
+  return { premiumEnabled: true, isPremium: true };
 }
 
 export function isPremiumStatusEnabled(): boolean {
-    return true;
+  return true;
 }
 
 export function usePremiumStatus() {
-    return { isPremium: true };
+  return { isPremium: true };
 }

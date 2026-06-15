@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { Sparkles, PencilLine, TrendingUp, Settings } from 'lucide-react';
 
-import { BrandTitle } from '../common/BrandTitle';
-import { cn } from '../../lib/utils';
-import { useSwipe } from '../common/hooks/useSwipe';
+import { BrandTitle } from '@/components/common/BrandTitle';
+import { cn } from '@/lib/utils';
+import { useSwipe } from '@/components/common/hooks/useSwipe';
 
 type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
@@ -71,9 +71,7 @@ function PreviewShell({ slide, children }: { slide: TourSlide; children: React.R
             style={{ background: slide.accentSoft }}
           />
         </div>
-        <div className="relative h-full p-5 flex flex-col gap-4">
-          {children}
-        </div>
+        <div className="relative h-full p-5 flex flex-col gap-4">{children}</div>
       </div>
     </div>
   );
@@ -98,7 +96,10 @@ function TodayPreview({ slide }: { slide: TourSlide }) {
             Highly fertile
           </div>
           <div className="mt-3 h-2 rounded-full bg-white/60">
-            <div className="h-2 rounded-full" style={{ backgroundColor: slide.accent, width: '68%' }} />
+            <div
+              className="h-2 rounded-full"
+              style={{ backgroundColor: slide.accent, width: '68%' }}
+            />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -166,7 +167,12 @@ function ChartPreview({ slide }: { slide: TourSlide }) {
             key={idx}
             className="h-2 rounded-full"
             style={{
-              backgroundColor: idx % 9 === 0 ? slide.accent : idx % 4 === 0 ? slide.accentSoft : 'rgba(209, 213, 219, 0.6)',
+              backgroundColor:
+                idx % 9 === 0
+                  ? slide.accent
+                  : idx % 4 === 0
+                    ? slide.accentSoft
+                    : 'rgba(209, 213, 219, 0.6)',
             }}
           />
         ))}
@@ -269,7 +275,8 @@ export function AppTourScreen({ onComplete, onSkip }: AppTourScreenProps) {
 
         <div className="px-6 pt-2 text-center">
           <div className="text-[11px] uppercase tracking-[0.28em] text-zinc-400">App Tour</div>
-          <div className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold"
+          <div
+            className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold"
             style={{ backgroundColor: activeSlide.accentSoft, color: activeSlide.accent }}
           >
             <Icon className="h-4 w-4" strokeWidth={2.2} />
@@ -313,7 +320,9 @@ export function AppTourScreen({ onComplete, onSkip }: AppTourScreenProps) {
             {index + 1} of {TOUR_SLIDES.length}
           </div>
           <button
-            onClick={() => (isLast ? onComplete() : setIndex((prev) => Math.min(prev + 1, TOUR_SLIDES.length - 1)))}
+            onClick={() =>
+              isLast ? onComplete() : setIndex((prev) => Math.min(prev + 1, TOUR_SLIDES.length - 1))
+            }
             className="mt-4 w-full h-12 rounded-2xl bg-[#007aff] text-white font-semibold text-[16px] transition-all hover:bg-[#0051d5] active:scale-[0.98] shadow-lg shadow-blue-500/20"
           >
             {isLast ? 'Continue' : 'Next'}

@@ -9,8 +9,8 @@ import {
   Thermometer,
   X,
 } from 'lucide-react';
-import { InsightType } from '../../../lib/mock-data';
-import { cn } from '../../../lib/utils';
+import { InsightType } from '@/lib/mock-data';
+import { cn } from '@/lib/utils';
 
 interface InsightPageProps {
   isOpen: boolean;

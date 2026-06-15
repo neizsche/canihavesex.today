@@ -6,6 +6,7 @@ import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persist
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { BottomNav } from './BottomNav';
 import { SessionGate } from './SessionGate';
+import { ThemeSync } from './ThemeSync';
 import { RouteManager, useRoute } from './RouteManager';
 
 // Static assets for preloading
@@ -58,6 +59,7 @@ export function AppShell() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeSync />
       <SessionGate>
         {/* Persistent Hidden Preloader for Static Assets */}
         <div className="hidden" aria-hidden="true">

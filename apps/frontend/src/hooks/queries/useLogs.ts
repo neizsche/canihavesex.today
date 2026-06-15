@@ -1,10 +1,32 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiJson } from '@/lib/api';
+import type { LogPayload, LogSuggestion } from '@/components/log/logState';
+
+export interface LogDayResponse {
+  found: boolean;
+  hasData?: boolean;
+  payload?: LogPayload;
+  minDate?: string;
+  suggestion?: LogSuggestion;
+}
+
+interface SaveLogResponse {
+  today?: unknown;
+}
+
+interface SaveLogVars {
+  date: string;
+  payload: LogPayload;
+}
+
+interface SaveLogContext {
+  previousLog: unknown;
+}
 
 export function useLog(date: string) {
   return useQuery({
     queryKey: ['log-day', date],
-    queryFn: () => apiJson<{ found: boolean; hasData?: boolean; payload?: any; minDate?: string; suggestion?: any; }>(`/api/v1/logs/${date}`),
+    queryFn: () => apiJson<LogDayResponse>(`/api/v1/logs/${date}`),
     enabled: !!date,
     staleTime: 5 * 60 * 1000,
   });
@@ -12,9 +34,9 @@ export function useLog(date: string) {
 
 export function useSaveLog() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ date, payload }: { date: string; payload: any }) =>
-      apiJson<any>(`/api/v1/logs/${date}`, {
+  return useMutation<SaveLogResponse, Error, SaveLogVars, SaveLogContext>({
+    mutationFn: ({ date, payload }) =>
+      apiJson<SaveLogResponse>(`/api/v1/logs/${date}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -28,16 +50,16 @@ export function useSaveLog() {
       const previousLog = queryClient.getQueryData(['log-day', date]);
 
       // Optimistically update to the new value
-      queryClient.setQueryData(['log-day', date], (old: any) => ({
-        ...old,
+      queryClient.setQueryData<LogDayResponse>(['log-day', date], (old) => ({
+        ...(old ?? { found: false }),
         found: true,
-        payload
+        payload,
       }));
 
       return { previousLog };
     },
     // If the mutation fails, use the context returned from onMutate to roll back
-    onError: (err, { date }, context: any) => {
+    onError: (_err, { date }, context) => {
       if (context?.previousLog) {
         queryClient.setQueryData(['log-day', date], context.previousLog);
       }
@@ -47,7 +69,7 @@ export function useSaveLog() {
         queryClient.setQueryData(['insights', 'today'], data.today);
       }
     },
-    onSettled: (_, __, { date }) => {
+    onSettled: (_data, _err, { date }) => {
       queryClient.invalidateQueries({ queryKey: ['log-day', date] });
       queryClient.invalidateQueries({ queryKey: ['insights', 'today'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });

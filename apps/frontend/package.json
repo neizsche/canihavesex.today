@@ -10,7 +10,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "lint": "eslint . --ext .ts,.tsx,.astro",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.1",

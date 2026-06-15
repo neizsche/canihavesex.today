@@ -12,4 +12,3 @@ export function LegacyAppRedirect(props: { to: string }) {
     </div>
   );
 }
-

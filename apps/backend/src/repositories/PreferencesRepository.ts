@@ -68,15 +68,25 @@ export class PreferencesRepository {
         const now = new Date().toISOString();
         const contextFlagsJson = JSON.stringify(data.context_flags);
 
+        // Upsert (not UPDATE): onboarding must succeed even if the default
+        // preferences row was never created (OAuth edge cases, races, data resets).
+        // A plain UPDATE would silently affect 0 rows and leave the user stuck.
         await this.db.query(
-            `UPDATE user_preferences 
-             SET intent = $1, cycle_regularity = $2, context_flags = $3, 
-                 onboarding_completed_at = $4, 
-                 education_global_shown_at = $4,
-                 education_mucus_shown_at = $4,
-                 education_bbt_shown_at = $4,
-                 education_lh_shown_at = $4
-             WHERE user_id = $5`,
+            `INSERT INTO user_preferences
+                 (user_id, theme, intent, cycle_regularity, context_flags,
+                  onboarding_completed_at, education_global_shown_at, education_mucus_shown_at,
+                  education_bbt_shown_at, education_lh_shown_at, updated_at)
+             VALUES ($5, 'dark', $1, $2, $3, $4, $4, $4, $4, $4, $4)
+             ON CONFLICT (user_id) DO UPDATE SET
+                 intent = EXCLUDED.intent,
+                 cycle_regularity = EXCLUDED.cycle_regularity,
+                 context_flags = EXCLUDED.context_flags,
+                 onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+                 education_global_shown_at = EXCLUDED.education_global_shown_at,
+                 education_mucus_shown_at = EXCLUDED.education_mucus_shown_at,
+                 education_bbt_shown_at = EXCLUDED.education_bbt_shown_at,
+                 education_lh_shown_at = EXCLUDED.education_lh_shown_at,
+                 updated_at = EXCLUDED.updated_at`,
             [data.intent, data.cycle_regularity, contextFlagsJson, now, userId]
         );
     }
@@ -89,9 +99,9 @@ export class PreferencesRepository {
         return !!(rows[0]?.onboarding_completed_at);
     }
 
-    async getOnboardingData(userId: string): Promise<{ intent: string | null; cycle_regularity: string | null; context_flags: string[]; show_branding: boolean }> {
+    async getOnboardingData(userId: string): Promise<{ intent: string | null; cycle_regularity: string | null; context_flags: string[]; show_branding: boolean; theme: 'light' | 'dark' }> {
         const rows = await this.db.query<any>(
-            'SELECT intent, cycle_regularity, context_flags, show_branding FROM user_preferences WHERE user_id = $1',
+            'SELECT intent, cycle_regularity, context_flags, show_branding, theme FROM user_preferences WHERE user_id = $1',
             [userId]
         );
 
@@ -99,10 +109,11 @@ export class PreferencesRepository {
         return {
             intent: prefs?.intent ?? null,
             cycle_regularity: prefs?.cycle_regularity ?? null,
-            context_flags: Array.isArray(prefs?.context_flags) 
-                ? prefs.context_flags 
+            context_flags: Array.isArray(prefs?.context_flags)
+                ? prefs.context_flags
                 : (prefs?.context_flags ? JSON.parse(prefs.context_flags) : []),
-            show_branding: prefs?.show_branding ?? true
+            show_branding: prefs?.show_branding ?? true,
+            theme: prefs?.theme === 'light' ? 'light' : 'dark'
         };
     }
 

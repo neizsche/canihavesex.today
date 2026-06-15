@@ -3,11 +3,11 @@ const { title, active } = Astro.props;
 const showBranding = Astro.props.showBranding ?? true;
 const showNav = Astro.props.showNav ?? true;
 const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md px-4 pt-6';
-import { BottomNav } from '../components/common/BottomNav';
+import { BottomNav } from '@/components/common/BottomNav';
 import Analytics from '@vercel/analytics/astro';
 import SpeedInsights from '@vercel/speed-insights/astro';
 import '../styles/globals.css';
-import { SITE_TITLE, BRAND } from '../lib/siteConfig';
+import { SITE_TITLE, BRAND } from '@/lib/siteConfig';
 
 const mainPaddingBottom = showNav ? 'pb-28' : 'pb-6';
 // If this layout is being used for app-adjacent pages, keep the brand link inside the app shell.
@@ -29,10 +29,9 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     <script>
       (() => {
         try {
-          // Theme logic
+          // Theme logic — dark is the default; light is opt-in via Settings.
           const stored = localStorage.getItem('theme');
-          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          const shouldDark = stored ? stored === 'dark' : prefersDark;
+          const shouldDark = stored ? stored === 'dark' : true;
           document.documentElement.classList.toggle('dark', shouldDark);
 
           // Scaling logic - considers both width and height
@@ -40,7 +39,7 @@ const brandHref = showNav === false ? '/app#/today' : '/';
             const h = window.innerHeight;
             const w = window.innerWidth;
             let scale = 'medium';
-            
+
             // Desktop/laptop: use large scale for premium, spacious feel
             if (w > 768) {
               scale = 'large';
@@ -50,7 +49,7 @@ const brandHref = showNav === false ? '/app#/today' : '/';
               else if (h > 850) scale = 'large';
               else scale = 'medium';
             }
-            
+
             document.documentElement.setAttribute('data-scale', scale);
           };
           updateScale();
@@ -69,15 +68,22 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     </script>
   </head>
   <body class="bg-background text-foreground">
-    {showBranding ? (
-      <header class="sticky top-0 z-50 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div class={`mx-auto flex ${maxWidthClass} items-center justify-center px-4 pt-8 pb-4`}>
-          <a href={brandHref} class="text-[22px] font-bold tracking-tight text-foreground select-none">
-            {BRAND.PREFIX}<span class="text-rose-500 font-extrabold italic mx-[1px]">{BRAND.HIGHLIGHT}</span>{BRAND.SUFFIX}
-          </a>
-        </div>
-      </header>
-    ) : null}
+    {
+      showBranding ? (
+        <header class="sticky top-0 z-50 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div class={`mx-auto flex ${maxWidthClass} items-center justify-center px-4 pt-8 pb-4`}>
+            <a
+              href={brandHref}
+              class="text-[22px] font-bold tracking-tight text-foreground select-none"
+            >
+              {BRAND.PREFIX}
+              <span class="text-rose-500 font-extrabold italic mx-[1px]">{BRAND.HIGHLIGHT}</span>
+              {BRAND.SUFFIX}
+            </a>
+          </div>
+        </header>
+      ) : null
+    }
 
     <main class={`mx-auto min-h-dvh ${maxWidthClass} ${mainPaddingBottom}`}>
       <slot />

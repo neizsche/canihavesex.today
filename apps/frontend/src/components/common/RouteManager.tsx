@@ -11,7 +11,7 @@ function normalizeHashRoute(hash: string): RouteKey {
   const raw = hash.replace(/^#/, '');
   const path = raw.startsWith('/') ? raw : `/${raw}`;
   const first = path.split('?')[0]?.split('#')[0] ?? '/';
-  
+
   if (first === '/log') return 'log';
   if (first === '/chart') return 'chart';
   if (first === '/settings') return 'settings';
