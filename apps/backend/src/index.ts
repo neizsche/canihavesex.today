@@ -61,6 +61,13 @@ export async function createApp() {
   app.addHook('onRequest', async (req, reply) => {
     (req as any).__startAt = process.hrtime.bigint();
 
+    // Security Headers (H1)
+    reply.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
     // Enforce HTTPS in production
     if (process.env.NODE_ENV === 'production') {
       const xfProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
@@ -120,9 +127,13 @@ export async function createApp() {
       'request error'
     );
     const error = err as any;
-    return reply.status(error.statusCode || 500).send({
-      error: error.statusCode === 400 ? 'Bad Request' : (error.statusCode === 401 || error.statusCode === 403 ? 'Unauthorized' : 'Internal Server Error'),
-      message: error.message
+    const statusCode = error.statusCode || 500;
+    
+    return reply.status(statusCode).send({
+      error: statusCode === 400 ? 'Bad Request' : (statusCode === 401 || statusCode === 403 ? 'Unauthorized' : 'Internal Server Error'),
+      message: process.env.NODE_ENV === 'production' && statusCode >= 500
+        ? 'An internal server error occurred'
+        : error.message
     });
   });
 
@@ -181,9 +192,7 @@ export async function createApp() {
       // Test database connectivity
       await db.query('SELECT 1 as health_check');
 
-      const includeDetails =
-        process.env.HEALTH_DETAILS === '1' ||
-        process.env.NODE_ENV !== 'production';
+      const includeDetails = process.env.NODE_ENV !== 'production';
 
       return reply.send({
         status: 'healthy',
@@ -207,14 +216,37 @@ export async function createApp() {
   });
 
 
-  // Rate limiting
-  app.addHook(
-    'preHandler',
-    createRateLimitMiddleware({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      maxRequests: 5000, // Increased for dev/testing safety
-    })
-  );
+  // CSRF validation hook (C2)
+  app.addHook('preHandler', async (req, reply) => {
+    // Only check state-changing API endpoints
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.url.startsWith('/api/')) {
+      const isApiKey = req.headers['authorization']?.startsWith('Bearer ');
+      if (!isApiKey && req.headers['x-requested-with'] !== 'XMLHttpRequest') {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'CSRF validation failed: Missing custom header',
+        });
+      }
+    }
+  });
+
+  // Rate limiting (M1 & M2)
+  const defaultRateLimiter = createRateLimitMiddleware({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: process.env.NODE_ENV === 'production' ? 300 : 5000,
+  });
+
+  const authRateLimiter = createRateLimitMiddleware({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: process.env.NODE_ENV === 'production' ? 10 : 1000,
+  });
+
+  app.addHook('preHandler', async (req, reply) => {
+    if (req.url.startsWith('/api/auth/login') || req.url.startsWith('/api/auth/register')) {
+      return authRateLimiter(req, reply);
+    }
+    return defaultRateLimiter(req, reply);
+  });
 
 
   // Register Routes

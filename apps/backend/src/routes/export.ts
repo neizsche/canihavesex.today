@@ -38,21 +38,26 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
         csv += '\n';
 
         // CSV Rows
+        const escapeFormula = (val: string) => {
+            if (/^[=+\-@]/.test(val)) return `'${val}`;
+            return val;
+        };
+
         for (const log of logs) {
             const date = log.date;
-            const bleeding = log.bleeding || '';
+            const bleeding = escapeFormula(log.bleeding || '');
             const temperature = log.temperature || '';
-            const mucus = log.mucus || '';
-            const lhTest = log.lh_test || '';
+            const mucus = escapeFormula(log.mucus || '');
+            const lhTest = escapeFormula(log.lh_test || '');
             // Arrays need specific handling (e.g. pipe joined or space joined)
-            const disturbances = (log.disturbances || []).join('; ');
-            const symptoms = (log.symptoms || []).join('; ');
+            const disturbances = escapeFormula((log.disturbances || []).join('; ')).replace(/"/g, '""');
+            const symptoms = escapeFormula((log.symptoms || []).join('; ')).replace(/"/g, '""');
 
             let row = `${date},${bleeding},${temperature},${mucus},${lhTest},"${disturbances}","${symptoms}"`;
 
             if (includeNotes) {
                 // Escape quotes in notes
-                const cleanNotes = (log.notes || '').replace(/"/g, '""');
+                const cleanNotes = escapeFormula(log.notes || '').replace(/"/g, '""');
                 row += `,"${cleanNotes}"`;
             }
 

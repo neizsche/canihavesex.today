@@ -29,12 +29,17 @@ ENV NODE_ENV=production \
     FRONTEND_DIST=/app/frontend \
     DB_SSL=false
 
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --gid 1001 nodejs
+
 # Production node_modules + built artifacts only.
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
-COPY --from=build /app/apps/backend/dist ./apps/backend/dist
-COPY --from=build /app/apps/frontend/dist ./frontend
+COPY --from=build --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=build --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=build --chown=nodejs:nodejs /app/apps/backend/package.json ./apps/backend/package.json
+COPY --from=build --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build --chown=nodejs:nodejs /app/apps/frontend/dist ./frontend
+
+USER nodejs
 
 EXPOSE 1299
 # server.js boots Fastify (API + static frontend) and runs DB migrations on start.

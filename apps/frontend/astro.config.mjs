@@ -9,25 +9,13 @@ import { loadEnv } from 'vite';
 // Environment-specific configuration
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Hosting platform detection
+// Hosting platform detection (GCP Cloud Run and production domains only)
 const allowedHosts = isProduction ? [
   'canihavesex.today',
   'www.canihavesex.today',
   'app.canihavesex.today',
   'localhost',
-  // Vercel
-  '.vercel.app',
-  // Netlify
-  '.netlify.app',
-  '.netlify.dev',
-  // Railway
-  '.railway.app',
-  // Render
-  '.onrender.com',
-  // Fly.io
-  '.fly.dev',
-  // Digital Ocean App Platform
-  '.ondigitalocean.app',
+  '.run.app', // GCP Cloud Run
 ] : true;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -58,7 +46,7 @@ export default defineConfig({
       allowedHosts,
       proxy: {
         '/api': {
-          target: isProduction ? 'https://backend-production-9072.up.railway.app' : 'http://127.0.0.1:1299',
+          target: 'http://127.0.0.1:1299',
           changeOrigin: true,
           secure: false,
         },

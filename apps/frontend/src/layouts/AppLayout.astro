@@ -4,8 +4,6 @@ const showBranding = Astro.props.showBranding ?? true;
 const showNav = Astro.props.showNav ?? true;
 const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md px-4 pt-6';
 import { BottomNav } from '@/components/common/BottomNav';
-import Analytics from '@vercel/analytics/astro';
-import SpeedInsights from '@vercel/speed-insights/astro';
 import '../styles/globals.css';
 import { SITE_TITLE, BRAND } from '@/lib/siteConfig';
 
@@ -90,7 +88,5 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     </main>
 
     {showNav ? <BottomNav active={active} /> : null}
-    <Analytics />
-    <SpeedInsights />
   </body>
 </html>

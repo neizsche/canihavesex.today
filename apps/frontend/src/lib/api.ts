@@ -11,6 +11,7 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     ...init,
     credentials: 'include',
     headers: {
+      'X-Requested-With': 'XMLHttpRequest',
       ...(init.headers || {}),
     },
   });

@@ -25,9 +25,6 @@ export const config = {
   // Development mode
   devMode: import.meta.env.DEV,
 
-  // Analytics
-  gaTrackingId: (import.meta.env as any).PUBLIC_GA_TRACKING_ID,
-
   // Environment
   isProduction: import.meta.env.PROD,
   isDevelopment: import.meta.env.DEV,

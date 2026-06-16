@@ -36,12 +36,20 @@ export async function createDb(): Promise<Db> {
   // Configure connection pool for production use
   const sslDisabled = process.env.DB_SSL === 'false';
   const sslCa = process.env.DB_SSL_CA;
+  
+  // Strict cert verification is opt-in via DB_SSL_STRICT=1. It stays off by
+  // default because managed providers (e.g. Supabase) present a private-CA chain
+  // that Node won't trust out of the box — enabling strict without also supplying
+  // DB_SSL_CA breaks the connection (SELF_SIGNED_CERT_IN_CHAIN). To run strict,
+  // set DB_SSL_STRICT=1 and provide DB_SSL_CA with the provider's CA cert.
+  const sslStrictEnv = process.env.DB_SSL_STRICT;
+  const rejectUnauthorized = sslStrictEnv === '1' || sslStrictEnv === 'true';
+
   const ssl =
     sslDisabled
       ? false
       : {
-        // TODO: Re-enable strict SSL verification in production once the cert chain is fixed.
-        rejectUnauthorized: process.env.DB_SSL_STRICT === '1',
+        rejectUnauthorized,
         ...(sslCa ? { ca: sslCa } : {}),
       };
 
