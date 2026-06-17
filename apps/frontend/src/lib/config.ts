@@ -30,8 +30,6 @@ export const config = {
   isDevelopment: import.meta.env.DEV,
 } as const;
 
-export type Config = typeof config;
-
 // Log environment information in development
 if (config.isDevelopment) {
   console.log('🎨 Frontend running in DEVELOPMENT mode');

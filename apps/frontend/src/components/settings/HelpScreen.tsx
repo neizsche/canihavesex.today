@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ChevronRight, Mail, FileText, Shield, ExternalLink } from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
-import { BRAND } from '@/lib/siteConfig';
+import { BRAND, CONTACT_EMAIL } from '@/lib/siteConfig';
 import { Header } from '@/components/common/Header';
 import { BrandTitle } from '@/components/common/BrandTitle';
 
@@ -39,7 +39,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
             <div className="space-y-6">
               <InsetGroup title="Contact">
                 <a
-                  href="mailto:support@canihavesex.today"
+                  href={`mailto:${CONTACT_EMAIL}`}
                   className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                 >
                   <div className="flex items-center gap-3">

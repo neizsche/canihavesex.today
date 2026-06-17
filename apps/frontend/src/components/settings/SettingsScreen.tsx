@@ -386,7 +386,7 @@ export function SettingsScreen() {
             </div>
 
             {/* Profile Link */}
-            <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.profile}>
+            <InsetGroup>
               <SettingsExpandableRow
                 icon={<Activity className="icon-sm text-white" />}
                 iconBgColor="bg-pink-500"
@@ -595,7 +595,7 @@ export function SettingsScreen() {
             </InsetGroup>
 
             {/* Display */}
-            <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.appearance}>
+            <InsetGroup>
               <div className="space-y-0 divide-y divide-border/30">
                 <SettingsToggleRow
                   icon={<Moon className="icon-sm text-white" />}
@@ -626,7 +626,7 @@ export function SettingsScreen() {
             </InsetGroup>
 
             {/* Account */}
-            <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.account}>
+            <InsetGroup>
               <div className="space-y-0 divide-y divide-border/30">
                 {session?.email && (
                   <div className="px-4 py-3 sm:py-4 bg-zinc-50/50 dark:bg-zinc-900/50 text-left">
@@ -677,7 +677,7 @@ export function SettingsScreen() {
             </InsetGroup>
 
             {/* Shortcuts */}
-            <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.shortcuts}>
+            <InsetGroup>
               <SettingsExpandableRow
                 icon={<KeyRound className="icon-sm text-white" />}
                 iconBgColor="bg-emerald-500"
@@ -774,7 +774,7 @@ export function SettingsScreen() {
             </InsetGroup>
 
             {/* Support */}
-            <InsetGroup title={SETTINGS_SCREEN_LABELS.sections.support}>
+            <InsetGroup>
               <SettingsActionRow
                 icon={<HelpCircle className="icon-sm text-white" />}
                 iconBgColor="bg-blue-500"

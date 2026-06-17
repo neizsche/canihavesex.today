@@ -15,6 +15,9 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<StatusTone>('muted');
   const [busy, setBusy] = React.useState(false);
+  // Gate the form until we know whether an existing session will redirect us
+  // away. Without this, the login form flashes for already-authenticated users.
+  const [checkingSession, setCheckingSession] = React.useState(true);
 
   const apiBase = React.useMemo(() => getApiBase(), []);
 
@@ -85,12 +88,15 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated) {
+            // Keep the gate up — we're navigating away, so never show the form.
             location.href = returnTo;
+            return;
           }
         }
       } catch (err) {
         console.warn('Session check failed:', err);
       }
+      if (!cancelled) setCheckingSession(false);
     }
     void checkSession();
     return () => {
@@ -125,6 +131,18 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
   const heading = mode === 'signin' ? 'Welcome back' : 'Create your account';
   const subheading =
     mode === 'signin' ? 'Log today. See where you are.' : 'One honest question, answered calmly.';
+
+  // While checking for an existing session, show only the brand wordmark — no
+  // form — so already-authenticated users redirect without a login flash.
+  if (checkingSession) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center">
+          <BrandTitle />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background animate-in fade-in duration-300">

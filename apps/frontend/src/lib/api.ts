@@ -77,34 +77,3 @@ export function currentReturnTo(): string {
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   return current || '/';
 }
-
-export async function checkAuth(): Promise<boolean> {
-  try {
-    const res = await apiFetch('/api/session');
-    return res.ok;
-  } catch (error) {
-    // If backend is not available, treat as unauthenticated
-    if (config.devMode) {
-      console.warn('Backend not available for auth check:', error);
-    }
-    return false;
-  }
-}
-
-/**
- * Check if the backend API is available
- */
-export async function checkBackendHealth(): Promise<boolean> {
-  try {
-    const res = await fetch(`${getApiBase()}/health`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return res.ok;
-  } catch (error) {
-    if (config.devMode) {
-      console.warn('Backend health check failed:', error);
-    }
-    return false;
-  }
-}

@@ -68,8 +68,10 @@ export function TodayScreen() {
 
   const apiData = todayQuery.data;
   const safeInsights = apiData?.insights || {};
-  // While refetching stale data, treat as not-logged to avoid flashing old status
-  const dailyLogDone = todayQuery.isFetching ? false : (apiData?.dailyLogDone ?? false);
+  // Keep showing cached results during a background refetch (stale-while-
+  // revalidate). Blanking this on isFetching caused the Log CTA to flash before
+  // results whenever the page was revisited after the 5-minute staleTime.
+  const dailyLogDone = apiData?.dailyLogDone ?? false;
 
   const activeStatus: FertilityStatus = (apiData?.status as FertilityStatus) || 'not_fertile';
   const status = STATUS_CONFIG[activeStatus] || STATUS_CONFIG['not_fertile'];
@@ -89,6 +91,24 @@ export function TodayScreen() {
   const sourceText: string = todayData?.sourceText || '';
   const basisShort = BASIS_SHORT[sourceText] || 'Calendar';
 
+  // First load with nothing cached yet: show a neutral state rather than the Log
+  // CTA, which would otherwise flash before the initial fetch resolves.
+  if (todayQuery.isLoading) {
+    return (
+      <div className="h-full bg-background font-sans flex flex-col">
+        <Header />
+        <div
+          className={cn(
+            'flex-1 flex items-center justify-center',
+            !brandingVisible && 'pt-10 sm:pt-12'
+          )}
+        >
+          <div className="text-sm text-zinc-400 dark:text-zinc-600 animate-pulse">Loading…</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full bg-background font-sans flex flex-col">
       <Header />
@@ -105,6 +125,8 @@ export function TodayScreen() {
             <img
               src="/logo.png"
               alt="App Logo"
+              width={80}
+              height={80}
               className="w-20 h-20 object-contain mix-blend-multiply dark:mix-blend-normal mb-8"
             />
 

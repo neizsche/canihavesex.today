@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 
-export type TodayData = {
+type TodayData = {
   date: string;
   risk: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
   explanation: string;
@@ -15,7 +15,7 @@ export type TodayData = {
   } | null;
 };
 
-export type ChartDay = {
+type ChartDay = {
   date: string;
   risk: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
   temperature: number | null;
@@ -23,7 +23,7 @@ export type ChartDay = {
   lhTest: 'positive' | 'negative' | 'notTaken';
 };
 
-export type ChartData = {
+type ChartData = {
   cycle: {
     id?: string;
     startDate: string;

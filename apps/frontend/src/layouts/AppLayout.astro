@@ -5,7 +5,7 @@ const showNav = Astro.props.showNav ?? true;
 const maxWidthClass = Astro.props.maxWidthClass ?? 'max-w-md px-4 pt-6';
 import { BottomNav } from '@/components/common/BottomNav';
 import '../styles/globals.css';
-import { SITE_TITLE, BRAND } from '@/lib/siteConfig';
+import { SITE_TITLE, BRAND, APP_DESCRIPTION, APP_KEYWORDS } from '@/lib/siteConfig';
 
 const mainPaddingBottom = showNav ? 'pb-28' : 'pb-6';
 // If this layout is being used for app-adjacent pages, keep the brand link inside the app shell.
@@ -18,6 +18,8 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title ? `${title} | ${SITE_TITLE}` : SITE_TITLE}</title>
+    <meta name="description" content={APP_DESCRIPTION} />
+    <meta name="keywords" content={APP_KEYWORDS} />
     <meta name="theme-color" content="#0b0b0f" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />

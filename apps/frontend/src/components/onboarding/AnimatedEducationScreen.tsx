@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { BrandTitle } from '@/components/common/BrandTitle';
 
-export interface AnimatedEducationItem {
+interface AnimatedEducationItem {
   title: string;
   desc: string;
   icon?: any;
@@ -59,7 +59,20 @@ export function AnimatedEducationScreen({
       <div className="flex-1 overflow-y-auto">
         <div className="min-h-full flex flex-col items-center justify-center px-6 py-8">
           <div className="w-full max-w-md space-y-10">
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-6">
+              {/* App logo hero — same treatment as the consent screen for a consistent flow */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-rose-500/10 blur-2xl rounded-full" />
+                  <div className="relative w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 duration-500">
+                    <img
+                      src="/logo.png"
+                      alt="App Logo"
+                      className="w-full h-full object-contain drop-shadow-2xl"
+                    />
+                  </div>
+                </div>
+              </div>
               <h2 className="text-[34px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
                 {title}
               </h2>

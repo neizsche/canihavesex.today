@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-export interface ActionSheetAction {
+interface ActionSheetAction {
   label: string;
   onClick: () => void;
   isDestructive?: boolean;
