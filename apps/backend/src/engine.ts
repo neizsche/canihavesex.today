@@ -288,7 +288,8 @@ function normalizeCycleData(cycle: Cycle, logMap: Map<string, Log>, analysisEnd:
         else if (dist.includes('sick') || dist.includes('fever')) rTemp = 0.0; // DISCARD
         else {
             if (dist.includes('alcohol')) rTemp *= 0.7;
-            if (dist.includes('bad_sleep')) rTemp *= 0.4;
+            // Poor sleep now lives in the Sleep body signal; keep `bad_sleep` as a fallback for legacy/API logs.
+            if (dist.includes('bad_sleep') || (log?.symptoms || []).includes('sleep:poor')) rTemp *= 0.4;
             if (dist.includes('late_measurement')) rTemp *= 0.8;
             if (dist.includes('stress')) rTemp *= 0.9;
         }

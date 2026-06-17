@@ -72,7 +72,6 @@ export const LOG_SCREEN_LABELS = {
       title: 'Factors',
       options: [
         { id: 'sick', label: 'Illness' },
-        { id: 'bad_sleep', label: 'Poor Sleep' },
         { id: 'alcohol', label: 'Alcohol' },
         { id: 'semen_exposure', label: 'Semen Exposure' },
         { id: 'infection', label: 'Infection' },

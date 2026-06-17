@@ -5,6 +5,7 @@ import { OnboardingScopeConsent } from './OnboardingScopeConsent';
 import { OnboardingSetup } from './OnboardingSetup';
 import { AnimatedEducationScreen } from './AnimatedEducationScreen';
 import { BrandTitle } from '@/components/common/BrandTitle';
+import { promptInstall } from '@/lib/pwaInstall';
 
 type OnboardingStep = 'consent' | 'education' | 'setup' | 'cycle_basics' | 'signals_overview';
 
@@ -29,7 +30,7 @@ const BrandingHeader = () => (
 );
 
 const BrandLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in fade-in duration-300">
+  <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in fade-in duration-300 motion-reduce:animate-none">
     <BrandingHeader />
     <div className="flex-1 min-h-0 relative">{children}</div>
   </div>
@@ -109,11 +110,32 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
   }
 
+  // Skipping finalizes onboarding with whatever has been entered so far (the
+  // defaults are all valid), so it reuses the same submit path as the CTA.
+  const handleSkip = handleComplete;
+
+  // Final CTA: offer the native "add to home screen" prompt as part of finishing.
+  // It must be triggered inside the click gesture; it's a no-op on platforms
+  // without a deferred prompt (iOS, already installed), so completion never blocks.
+  async function handleFinish() {
+    if (busy) return;
+    try {
+      await promptInstall();
+    } catch {
+      // Never let an install hiccup get in the way of finishing onboarding.
+    }
+    await handleComplete();
+  }
+
   // Render current step
   if (step === 'consent') {
     return (
       <BrandLayout>
-        <OnboardingScopeConsent onContinue={() => setStep('education')} />
+        <OnboardingScopeConsent
+          onContinue={() => setStep('education')}
+          onSkip={handleSkip}
+          skipBusy={busy}
+        />
       </BrandLayout>
     );
   }
@@ -156,6 +178,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         title="How this app works"
         items={HOW_IT_WORKS_ITEMS}
         onComplete={() => setStep('setup')}
+        onSkip={handleSkip}
+        busy={busy}
       />
     );
   }
@@ -182,6 +206,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             updateData(payload);
           }}
           onContinue={() => setStep('signals_overview')}
+          onSkip={handleSkip}
+          skipBusy={busy}
         />
       </BrandLayout>
     );
@@ -195,7 +221,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         <AnimatedEducationScreen
           title="Understanding your signs"
           items={SIGNALS_ITEMS}
-          onComplete={handleComplete}
+          onComplete={handleFinish}
           busy={busy}
           error={error}
           ctaLabel="Get started"

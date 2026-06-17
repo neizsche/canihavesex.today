@@ -3,7 +3,6 @@ import { TodayScreen } from '@/components/today/TodayScreen';
 import { LogScreen } from '@/components/log/LogScreen';
 import { ChartScreen } from '@/components/chart/ChartScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
-import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 
 export type RouteKey = 'today' | 'log' | 'chart' | 'settings' | 'onboarding';
 
@@ -55,8 +54,8 @@ export function RouteManager({ route }: { route: RouteKey }) {
       return <ChartScreen />;
     case 'settings':
       return <SettingsScreen />;
-    case 'onboarding':
-      return <OnboardingFlow onComplete={() => (window.location.hash = '#/today')} />;
+    // 'onboarding' is owned by SessionGate (rendered before the app chrome),
+    // so it falls through to Today here.
     default:
       return <TodayScreen />;
   }

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useSession } from '@/hooks/queries/useSession';
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { SignInPage } from './SignInPage';
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 
 interface SessionGateProps {
   children: React.ReactNode;
@@ -85,6 +86,13 @@ export function SessionGate({ children }: SessionGateProps) {
   // No user session -> show SignInPage inline
   if (!session.data?.userId) {
     return <SignInPage returnTo={currentReturnTo()} />;
+  }
+
+  // Gate onboarding synchronously during render. The hash-sync effect above
+  // only runs after a commit, so relying on it to swap routes briefly flashes
+  // the Today screen first. Returning here keeps the app chrome from mounting.
+  if (session.data.onboardingCompleted === false) {
+    return <OnboardingFlow onComplete={() => (window.location.hash = '#/today')} />;
   }
 
   return <>{children}</>;

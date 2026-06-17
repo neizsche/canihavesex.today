@@ -1,54 +1,61 @@
 import * as React from 'react';
+import { OnboardingSkipLink } from './OnboardingSkipLink';
+
 interface OnboardingScopeConsentProps {
   onContinue: () => void;
+  onSkip?: () => void;
+  skipBusy?: boolean;
 }
 
-export function OnboardingScopeConsent({ onContinue }: OnboardingScopeConsentProps) {
+export function OnboardingScopeConsent({
+  onContinue,
+  onSkip,
+  skipBusy,
+}: OnboardingScopeConsentProps) {
   return (
-    <div className="h-full bg-background font-sans flex flex-col overflow-y-auto">
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="max-w-md w-full space-y-12 text-center">
-          {/* Hero Icon */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="absolute inset-0 bg-rose-500/10 blur-2xl rounded-full" />
-              <div className="relative w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 duration-500">
-                <img
-                  src="/logo.png"
-                  alt="App Logo"
-                  className="w-full h-full object-contain drop-shadow-2xl"
-                />
-              </div>
+    <div className="flex h-full flex-col bg-background px-6 font-sans">
+      {/* Hero — centered in the available space, shrinks gracefully on short screens. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center justify-center gap-8 overflow-y-auto py-4 text-center">
+        <div className="short-hide flex justify-center">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-rose-500/10 blur-2xl" />
+            <div className="relative flex h-24 w-24 items-center justify-center transition-transform duration-500 hover:scale-105">
+              <img
+                src="/logo.png"
+                alt="App Logo"
+                className="h-full w-full object-contain drop-shadow-2xl"
+              />
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-[34px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
-              Daily fertility <br />
-              made simple.
-            </h2>
-
-            <p className="text-[19px] leading-relaxed text-zinc-600 dark:text-zinc-400 px-4">
-              Track your cycle, understand your body, and get clear fertility estimates every day.
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            <div className="pt-4">
-              <button
-                onClick={onContinue}
-                className="w-full h-14 rounded-2xl bg-[#007aff] text-white font-bold text-[17px] transition-all hover:bg-[#0051d5] active:scale-[0.98] shadow-xl shadow-blue-500/25"
-              >
-                Get Started
-              </button>
-            </div>
-
-            <p className="text-[13px] text-zinc-400 dark:text-zinc-500 max-w-[280px] mx-auto leading-relaxed font-medium">
-              This app provides estimates based on your data. It does not provide medical advice or
-              birth control.
-            </p>
           </div>
         </div>
+
+        <div className="space-y-4">
+          <h2 className="text-[34px] font-extrabold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100">
+            Daily fertility <br />
+            made simple.
+          </h2>
+
+          <p className="px-4 text-[19px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+            Track your cycle, understand your body, and get clear fertility estimates every day.
+          </p>
+        </div>
+      </div>
+
+      {/* Pinned footer — primary action always sits in the same spot. */}
+      <div className="mx-auto w-full max-w-md flex-shrink-0 space-y-4 pt-2 pb-8">
+        <button
+          onClick={onContinue}
+          className="h-14 w-full rounded-2xl bg-[#007aff] text-[17px] font-bold text-white shadow-xl shadow-blue-500/25 transition-all hover:bg-[#0051d5] active:scale-[0.98]"
+        >
+          Get Started
+        </button>
+
+        {onSkip && <OnboardingSkipLink onClick={onSkip} disabled={skipBusy} />}
+
+        <p className="mx-auto max-w-[280px] text-[13px] font-medium leading-relaxed text-zinc-400 dark:text-zinc-500">
+          This app provides estimates based on your data. It does not provide medical advice or
+          birth control.
+        </p>
       </div>
     </div>
   );

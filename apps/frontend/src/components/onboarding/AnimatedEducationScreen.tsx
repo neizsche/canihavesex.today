@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { BrandTitle } from '@/components/common/BrandTitle';
+import { OnboardingSkipLink } from './OnboardingSkipLink';
 
 interface AnimatedEducationItem {
   title: string;
@@ -18,6 +19,8 @@ interface AnimatedEducationScreenProps {
   /** Error message shown above the button; presence flips the label to "Try again". */
   error?: string | null;
   ctaLabel?: string;
+  /** When provided, renders a subtle "Skip for now" link beneath the CTA. */
+  onSkip?: () => void;
 }
 
 export function AnimatedEducationScreen({
@@ -27,112 +30,103 @@ export function AnimatedEducationScreen({
   busy = false,
   error = null,
   ctaLabel = 'Continue',
+  onSkip,
 }: AnimatedEducationScreenProps) {
-  const [visibleCount, setVisibleCount] = React.useState(0);
-  const [showButton, setShowButton] = React.useState(false);
+  // The content items slide in with a quick, gentle stagger. The CTA and skip
+  // link are intentionally NOT gated behind this — they're visible and tappable
+  // from the first frame so an impatient user never waits on the animation.
+  const [revealed, setRevealed] = React.useState(false);
 
   React.useEffect(() => {
-    // Staggered reveal sequence
-    const timers: NodeJS.Timeout[] = [];
-
-    // Show item 1 immediately
-    timers.push(setTimeout(() => setVisibleCount(1), 400));
-
-    // Show item 2 after delay
-    timers.push(setTimeout(() => setVisibleCount(2), 1200));
-
-    // Show item 3 after delay
-    timers.push(setTimeout(() => setVisibleCount(3), 2000));
-
-    // Show button after reading time
-    timers.push(setTimeout(() => setShowButton(true), 2600));
-
-    return () => timers.forEach(clearTimeout);
+    // Flip on the next frame so the initial (hidden) state paints first and the
+    // transition actually runs. Reduced-motion users are handled in CSS below.
+    const id = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(id);
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in fade-in duration-500">
-      <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center z-50">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background animate-in fade-in duration-300 motion-reduce:animate-none">
+      <div className="z-50 flex flex-shrink-0 items-center justify-center pt-8 pb-4">
         <BrandTitle />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="min-h-full flex flex-col items-center justify-center px-6 py-8">
-          <div className="w-full max-w-md space-y-10">
-            <div className="text-center space-y-6">
-              {/* App logo hero — same treatment as the consent screen for a consistent flow */}
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-rose-500/10 blur-2xl rounded-full" />
-                  <div className="relative w-24 h-24 flex items-center justify-center transition-transform hover:scale-105 duration-500">
-                    <img
-                      src="/logo.png"
-                      alt="App Logo"
-                      className="w-full h-full object-contain drop-shadow-2xl"
-                    />
-                  </div>
+      {/* Scrollable hero/content — centered, and only scrolls if a very short
+          viewport can't fit it. The CTA below stays pinned and always reachable. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-6">
+        <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-8 py-4">
+          <div className="space-y-6 text-center">
+            {/* App logo hero — same treatment as the consent screen for a consistent
+                flow. Hidden on very short screens to keep everything on one page. */}
+            <div className="short-hide flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-rose-500/10 blur-2xl" />
+                <div className="relative flex h-24 w-24 items-center justify-center transition-transform duration-500 hover:scale-105">
+                  <img
+                    src="/logo.png"
+                    alt="App Logo"
+                    className="h-full w-full object-contain drop-shadow-2xl"
+                  />
                 </div>
               </div>
-              <h2 className="text-[34px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
-                {title}
-              </h2>
             </div>
+            <h2 className="text-[34px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100 short-text-lg">
+              {title}
+            </h2>
+          </div>
 
-            <div className="space-y-8 pl-2">
-              {items.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={index}
-                    className={cn(
-                      'flex items-start gap-5 transition-all duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] transform',
-                      index < visibleCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-                    )}
-                  >
-                    {Icon && (
-                      <div
-                        className={cn(
-                          'mt-1 shrink-0 w-12 h-12 rounded-xl flex items-center justify-center',
-                          item.colorClass || 'bg-[#007aff]/10 text-[#007aff]'
-                        )}
-                      >
-                        <Icon className="w-6 h-6" strokeWidth={2.5} />
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      <h3 className="font-bold text-[19px] text-zinc-900 dark:text-zinc-100">
-                        {item.title}
-                      </h3>
-                      <p className="text-[16px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                        {item.desc}
-                      </p>
+          <div className="space-y-6 pl-2">
+            {items.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={index}
+                  style={{ transitionDelay: `${60 + index * 110}ms` }}
+                  className={cn(
+                    'flex transform items-start gap-5 transition-all duration-500 ease-out motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:transition-none',
+                    revealed ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+                  )}
+                >
+                  {Icon && (
+                    <div
+                      className={cn(
+                        'mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+                        item.colorClass || 'bg-[#007aff]/10 text-[#007aff]'
+                      )}
+                    >
+                      <Icon className="h-6 w-6" strokeWidth={2.5} />
                     </div>
+                  )}
+                  <div className="space-y-1">
+                    <h3 className="text-[19px] font-bold text-zinc-900 dark:text-zinc-100">
+                      {item.title}
+                    </h3>
+                    <p className="text-[16px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      {item.desc}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-
-            <div
-              className={cn(
-                'pt-8 transition-all duration-1000 ease-out transform',
-                showButton ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
-              )}
-            >
-              {error && (
-                <p className="mb-3 text-center text-[15px] text-red-500" role="alert">
-                  {error}
-                </p>
-              )}
-              <button
-                onClick={onComplete}
-                disabled={busy}
-                className="w-full h-14 rounded-xl bg-[#007aff] text-white font-semibold text-[17px] transition-all hover:bg-[#0051d5] active:scale-[0.98] shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:pointer-events-none"
-              >
-                {busy ? 'Setting up…' : error ? 'Try again' : ctaLabel}
-              </button>
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+      </div>
+
+      {/* Pinned footer — primary CTA and skip are available immediately so the
+          user never has to wait for the content reveal to finish. */}
+      <div className="mx-auto w-full max-w-md flex-shrink-0 space-y-4 px-6 pt-2 pb-8">
+        {error && (
+          <p className="text-center text-[15px] text-red-500" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          onClick={onComplete}
+          disabled={busy}
+          className="h-14 w-full rounded-xl bg-[#007aff] text-[17px] font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-[#0051d5] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+        >
+          {busy ? 'Setting up…' : error ? 'Try again' : ctaLabel}
+        </button>
+        {onSkip && <OnboardingSkipLink onClick={onSkip} disabled={busy} />}
       </div>
     </div>
   );
