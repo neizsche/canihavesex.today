@@ -13,6 +13,8 @@ import {
   Baby,
   EyeOff,
   Moon,
+  Download,
+  Share,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -34,6 +36,7 @@ import { ToggleTile } from '@/components/common/ui/toggle-tile';
 import { useSession } from '@/hooks/queries/useSession';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useTheme } from '@/hooks/useTheme';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 
 interface UserProfile {
   cycle_regularity: string | null;
@@ -111,6 +114,7 @@ export function SettingsScreen() {
   const [revokeTarget, setRevokeTarget] = React.useState<ApiKey | null>(null);
   const [regenConfirmOpen, setRegenConfirmOpen] = React.useState(false);
   const [shortcutOpen, setShortcutOpen] = React.useState(false);
+  const [installOpen, setInstallOpen] = React.useState(false);
 
   // Profile data state - Populated from server on load
   const [lastPeriod, setLastPeriod] = React.useState(new Date().toISOString().slice(0, 10));
@@ -126,6 +130,10 @@ export function SettingsScreen() {
   const { data: session } = useSession();
   const { showBranding: brandingVisible } = useDiscreetMode();
   const { theme, setTheme } = useTheme();
+  const { canPrompt, isInstalled, isIOS, promptInstall } = useInstallPrompt();
+  // Show the install affordance only when it can do something: a native prompt
+  // is available, or it's iOS (manual steps). Hidden once already installed.
+  const showInstall = !isInstalled && (canPrompt || isIOS);
 
   // Fetch profile data from server
   const profileQuery = useQuery({
@@ -624,6 +632,39 @@ export function SettingsScreen() {
                 />
               </div>
             </InsetGroup>
+
+            {/* Install App */}
+            {showInstall && (
+              <InsetGroup>
+                {canPrompt ? (
+                  <SettingsActionRow
+                    icon={<Download className="icon-sm text-white" />}
+                    iconBgColor="bg-[#007aff]"
+                    label={SETTINGS_SCREEN_LABELS.install.title}
+                    onClick={() => {
+                      void promptInstall();
+                    }}
+                  />
+                ) : (
+                  <SettingsExpandableRow
+                    icon={<Share className="icon-sm text-white" />}
+                    iconBgColor="bg-[#007aff]"
+                    title={SETTINGS_SCREEN_LABELS.install.title}
+                    description={SETTINGS_SCREEN_LABELS.install.prompt}
+                    open={installOpen}
+                    onToggle={() => setInstallOpen((prev) => !prev)}
+                  >
+                    <div className="rounded-xl border border-border/30 bg-zinc-50/60 dark:bg-zinc-900/40 p-3 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-1">
+                      {SETTINGS_SCREEN_LABELS.install.iosSteps.map((step, i) => (
+                        <div key={i}>
+                          {i + 1}. {step}
+                        </div>
+                      ))}
+                    </div>
+                  </SettingsExpandableRow>
+                )}
+              </InsetGroup>
+            )}
 
             {/* Account */}
             <InsetGroup>

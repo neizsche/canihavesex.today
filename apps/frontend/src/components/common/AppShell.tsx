@@ -7,7 +7,9 @@ import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { BottomNav } from './BottomNav';
 import { SessionGate } from './SessionGate';
 import { ThemeSync } from './ThemeSync';
+import { OfflineScreen } from './OfflineScreen';
 import { RouteManager, useRoute } from './RouteManager';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 function redirectToAuth(): void {
   const rt = currentReturnTo();
@@ -16,6 +18,7 @@ function redirectToAuth(): void {
 
 export function AppShell() {
   const { route } = useRoute();
+  const online = useOnlineStatus();
 
   const queryClient = React.useMemo(() => {
     const cache = new QueryCache({
@@ -53,6 +56,7 @@ export function AppShell() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
+      {!online && <OfflineScreen />}
       <SessionGate>
         <div className="h-dvh flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
           <div className="h-full max-w-lg mx-auto w-full bg-background flex flex-col overflow-hidden shadow-2xl">

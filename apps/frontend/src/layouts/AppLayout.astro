@@ -59,6 +59,19 @@ const brandHref = showNav === false ? '/app#/today' : '/';
         }
       })();
     </script>
+    <script is:inline>
+      // Capture the PWA install prompt as early as possible so it isn't lost
+      // before React mounts. Consumed by the install affordance in Settings
+      // (see src/lib/pwaInstall.ts and useInstallPrompt).
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.__deferredInstallPrompt = e;
+        window.dispatchEvent(new Event('pwa:installable'));
+      });
+      window.addEventListener('appinstalled', () => {
+        window.__deferredInstallPrompt = null;
+      });
+    </script>
     <script type="module">
       import { registerSW } from 'virtual:pwa-register';
 

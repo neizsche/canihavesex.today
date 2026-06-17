@@ -4,6 +4,15 @@ export const SETTINGS_SCREEN_LABELS = {
     darkMode: 'Dark Mode',
     darkModeHint: 'Use a dark theme throughout the app',
   },
+  install: {
+    title: 'Install App',
+    prompt: 'Add to your home screen',
+    iosSteps: [
+      'Tap the Share button in Safari.',
+      'Choose “Add to Home Screen”.',
+      'Tap “Add” to finish.',
+    ],
+  },
   account: {
     signedInAs: 'Signed in as',
     signIn: 'Sign In',
