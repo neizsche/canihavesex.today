@@ -24,6 +24,8 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                 <img
                   src="/logo.png"
                   alt="App Logo"
+                  decoding="sync"
+                  fetchPriority="high"
                   className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal"
                 />
               </div>
@@ -105,7 +107,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[15px] text-zinc-400">canihavesex.today</span>
+                    <span className="text-[15px] text-muted-foreground">canihavesex.today</span>
                     <ChevronRight className="w-4 h-4 text-zinc-300" />
                   </div>
                 </a>
@@ -113,7 +115,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
             </div>
 
             <div className="text-center px-4 pt-4">
-              <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">
                 © 2026 {BRAND.PREFIX}
                 {BRAND.HIGHLIGHT}
                 {BRAND.SUFFIX}

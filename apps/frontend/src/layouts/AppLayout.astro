@@ -16,7 +16,7 @@ const brandHref = showNav === false ? '/app#/today' : '/';
 <html lang="en" class="bg-background">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title ? `${title} | ${SITE_TITLE}` : SITE_TITLE}</title>
     <meta name="description" content={APP_DESCRIPTION} />
     <meta name="keywords" content={APP_KEYWORDS} />
@@ -71,6 +71,21 @@ const brandHref = showNav === false ? '/app#/today' : '/';
       window.addEventListener('appinstalled', () => {
         window.__deferredInstallPrompt = null;
       });
+
+      // Landing page (apex domain) links here with `?install=1` to kick off the
+      // install. First-time users hit sign-in/onboarding first, so persist the
+      // intent now — before any auth redirect can strip the query — and let
+      // useInstallHandoff act on it once the app proper mounts.
+      try {
+        var installUrl = new URL(window.location.href);
+        if (installUrl.searchParams.get('install') === '1') {
+          sessionStorage.setItem('pwa-install-intent', '1');
+          installUrl.searchParams.delete('install');
+          window.history.replaceState({}, '', installUrl.toString());
+        }
+      } catch (e) {
+        /* sessionStorage unavailable (private mode quirks) — ignore */
+      }
     </script>
     <script type="module">
       import { registerSW } from 'virtual:pwa-register';

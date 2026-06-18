@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrandTitle } from '@/components/common/BrandTitle';
 import { OnboardingSkipLink } from './OnboardingSkipLink';
@@ -21,6 +22,11 @@ interface AnimatedEducationScreenProps {
   ctaLabel?: string;
   /** When provided, renders a subtle "Skip for now" link beneath the CTA. */
   onSkip?: () => void;
+  /**
+   * Optional secondary action rendered as an outline button above the primary
+   * CTA — used to surface "Install App" on the final step.
+   */
+  secondaryCta?: { label: string; onClick: () => void } | null;
 }
 
 export function AnimatedEducationScreen({
@@ -31,6 +37,7 @@ export function AnimatedEducationScreen({
   error = null,
   ctaLabel = 'Continue',
   onSkip,
+  secondaryCta = null,
 }: AnimatedEducationScreenProps) {
   // The content items slide in with a quick, gentle stagger. The CTA and skip
   // link are intentionally NOT gated behind this — they're visible and tappable
@@ -64,6 +71,8 @@ export function AnimatedEducationScreen({
                   <img
                     src="/logo.png"
                     alt="App Logo"
+                    decoding="sync"
+                    fetchPriority="high"
                     className="h-full w-full object-contain drop-shadow-2xl"
                   />
                 </div>
@@ -118,6 +127,16 @@ export function AnimatedEducationScreen({
           <p className="text-center text-[15px] text-red-500" role="alert">
             {error}
           </p>
+        )}
+        {secondaryCta && (
+          <button
+            onClick={secondaryCta.onClick}
+            disabled={busy}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-[#007aff]/30 bg-[#007aff]/5 text-[17px] font-semibold text-[#007aff] transition-all hover:bg-[#007aff]/10 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+          >
+            <Download className="h-5 w-5" strokeWidth={2.5} />
+            {secondaryCta.label}
+          </button>
         )}
         <button
           onClick={onComplete}

@@ -23,6 +23,8 @@ export function OnboardingScopeConsent({
               <img
                 src="/logo.png"
                 alt="App Logo"
+                decoding="sync"
+                fetchPriority="high"
                 className="h-full w-full object-contain drop-shadow-2xl"
               />
             </div>

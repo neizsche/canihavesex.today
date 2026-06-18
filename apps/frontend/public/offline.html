@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <title>No connection · canihavesex.today</title>
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      /* Mirrors the in-app OfflineScreen (src/components/common/OfflineScreen.tsx).
+         Theme tokens come from src/styles/globals.css; the app toggles them via a
+         `.dark` class, so here we follow the system preference instead. */
+      :root {
+        --background: #f2f2f7;
+        --foreground: #000000;
+        --muted-foreground: #6c6c70;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #000000;
+          --foreground: #ffffff;
+          --muted-foreground: #8e8e93;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: var(--background);
+        color: var(--foreground);
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 2.5rem;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      h2 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 8px auto 0;
+        max-width: 17rem;
+        font-size: 15px;
+        line-height: 1.625;
+        color: var(--muted-foreground);
+      }
+    </style>
+  </head>
+  <body role="alertdialog" aria-label="You are offline">
+    <div>
+      <h2>No connection</h2>
+      <p>Please check your internet connection.</p>
+    </div>
+    <script>
+      // Auto-dismiss when connectivity returns, matching the in-app behavior.
+      window.addEventListener('online', function () {
+        location.reload();
+      });
+    </script>
+  </body>
+</html>

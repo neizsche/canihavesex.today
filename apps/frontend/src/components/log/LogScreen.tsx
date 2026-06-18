@@ -486,7 +486,7 @@ export function LogScreen() {
                         onChange={(e) => patch({ bbt: e.target.value })}
                         className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
                       />
-                      <span className="text-zinc-400 text-[17px]">
+                      <span className="text-muted-foreground text-[17px]">
                         {LOG_SCREEN_LABELS.units.temperature}
                       </span>
                     </div>
@@ -571,7 +571,7 @@ export function LogScreen() {
                       <span
                         className={cn(
                           'text-[11px] font-medium tracking-tight',
-                          form.notes.length >= 100 ? 'text-red-500' : 'text-zinc-400'
+                          form.notes.length >= 100 ? 'text-red-500' : 'text-muted-foreground'
                         )}
                       >
                         {form.notes.length}/100

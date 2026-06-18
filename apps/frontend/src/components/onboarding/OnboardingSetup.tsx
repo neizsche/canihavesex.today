@@ -94,7 +94,7 @@ export function OnboardingSetup({
                     >
                       {opt.label}
                     </span>
-                    <span className="text-[13px] text-zinc-500">{opt.desc}</span>
+                    <span className="text-[13px] text-muted-foreground">{opt.desc}</span>
                   </div>
                   {regularity === opt.id && (
                     <Check className="w-5 h-5 text-[#007aff]" strokeWidth={2.5} />

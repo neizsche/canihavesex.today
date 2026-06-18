@@ -5,7 +5,7 @@ import { OnboardingScopeConsent } from './OnboardingScopeConsent';
 import { OnboardingSetup } from './OnboardingSetup';
 import { AnimatedEducationScreen } from './AnimatedEducationScreen';
 import { BrandTitle } from '@/components/common/BrandTitle';
-import { promptInstall } from '@/lib/pwaInstall';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 
 type OnboardingStep = 'consent' | 'education' | 'setup' | 'cycle_basics' | 'signals_overview';
 
@@ -38,6 +38,7 @@ const BrandLayout = ({ children }: { children: React.ReactNode }) => (
 
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const queryClient = useQueryClient();
+  const { canPrompt, isInstalled, promptInstall } = useInstallPrompt();
   const [step, setStep] = React.useState<OnboardingStep>('consent');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -126,6 +127,19 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
     await handleComplete();
   }
+
+  // Explicit "Install App" button on the final step. Fires the native prompt
+  // without completing onboarding, so the user can install and still review the
+  // last screen. Only shown when a deferred prompt is actually available.
+  async function handleInstall() {
+    try {
+      await promptInstall();
+    } catch {
+      // Non-blocking — the user can still finish via the primary CTA.
+    }
+  }
+  const installCta =
+    canPrompt && !isInstalled ? { label: 'Install App', onClick: handleInstall } : null;
 
   // Render current step
   if (step === 'consent') {
@@ -225,6 +239,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           busy={busy}
           error={error}
           ctaLabel="Get started"
+          secondaryCta={installCta}
         />
       )}
     </>

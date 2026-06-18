@@ -264,6 +264,19 @@ export async function createApp() {
   const frontendDir = process.env.FRONTEND_DIST ? resolve(process.env.FRONTEND_DIST) : null;
   if (frontendDir && existsSync(frontendDir)) {
     await app.register(fastifyStatic, { root: frontendDir });
+
+    // Service worker and manifest must never be cached by the browser so that
+    // updates are always picked up on the next navigation.
+    app.addHook('onSend', async (req, reply, payload) => {
+      const url = req.url.split('?')[0];
+      if (url === '/sw.js' || url === '/manifest.webmanifest') {
+        reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        reply.header('Pragma', 'no-cache');
+        reply.header('Expires', '0');
+      }
+      return payload;
+    });
+
     app.setNotFoundHandler((req, reply) => {
       if (req.method === 'GET' && !req.url.startsWith('/api/') && !req.url.startsWith('/health')) {
         return reply.sendFile('index.html'); // SPA fallback (client-side hash routing)

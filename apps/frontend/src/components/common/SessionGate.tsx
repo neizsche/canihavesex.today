@@ -43,7 +43,7 @@ export function SessionGate({ children }: SessionGateProps) {
   if (session.isLoading) {
     return (
       <div className="flex min-h-[50dvh] items-center justify-center">
-        <div className="text-sm text-zinc-500 animate-pulse">Loading session…</div>
+        <div className="text-sm text-muted-foreground animate-pulse">Loading session…</div>
       </div>
     );
   }

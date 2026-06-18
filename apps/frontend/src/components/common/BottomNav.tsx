@@ -18,7 +18,7 @@ export function BottomNav(props: { active: NavKey }) {
     <nav
       aria-label="Primary"
       className="flex-shrink-0 border-t border-black/5 dark:border-white/10 bg-background/80 backdrop-blur-xl"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
     >
       <div className="mx-auto grid max-w-md grid-cols-4 px-4 py-2">
         {items.map(({ key, href, label, Icon }) => {

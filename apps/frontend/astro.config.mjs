@@ -56,7 +56,7 @@ export default defineConfig({
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null,
-        includeAssets: ['icon.svg'],
+        includeAssets: ['icon.svg', 'offline.html'],
         manifest: {
           name: 'canihavesex.today',
           short_name: 'canihavesex',
@@ -80,8 +80,45 @@ export default defineConfig({
           ],
         },
         workbox: {
-          navigateFallback: '/',
           cleanupOutdatedCaches: true,
+          // Immediately activate new service workers so stale cached resources
+          // from a previous deployment are replaced without requiring the user
+          // to close every tab first.
+          skipWaiting: true,
+          clientsClaim: true,
+          // Page navigations go to the network; when the network is
+          // unreachable we serve the precached offline screen instead of a
+          // blank/broken page. (The HTML shells are emitted by Astro, not
+          // Vite, so they aren't in the precache — hence network-first-with-
+          // fallback rather than navigateFallback.)
+          //
+          // Scope this to same-origin GET navigations that aren't API calls.
+          // OAuth/API endpoints (e.g. /api/auth/oauth/google/start) are reached
+          // via full-page `location.href` navigations and then 302-redirect
+          // cross-origin; if the service worker intercepts and re-fetches those,
+          // the redirected response can't be rendered as a top-level navigation
+          // and the page hangs ("application not found"). Letting them fall
+          // through to the browser preserves the native redirect handling.
+          runtimeCaching: [
+            {
+              urlPattern: ({ request, url }) =>
+                request.mode === 'navigate' &&
+                request.method === 'GET' &&
+                url.origin === self.location.origin &&
+                !url.pathname.startsWith('/api/'),
+              handler: 'NetworkOnly',
+              options: {
+                plugins: [
+                  {
+                    handlerDidError: async () =>
+                      (await caches.match('/offline.html', {
+                        ignoreSearch: true,
+                      })) ?? Response.error(),
+                  },
+                ],
+              },
+            },
+          ],
         },
         devOptions: {
           enabled: false,

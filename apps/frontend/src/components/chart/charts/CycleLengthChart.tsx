@@ -11,7 +11,7 @@ export function CycleLengthChart({ data }: CycleLengthChartProps) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
         <div className="w-12 h-12 bg-zinc-200 dark:bg-zinc-700/50 rounded-full flex items-center justify-center mb-4">
-          <span className="text-xl font-bold text-zinc-400">?</span>
+          <span className="text-xl font-bold text-muted-foreground">?</span>
         </div>
         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-200 mb-1">
           Not Enough Pattern Data

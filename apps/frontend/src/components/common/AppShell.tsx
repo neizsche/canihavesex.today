@@ -10,6 +10,7 @@ import { ThemeSync } from './ThemeSync';
 import { OfflineScreen } from './OfflineScreen';
 import { RouteManager, useRoute } from './RouteManager';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useInstallHandoff } from '@/hooks/useInstallHandoff';
 
 function redirectToAuth(): void {
   const rt = currentReturnTo();
@@ -19,6 +20,9 @@ function redirectToAuth(): void {
 export function AppShell() {
   const { route } = useRoute();
   const online = useOnlineStatus();
+
+  // Bridge the landing-page "Get the app" CTA (?install=1) into the native prompt.
+  useInstallHandoff();
 
   const queryClient = React.useMemo(() => {
     const cache = new QueryCache({

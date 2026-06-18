@@ -1,15 +1,12 @@
 import * as React from 'react';
 
-import { subscribe, getDeferredPrompt, promptInstall } from '@/lib/pwaInstall';
-
-function isStandaloneDisplay(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia?.('(display-mode: standalone)').matches === true ||
-    // iOS Safari exposes installed state here instead of via display-mode.
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
+import {
+  subscribe,
+  getDeferredPrompt,
+  promptInstall,
+  isStandaloneDisplay,
+  usedPwaRecently,
+} from '@/lib/pwaInstall';
 
 function isIOSDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -20,12 +17,20 @@ function isIOSDevice(): boolean {
   return iPhoneOrPad || iPadOS;
 }
 
+function isAndroidDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/.test(navigator.userAgent);
+}
+
 /**
  * Surfaces PWA install state for the UI.
  *
  * - `canPrompt`  — a native install prompt is available (Chromium browsers).
- * - `isInstalled`— already running as an installed PWA; hide install affordances.
+ * - `isInstalled`— running as an installed PWA now, or launched from one within
+ *                  the last 30 days; hide install affordances either way.
  * - `isIOS`      — iOS Safari, which has no native prompt; show manual steps.
+ * - `isAndroid`  — Android; show manual steps when the native prompt hasn't fired
+ *                  (Chrome's engagement heuristics can delay or suppress it).
  */
 export function useInstallPrompt() {
   const deferred = React.useSyncExternalStore(
@@ -34,7 +39,9 @@ export function useInstallPrompt() {
     () => null
   );
 
-  const [isInstalled, setIsInstalled] = React.useState(isStandaloneDisplay);
+  const [isInstalled, setIsInstalled] = React.useState(
+    () => isStandaloneDisplay() || usedPwaRecently()
+  );
 
   React.useEffect(() => {
     const onInstalled = () => setIsInstalled(true);
@@ -43,11 +50,13 @@ export function useInstallPrompt() {
   }, []);
 
   const isIOS = React.useMemo(() => isIOSDevice(), []);
+  const isAndroid = React.useMemo(() => isAndroidDevice(), []);
 
   return {
     canPrompt: deferred != null,
     isInstalled,
     isIOS,
+    isAndroid,
     promptInstall,
   };
 }

@@ -127,6 +127,8 @@ export function TodayScreen() {
               alt="App Logo"
               width={80}
               height={80}
+              decoding="sync"
+              fetchPriority="high"
               className="w-20 h-20 object-contain mix-blend-multiply dark:mix-blend-normal mb-8"
             />
 
@@ -142,8 +144,13 @@ export function TodayScreen() {
 
             <button
               onClick={() => navigate('/log')}
-              className="mt-8 px-9 py-3.5 rounded-full bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 active:scale-[0.98] transition-transform"
+              className="relative overflow-hidden mt-8 px-9 py-3.5 rounded-full bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 active:scale-[0.98] transition-transform"
             >
+              {/* subtle shimmer glare sweeping across the button */}
+              <span
+                aria-hidden
+                className="animate-shimmer pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-[#007aff]/20 to-transparent dark:via-[#4da3ff]/30"
+              />
               Log Today
               <ChevronRight className="h-4 w-4 text-zinc-400 dark:text-zinc-600" />
             </button>

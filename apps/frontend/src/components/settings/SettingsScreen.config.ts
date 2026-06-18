@@ -12,6 +12,11 @@ export const SETTINGS_SCREEN_LABELS = {
       'Choose “Add to Home Screen”.',
       'Tap “Add” to finish.',
     ],
+    androidSteps: [
+      'Tap the ⋮ menu in Chrome.',
+      'Choose “Install app” or “Add to Home screen”.',
+      'Tap “Install” to finish.',
+    ],
   },
   account: {
     signedInAs: 'Signed in as',

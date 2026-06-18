@@ -13,7 +13,6 @@ import {
   Baby,
   EyeOff,
   Moon,
-  Download,
   Share,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -126,14 +125,22 @@ export function SettingsScreen() {
   const [profileSaved, setProfileSaved] = React.useState(false);
   const [profileLoaded, setProfileLoaded] = React.useState(false);
   const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Patches accumulate here between debounced flushes so a second toggle within
+  // the debounce window doesn't clobber an earlier one.
+  const pendingPatchRef = React.useRef<Record<string, any>>({});
 
   const { data: session } = useSession();
   const { showBranding: brandingVisible } = useDiscreetMode();
   const { theme, setTheme } = useTheme();
-  const { canPrompt, isInstalled, isIOS, promptInstall } = useInstallPrompt();
+  const { canPrompt, isInstalled, isIOS, isAndroid, promptInstall } = useInstallPrompt();
   // Show the install affordance only when it can do something: a native prompt
-  // is available, or it's iOS (manual steps). Hidden once already installed.
-  const showInstall = !isInstalled && (canPrompt || isIOS);
+  // is available, or it's a mobile OS where we can show manual steps. Hidden
+  // once already installed.
+  const showInstall = !isInstalled && (canPrompt || isIOS || isAndroid);
+  // Manual steps to fall back to when no native prompt is available.
+  const manualSteps = isIOS
+    ? SETTINGS_SCREEN_LABELS.install.iosSteps
+    : SETTINGS_SCREEN_LABELS.install.androidSteps;
 
   // Fetch profile data from server
   const profileQuery = useQuery({
@@ -164,34 +171,61 @@ export function SettingsScreen() {
     }
   }, [profileQuery.data, profileLoaded, setTheme]);
 
-  // Debounced auto-save helper
+  // Flushes any accumulated patch to the server. The shared ['user-profile']
+  // cache was already updated optimistically in saveProfile, so this is purely
+  // the network write — nothing visual depends on it completing.
+  const flushProfileSave = React.useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const patch = pendingPatchRef.current;
+    if (Object.keys(patch).length === 0) return;
+    pendingPatchRef.current = {};
+    try {
+      await apiJson('/api/v1/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+    } catch {
+      // Silent fail — non-critical save
+    }
+  }, []);
+
+  // Debounced auto-save helper. The cache update happens immediately so
+  // consumers like useDiscreetMode and ThemeSync (which is mounted app-wide)
+  // stay consistent the instant the user toggles — even if they navigate to
+  // another page before the debounced PATCH fires. Only the network write is
+  // debounced.
   const saveProfile = React.useCallback(
     (patch: Record<string, any>) => {
+      // Optimistically reflect the change in the shared cache right away.
+      queryClient.setQueryData<UserProfile>(['user-profile'], (old) =>
+        old ? { ...old, ...patch } : old
+      );
+      // Cycle config affects predictions, so refresh insights immediately too.
+      queryClient.invalidateQueries({ queryKey: ['insights'] });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 1200);
+
+      // Accumulate so a quick second toggle doesn't drop the first patch.
+      pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(async () => {
-        try {
-          await apiJson('/api/v1/user/profile', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(patch),
-          });
-          setProfileSaved(true);
-          setTimeout(() => setProfileSaved(false), 1200);
-          // Push the patch into the shared ['user-profile'] cache instead of refetching.
-          // This keeps consumers like useDiscreetMode in sync instantly with no extra
-          // network call (PATCH returns nothing reusable, and local state already reflects it).
-          queryClient.setQueryData<UserProfile>(['user-profile'], (old) =>
-            old ? { ...old, ...patch } : old
-          );
-          // Insights still need refreshing since cycle config affects predictions.
-          queryClient.invalidateQueries({ queryKey: ['insights'] });
-        } catch {
-          // Silent fail — non-critical save
-        }
+      saveTimerRef.current = setTimeout(() => {
+        void flushProfileSave();
       }, 800);
     },
-    [queryClient]
+    [queryClient, flushProfileSave]
   );
+
+  // Flush any pending save when leaving the screen so navigating away mid-debounce
+  // doesn't lose the write.
+  React.useEffect(() => {
+    return () => {
+      void flushProfileSave();
+    };
+  }, [flushProfileSave]);
 
   const apiKeysQuery = useQuery({
     queryKey: ['api-keys'],
@@ -393,6 +427,67 @@ export function SettingsScreen() {
               </h1>
             </div>
 
+            {/* Install App — an elevated "material" card that complements each
+                mode (raised light surface in light, graphite in dark). It earns
+                attention through hierarchy, elevation, and a blue accent CTA.
+                Shown only when installing is actionable: a native prompt is
+                available, or it's iOS/Android where we offer manual steps —
+                and never once already installed. */}
+            {showInstall && (
+              <div className="relative mx-4 mb-[var(--inset-gap)] overflow-hidden rounded-[20px] bg-gradient-to-b from-white to-[#f4f4f7] shadow-[0_8px_24px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.06] dark:from-[#2c2c2e] dark:to-[#1f1f22] dark:shadow-[0_8px_24px_-10px_rgba(0,0,0,0.6)] dark:ring-white/10">
+                {/* shimmer glare — a diagonal light streak sweeps across */}
+                <div
+                  aria-hidden
+                  className="animate-shimmer pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/55 to-transparent dark:via-white/25"
+                />
+                <div className="px-4 py-3.5">
+                  <div className="flex items-center gap-3.5">
+                    <img
+                      src="/apple-touch-icon.png"
+                      alt=""
+                      width={80}
+                      height={80}
+                      className="h-20 w-20 flex-shrink-0 object-contain"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[18px] font-bold tracking-tight text-zinc-900 dark:text-white">
+                        {SETTINGS_SCREEN_LABELS.install.title}
+                      </div>
+                      <div className="mt-0.5 truncate text-[13px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                        {SETTINGS_SCREEN_LABELS.install.prompt}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        canPrompt ? void promptInstall() : setInstallOpen((prev) => !prev)
+                      }
+                      className="flex-shrink-0 rounded-full bg-[#007aff] px-[18px] py-2 text-[13px] font-semibold text-white transition-opacity active:opacity-80"
+                    >
+                      {canPrompt ? 'Get' : installOpen ? 'Close' : 'Get'}
+                    </button>
+                  </div>
+
+                  {!canPrompt && installOpen && (
+                    <ol className="mt-3.5 space-y-2.5 border-t border-black/5 pt-3.5 dark:border-white/10">
+                      {manualSteps.map((step, i) => (
+                        <li key={i} className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[12px] font-semibold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                            {i + 1}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-300">
+                            {step}
+                            {isIOS && i === 0 && <Share className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />}
+                            {isIOS && i === 1 && <Plus className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Profile Link */}
             <InsetGroup>
               <SettingsExpandableRow
@@ -445,7 +540,7 @@ export function SettingsScreen() {
                             setCycleMin(v);
                             saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
                           }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -459,7 +554,7 @@ export function SettingsScreen() {
                             setCycleMin(v);
                             saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
                           }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -479,7 +574,7 @@ export function SettingsScreen() {
                             setCycleMax(v);
                             saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
                           }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -493,7 +588,7 @@ export function SettingsScreen() {
                             setCycleMax(v);
                             saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
                           }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -513,7 +608,7 @@ export function SettingsScreen() {
                             setPeriodLength(v);
                             saveProfile({ period_length: v });
                           }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -527,7 +622,7 @@ export function SettingsScreen() {
                             setPeriodLength(v);
                             saveProfile({ period_length: v });
                           }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -538,7 +633,7 @@ export function SettingsScreen() {
 
                 {/* Segmented Control for Regularity */}
                 <div className="space-y-1.5 pt-2">
-                  <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground pl-2">
                     Cycle Regularity
                   </div>
                   <div className="flex items-center p-1 bg-zinc-100/80 dark:bg-zinc-800/80 rounded-xl">
@@ -565,7 +660,7 @@ export function SettingsScreen() {
 
                 {/* Context Flags */}
                 <div className="space-y-1.5 pt-2">
-                  <div className="text-[11px] uppercase tracking-wide text-zinc-400 pl-2">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground pl-2">
                     Health Context
                   </div>
                   <div className="grid grid-cols-4 gap-2">
@@ -633,45 +728,12 @@ export function SettingsScreen() {
               </div>
             </InsetGroup>
 
-            {/* Install App */}
-            {showInstall && (
-              <InsetGroup>
-                {canPrompt ? (
-                  <SettingsActionRow
-                    icon={<Download className="icon-sm text-white" />}
-                    iconBgColor="bg-[#007aff]"
-                    label={SETTINGS_SCREEN_LABELS.install.title}
-                    onClick={() => {
-                      void promptInstall();
-                    }}
-                  />
-                ) : (
-                  <SettingsExpandableRow
-                    icon={<Share className="icon-sm text-white" />}
-                    iconBgColor="bg-[#007aff]"
-                    title={SETTINGS_SCREEN_LABELS.install.title}
-                    description={SETTINGS_SCREEN_LABELS.install.prompt}
-                    open={installOpen}
-                    onToggle={() => setInstallOpen((prev) => !prev)}
-                  >
-                    <div className="rounded-xl border border-border/30 bg-zinc-50/60 dark:bg-zinc-900/40 p-3 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-1">
-                      {SETTINGS_SCREEN_LABELS.install.iosSteps.map((step, i) => (
-                        <div key={i}>
-                          {i + 1}. {step}
-                        </div>
-                      ))}
-                    </div>
-                  </SettingsExpandableRow>
-                )}
-              </InsetGroup>
-            )}
-
             {/* Account */}
             <InsetGroup>
               <div className="space-y-0 divide-y divide-border/30">
                 {session?.email && (
                   <div className="px-4 py-3 sm:py-4 bg-zinc-50/50 dark:bg-zinc-900/50 text-left">
-                    <div className="text-[10px] sm:text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-1">
+                    <div className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                       {SETTINGS_SCREEN_LABELS.account.signedInAs}
                     </div>
                     <div className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -727,7 +789,7 @@ export function SettingsScreen() {
                 onToggle={() => setShortcutOpen((prev) => !prev)}
               >
                 <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 p-3 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-zinc-400">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
                     <span>Secure Key</span>
                     <span>
                       {activeKey

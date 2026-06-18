@@ -115,7 +115,7 @@ export function ChartScreen() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-sm text-zinc-500">Loading chart...</div>
+        <div className="text-sm text-muted-foreground">Loading chart...</div>
       </div>
     );
   }

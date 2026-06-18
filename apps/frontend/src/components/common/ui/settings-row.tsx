@@ -101,8 +101,8 @@ export function SettingsExpandableRow({
         </div>
         <ChevronRight
           className={cn(
-            'icon-sm text-zinc-300 transition-transform',
-            open && 'rotate-90 text-zinc-500'
+            'icon-sm text-zinc-300 dark:text-zinc-600 transition-transform',
+            open && 'rotate-90 text-zinc-500 dark:text-zinc-400'
           )}
         />
       </button>
