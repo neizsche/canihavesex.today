@@ -1,8 +1,18 @@
 import pg from 'pg';
 
+// --- Global type parsers (configured once for the whole process) ---
+// Return DATE (oid 1082) as the raw 'YYYY-MM-DD' string rather than a JS Date.
+// pg's default parses it into a Date at the server's local timezone, which could
+// shift the calendar day by ±1 — and every repository then re-formatted it back
+// to a string by hand. One parser removes both the boilerplate and that latent
+// off-by-one bug.
+pg.types.setTypeParser(1082, (value) => value);
+// NUMERIC/DECIMAL (oid 1700) → number. pg returns these as strings by default,
+// which forced a Number(...) coercion in every mapper. Only `temperature` and
+// `avg_cycle_length` are numeric; integers (oid 23) are unaffected.
+pg.types.setTypeParser(1700, (value) => (value === null ? null : Number(value)));
+
 export type Db = {
-  kind: 'postgres';
-  paramStyle: 'postgres';
   query<T = any>(sql: string, params?: any[]): Promise<T[]>;
   exec(sql: string): Promise<void>;
   transaction<T>(callback: (txDb: Db) => Promise<T>): Promise<T>;
@@ -91,8 +101,6 @@ export async function createDb(): Promise<Db> {
   }
 
   return {
-    kind: 'postgres',
-    paramStyle: 'postgres',
     async close() {
       await pool.end();
     },
@@ -126,8 +134,6 @@ export async function createDb(): Promise<Db> {
         await client.query('BEGIN');
 
         const txDb: Db = {
-          kind: 'postgres',
-          paramStyle: 'postgres',
           async query<R>(sql: string, params: any[] = []) {
             const res = await client.query(sql, params);
             return res.rows as R[];

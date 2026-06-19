@@ -435,11 +435,6 @@ export function SettingsScreen() {
                 and never once already installed. */}
             {showInstall && (
               <div className="relative mx-4 mb-[var(--inset-gap)] overflow-hidden rounded-[20px] bg-gradient-to-b from-white to-[#f4f4f7] shadow-[0_8px_24px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.06] dark:from-[#2c2c2e] dark:to-[#1f1f22] dark:shadow-[0_8px_24px_-10px_rgba(0,0,0,0.6)] dark:ring-white/10">
-                {/* shimmer glare — a diagonal light streak sweeps across */}
-                <div
-                  aria-hidden
-                  className="animate-shimmer pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/55 to-transparent dark:via-white/25"
-                />
                 <div className="px-4 py-3.5">
                   <div className="flex items-center gap-3.5">
                     <img

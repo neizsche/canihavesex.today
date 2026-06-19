@@ -1,7 +1,7 @@
 import { createDb } from '../db.js';
 import { migrate } from '../migrate.js';
 import { LogRepository, Log } from '../repositories/LogRepository.js';
-import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
+import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
@@ -17,7 +17,7 @@ async function simulate() {
     await migrate(db);
 
     const logRepo = new LogRepository(db);
-    const metaRepo = new UserMetaRepository(db);
+    const settingsRepo = new SettingsRepository(db);
     const cycleRepo = new CycleRepository(db);
     const statusRepo = new DailyStatusRepository(db);
 
@@ -34,13 +34,9 @@ async function simulate() {
         created_at: new Date().toISOString()
     });
 
-    // 1. Create Meta
-    await metaRepo.upsertMeta({
-        user_id: userId,
-        app_mode: 'prevent',
-        baseline_temp_avg: 36.6,
-        avg_cycle_length: 29
-    });
+    // 1. Create settings with the simulated average cycle length.
+    await settingsRepo.createDefault(userId);
+    await settingsRepo.updateProfile(userId, { avg_cycle_length: 29 });
 
     // 2. Create 3 months of perfect data
     const logs: Log[] = [];
@@ -90,7 +86,7 @@ async function simulate() {
     }
 
     // 3. Run Engine
-    const meta = await metaRepo.getUserMeta(userId);
+    const meta = await settingsRepo.getEngineMeta(userId);
     const result = runFusionEngine(userId, { logs, meta, today });
 
     await statusRepo.saveDailyStatuses(result.statuses);

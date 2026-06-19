@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { UserRepository } from '../repositories/UserRepository.js';
-import type { PreferencesRepository } from '../repositories/PreferencesRepository.js';
+import type { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { hashPassword, verifyPassword } from '../password.js';
 import {
     appBase,
@@ -19,9 +19,9 @@ import {
 
 export async function authRoutes(
     app: FastifyInstance,
-    opts: { userRepository: UserRepository; preferencesRepository: PreferencesRepository }
+    opts: { userRepository: UserRepository; settingsRepository: SettingsRepository }
 ) {
-    const { userRepository, preferencesRepository } = opts;
+    const { userRepository, settingsRepository } = opts;
 
     const credsSchema = z.object({
         email: z.string().email().transform((s) => s.trim().toLowerCase()),
@@ -47,11 +47,11 @@ export async function authRoutes(
             return reply.status(409).send({ error: 'email_taken', message: 'An account with this email already exists.' });
         }
 
-        const userId = await ensureUserForEmail(userRepository, preferencesRepository, email);
+        const userId = await ensureUserForEmail(userRepository, settingsRepository, email);
         await userRepository.setPassword(userId, await hashPassword(password));
 
         setSessionCookie(reply, userId);
-        const onboardingCompleted = await preferencesRepository.hasCompletedOnboarding(userId);
+        const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(userId);
         return reply.send({ userId, email, onboardingCompleted });
     });
 
@@ -70,7 +70,7 @@ export async function authRoutes(
         }
 
         setSessionCookie(reply, user.id);
-        const onboardingCompleted = await preferencesRepository.hasCompletedOnboarding(user.id);
+        const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
         return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
     });
 
@@ -167,7 +167,7 @@ export async function authRoutes(
             if (!emailVerified) return reply.redirect(`${appBase()}/auth?error=email_not_verified`);
 
             // Pass repositories to linkIdentity
-            const userId = await linkIdentity(userRepository, preferencesRepository, { provider: 'google', providerUserId: sub, email });
+            const userId = await linkIdentity(userRepository, settingsRepository, { provider: 'google', providerUserId: sub, email });
             reply.clearCookie('oauth_state', { path: '/' });
             reply.clearCookie('oauth_return_to', { path: '/' });
 
@@ -235,7 +235,7 @@ export async function authRoutes(
         const user = await userRepository.findById(userId);
         const email = user?.email ?? null;
 
-        const onboardingCompleted = await preferencesRepository.hasCompletedOnboarding(userId);
+        const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(userId);
 
         return reply.send({ userId, email, onboardingCompleted });
     });

@@ -10,13 +10,17 @@ const APP_TABLES = [
   'logs',
   'daily_status',
   'cycles',
-  'active_cycles', // legacy, merged into cycles
-  'user_metadata',
+  'active_cycles',     // legacy, merged into cycles
+  'user_settings',     // merged preferences + metadata
+  'user_preferences',  // legacy (pre-consolidation)
+  'user_metadata',     // legacy (pre-consolidation)
   'user_api_keys',
-  'user_preferences',
   'user_identities',
   'waitlist',
   'users',
+  // migration bookkeeping (+ its legacy predecessor) so migrate() re-applies
+  'schema_migrations',
+  'schema_meta',
 ];
 
 async function reset() {
@@ -38,7 +42,7 @@ async function reset() {
 
   // Sanity check: confirm tables exist and are empty
   const counts: Record<string, number> = {};
-  for (const t of ['users', 'logs', 'cycles', 'user_preferences']) {
+  for (const t of ['users', 'logs', 'cycles', 'user_settings']) {
     const rows = await db.query<{ n: string }>(`SELECT COUNT(*)::int AS n FROM "${t}"`);
     counts[t] = Number(rows[0]?.n ?? 0);
   }

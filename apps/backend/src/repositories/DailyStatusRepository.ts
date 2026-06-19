@@ -62,7 +62,7 @@ export class DailyStatusRepository {
             `SELECT * FROM daily_status WHERE user_id = $1 AND date >= $2 AND date <= $3 ORDER BY date ASC`,
             [userId, startDate, endDate]
         );
-        return rows.map(this.mapStatus);
+        return rows.map(mapStatus);
     }
 
     async getTodayStatus(userId: string, date: string): Promise<DailyStatus | null> {
@@ -71,28 +71,20 @@ export class DailyStatusRepository {
             [userId, date]
         );
         if (!rows[0]) return null;
-        return this.mapStatus(rows[0]);
+        return mapStatus(rows[0]);
     }
 
     async deleteStatusByUserId(userId: string): Promise<void> {
         await this.db.query(`DELETE FROM daily_status WHERE user_id = $1`, [userId]);
     }
 
-    private mapStatus(r: any): DailyStatus {
-        const toIsoDate = (d: any) => {
-            if (d instanceof Date) {
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            }
-            return d;
-        };
-        return {
-            ...r,
-            date: toIsoDate(r.date),
-            insights_payload: typeof r.insights_payload === 'string' ? JSON.parse(r.insights_payload) : r.insights_payload,
-            updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : r.updated_at
-        };
-    }
+}
+
+function mapStatus(r: any): DailyStatus {
+    return {
+        ...r,
+        // date is a 'YYYY-MM-DD' string and insights_payload (jsonb) is parsed by
+        // pg (see db.ts); only the timestamptz needs normalizing to an ISO string.
+        updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : r.updated_at,
+    };
 }

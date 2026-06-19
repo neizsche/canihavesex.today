@@ -2,17 +2,26 @@ import { randomUUID } from 'node:crypto';
 import { Log } from './repositories/LogRepository.js';
 import { DailyStatus } from './repositories/DailyStatusRepository.js';
 import { Cycle } from './repositories/CycleRepository.js';
-import { UserMeta } from './repositories/UserMetaRepository.js';
 import { addDaysIso as addDays, daysBetweenIso as daysBetween, generateIsoDateRange as generateDateRange, isoToday } from './utils/dates.js';
+
+// Identifies the engine revision that produced a daily_status row. Bump this
+// when engine output changes so the read path can recompute stale cached rows.
+export const ENGINE_VERSION = 'v5.1.0-fusion';
 
 // --- Types ---
 type IsoDate = string;
 type FertilityStatus = 'fertile' | 'unsure' | 'not_fertile' | 'period';
 type Phase = 'Follicular' | 'Ovulatory' | 'Luteal' | 'Period';
 
+// Engine inputs from per-user settings. The engine only needs the average cycle
+// length; the rest of user_settings is UI/onboarding state it never reads.
+export interface EngineMeta {
+    avg_cycle_length: number;
+}
+
 interface EngineContext {
     logs: Log[];
-    meta: UserMeta;
+    meta: EngineMeta;
     existingCycles?: Cycle[];
     today?: IsoDate;
     timezoneOffsetMinutes?: number;
@@ -163,7 +172,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 fertility_status: status,
                 phase: phase,
                 is_predicted: date > (lastLogDate || today),
-                engine_version: 'v5.1.0-fusion',
+                engine_version: ENGINE_VERSION,
                 updated_at: new Date().toISOString(),
                 insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData)
             });
@@ -318,7 +327,7 @@ function normalizeCycleData(cycle: Cycle, logMap: Map<string, Log>, analysisEnd:
 }
 
 // --- Module 3 & 4: Signal Interpretation & Fusion ---
-function fuseSignals(days: EngineDay[], meta: UserMeta): EngineResult {
+function fuseSignals(days: EngineDay[], meta: EngineMeta): EngineResult {
     const signals: Signal[] = [];
     const anomalies: string[] = [];
 

@@ -1,10 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
 import { LogRepository, logHasMeaningfulData } from '../repositories/LogRepository.js';
-import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
-import { runFusionEngine } from '../engine.js';
+import { EngineService } from '../services/EngineService.js';
 import { addDaysIso, daysBetweenIso, isoDateForOffset, isoToday, parseTimezoneOffsetMinutes } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
 
@@ -16,9 +15,9 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     const app = fastify.withTypeProvider<ZodTypeProvider>();
     const statusRepo = new DailyStatusRepository(opts.db);
     const logRepo = new LogRepository(opts.db);
-    const metaRepo = new UserMetaRepository(opts.db);
     const cycleRepo = new CycleRepository(opts.db);
     const userRepo = new UserRepository(opts.db);
+    const engineService = new EngineService(opts.db);
     const getTzOffsetMinutes = (req: any) =>
         parseTimezoneOffsetMinutes(req.headers['x-timezone-offset'] ?? req.headers['x-tz-offset']);
 
@@ -32,72 +31,24 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         const cachedResponse = cacheService.get<any>(cacheKey);
         if (cachedResponse) return cachedResponse;
 
-        // Try fetch cache + today's log in parallel
-        const [statusResult, dailyLog] = await Promise.all([
-            statusRepo.getTodayStatus(userId, today),
+        // Read today's cached status (recomputing if stale/missing) + today's log.
+        const [status, dailyLog] = await Promise.all([
+            engineService.getFreshTodayStatus(userId, today),
             logRepo.getLog(userId, today)
         ]);
-        let status = statusResult;
         const dailyLogDone = logHasMeaningfulData(dailyLog);
 
-        // Recompute only when logs change (or cache is missing)
-        let shouldRecompute = !status;
-        if (!shouldRecompute) {
-            const latestLogUpdatedAt = await logRepo.getLatestUpdateTimestamp(userId);
-            if (!latestLogUpdatedAt) {
-                shouldRecompute = true;
-            } else if (status?.updated_at) {
-                const logUpdatedMs = new Date(latestLogUpdatedAt).getTime();
-                const statusUpdatedMs = new Date(status.updated_at).getTime();
-                if (logUpdatedMs > statusUpdatedMs) shouldRecompute = true;
-            }
+        // No status means the user has no logs yet — engine produced nothing.
+        if (!status) {
+            return {
+                status: 'unknown',
+                insights: { today: {} },
+                date: today,
+                dailyLogDone
+            };
         }
 
-        if (shouldRecompute) {
-            // Cold start or stale cache: run engine
-            const existingCycles = await cycleRepo.getCycleHistory(userId);
-            
-            // Optimization: Fetch logs since the start of the 3rd most recent cycle
-            // to ensure we have enough context for analysis, but don't fetch everything.
-            // If we have fewer than 3 cycles, fetch from 120 days ago.
-            let lookbackDate = addDaysIso(today, -120);
-            if (existingCycles.length >= 3) {
-                lookbackDate = existingCycles[2].start_date;
-            } else if (existingCycles.length > 0) {
-                lookbackDate = existingCycles[existingCycles.length - 1].start_date;
-            }
-
-            const [logs, meta] = await Promise.all([
-                logRepo.getLogsSince(userId, lookbackDate),
-                metaRepo.getUserMeta(userId)
-            ]);
-
-            // If NO logs, return empty state
-            if (!logs.length) {
-                return {
-                    status: 'unknown',
-                    insights: { today: {} },
-                    date: today,
-                    dailyLogDone
-                };
-            }
-
-            try {
-                const result = runFusionEngine(userId, { logs, meta, existingCycles, today });
-                await statusRepo.saveDailyStatuses(result.statuses);
-                await cycleRepo.upsertCycles(result.cycles);
-                status = await statusRepo.getTodayStatus(userId, today);
-            } catch (error) {
-                console.error("GET /api/today Engine Error:", error);
-                return { error: "Engine Failed", details: String(error) };
-            }
-        }
-
-        if (!status) return { error: "Engine failed to produce status" };
-
-        // --- Build UI cards on-the-fly from lean metadata ---
-        const m = status.insights_payload; // Raw metadata from engine
-        const insights = buildInsightCards(status.fertility_status, status.phase, m);
+        const insights = buildInsightCards(status.fertility_status, status.phase, status.insights_payload);
 
         const response = {
             status: status.fertility_status,

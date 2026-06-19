@@ -3,8 +3,7 @@ import { LogRepository, Log, logHasMeaningfulData } from '../repositories/LogRep
 import { UserRepository } from '../repositories/UserRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
-import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
-import { runFusionEngine } from '../engine.js';
+import { EngineService } from './EngineService.js';
 import { randomUUID } from 'node:crypto';
 import { addDaysIso } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
@@ -27,18 +26,19 @@ export class LogService {
     private logRepo: LogRepository;
     private cycleRepo: CycleRepository;
     private statusRepo: DailyStatusRepository;
-    private metaRepo: UserMetaRepository;
+    private engine: EngineService;
 
     constructor(private db: Db) {
         this.logRepo = new LogRepository(db);
         this.cycleRepo = new CycleRepository(db);
         this.statusRepo = new DailyStatusRepository(db);
-        this.metaRepo = new UserMetaRepository(db);
+        this.engine = new EngineService(db);
     }
 
     async upsertLogAndTriggerEngine(data: LogUpsertData) {
-        const { userId, date, authType, today } = data;
-        
+        const { userId, date, authType } = data;
+        const today = data.today || date;
+
         const isApiKey = authType === 'api_key';
         const existing = isApiKey ? await this.logRepo.getLog(userId, date) : null;
 
@@ -59,55 +59,31 @@ export class LogService {
         // 1. Write Log
         await this.logRepo.upsertLog(logData);
 
-        // 2. Trigger Engine (Write-Through)
-        // Optimization: Only trigger engine if physiological data that affects fertility has changed.
-        const hasPhysiologicalData = 
-            data.bleeding !== undefined || 
-            data.temperature !== undefined || 
-            data.mucusType !== undefined || 
-            data.lhTest !== undefined || 
+        // 2. Trigger Engine (write-through) only when fertility-affecting data
+        // changed, and only when the edit lands in the current/future cycle —
+        // editing ancient history doesn't shift today's status.
+        const hasPhysiologicalData =
+            data.bleeding !== undefined ||
+            data.temperature !== undefined ||
+            data.mucusType !== undefined ||
+            data.lhTest !== undefined ||
             (data.disturbances && data.disturbances.length > 0);
 
-        if (!hasPhysiologicalData) {
-            const todayStatus = await this.statusRepo.getTodayStatus(userId, today || date);
-            return { ok: true, engineTriggered: false, today: this.buildTodayResponse(todayStatus) };
-        }
-
-        try {
-            const existingCycles = await this.cycleRepo.getCycleHistory(userId);
-            const latestCycle = existingCycles[0];
-            const isCurrentCycle = !latestCycle || date >= latestCycle.start_date;
-
-            if (isCurrentCycle) {
-                let lookbackDate = addDaysIso(today || date, -120);
-                if (existingCycles.length >= 3) {
-                    lookbackDate = existingCycles[2].start_date;
-                } else if (existingCycles.length > 0) {
-                    lookbackDate = existingCycles[existingCycles.length - 1].start_date;
+        if (hasPhysiologicalData) {
+            try {
+                const existingCycles = await this.cycleRepo.getCycleHistory(userId);
+                const latestCycle = existingCycles[0];
+                const isCurrentCycle = !latestCycle || date >= latestCycle.start_date;
+                if (isCurrentCycle) {
+                    await this.engine.recompute(userId, today, existingCycles);
                 }
-
-                const [logs, meta] = await Promise.all([
-                    this.logRepo.getLogsSince(userId, lookbackDate),
-                    this.metaRepo.getUserMeta(userId)
-                ]);
-
-                const { statuses, cycles } = runFusionEngine(userId, { 
-                    logs, 
-                    meta, 
-                    existingCycles, 
-                    today: today || date 
-                });
-
-                // 3. Update Cache
-                await this.statusRepo.saveDailyStatuses(statuses);
-                await this.cycleRepo.upsertCycles(cycles);
+            } catch (err) {
+                console.error('[LogService] Engine Error:', err);
+                throw err;
             }
-        } catch (err) {
-            console.error('[LogService] Engine Error:', err);
-            throw err;
         }
 
-        const todayStatus = await this.statusRepo.getTodayStatus(userId, today || date);
+        const todayStatus = await this.statusRepo.getTodayStatus(userId, today);
         return { ok: true, today: this.buildTodayResponse(todayStatus) };
     }
 

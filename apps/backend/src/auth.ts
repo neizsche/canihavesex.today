@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import type { UserRepository } from './repositories/UserRepository.js';
-import type { CycleRepository } from './repositories/CycleRepository.js';
-import type { PreferencesRepository } from './repositories/PreferencesRepository.js';
+import type { SettingsRepository } from './repositories/SettingsRepository.js';
 
 export type OauthProvider = 'google' | 'apple';
 
@@ -45,7 +44,7 @@ export function oauthRedirectUri(provider: OauthProvider, req: any): string {
 
 export async function ensureUserForEmail(
     userRepository: UserRepository,
-    preferencesRepository: PreferencesRepository,
+    settingsRepository: SettingsRepository,
     email: string
 ): Promise<string> {
     const now = new Date().toISOString();
@@ -59,8 +58,8 @@ export async function ensureUserForEmail(
             created_at: now,
         });
 
-        // Create default preferences with dark theme
-        await preferencesRepository.createDefault(userId);
+        // Create the default settings row (dark theme, defaults).
+        await settingsRepository.createDefault(userId);
 
         // NOTE: We no longer create a default "Cycle" here.
         // The V5 engine handles new users (empty state) gracefully.
@@ -71,7 +70,7 @@ export async function ensureUserForEmail(
 
 export async function linkIdentity(
     userRepository: UserRepository,
-    preferencesRepository: PreferencesRepository,
+    settingsRepository: SettingsRepository,
     params: {
         provider: OauthProvider;
         providerUserId: string;
@@ -84,7 +83,7 @@ export async function linkIdentity(
 
     if (existing) return existing.user_id;
 
-    const userId = await ensureUserForEmail(userRepository, preferencesRepository, params.email);
+    const userId = await ensureUserForEmail(userRepository, settingsRepository, params.email);
     const identityId = randomUUID();
 
     await userRepository.createIdentity({

@@ -66,7 +66,7 @@ export class LogRepository {
             [userId, date]
         );
         if (!rows[0]) return null;
-        return this.mapLog(rows[0]);
+        return mapLog(rows[0]);
     }
 
     async getAllLogs(userId: string): Promise<Log[]> {
@@ -74,7 +74,7 @@ export class LogRepository {
             `SELECT * FROM logs WHERE user_id = $1 ORDER BY date ASC`,
             [userId]
         );
-        return rows.map(this.mapLog);
+        return rows.map(mapLog);
     }
 
     async getRecentLogs(userId: string, limitDays: number = 90): Promise<Log[]> {
@@ -85,7 +85,7 @@ export class LogRepository {
              ORDER BY date ASC`,
             [userId, limitDays]
         );
-        return rows.map(this.mapLog);
+        return rows.map(mapLog);
     }
 
     async getLogsSince(userId: string, date: string): Promise<Log[]> {
@@ -96,7 +96,7 @@ export class LogRepository {
              ORDER BY date ASC`,
             [userId, date]
         );
-        return rows.map(this.mapLog);
+        return rows.map(mapLog);
     }
 
     async getLatestUpdateTimestamp(userId: string): Promise<string | null> {
@@ -114,24 +114,15 @@ export class LogRepository {
         await this.db.query(`DELETE FROM logs WHERE user_id = $1`, [userId]);
     }
 
-    private mapLog(row: any): Log {
-        const toIsoDate = (d: any) => {
-            if (d instanceof Date) {
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            }
-            return d;
-        };
+}
 
-        return {
-            ...row,
-            date: toIsoDate(row.date),
-            disturbances: Array.isArray(row.disturbances) ? row.disturbances : (row.disturbances ? JSON.parse(row.disturbances) : []),
-            symptoms: Array.isArray(row.symptoms) ? row.symptoms : (row.symptoms ? JSON.parse(row.symptoms) : []),
-            temperature: row.temperature != null ? Number(row.temperature) : null,
-            created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at
-        };
-    }
+function mapLog(row: any): Log {
+    return {
+        ...row,
+        // DATE → 'YYYY-MM-DD' string and NUMERIC → number are handled globally by
+        // the pg type parsers (see db.ts); jsonb columns arrive already parsed.
+        disturbances: Array.isArray(row.disturbances) ? row.disturbances : [],
+        symptoms: Array.isArray(row.symptoms) ? row.symptoms : [],
+        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    };
 }

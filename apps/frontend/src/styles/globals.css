@@ -184,28 +184,6 @@
     scrollbar-width: none;
   }
 
-  /* Shimmer glare — a diagonal light streak that sweeps across a surface,
-     then pauses before repeating. Used on the install card and Log Today. */
-  @keyframes shimmer-sweep {
-    0% {
-      transform: translateX(-150%) skewX(-18deg);
-    }
-    55%,
-    100% {
-      transform: translateX(150%) skewX(-18deg);
-    }
-  }
-
-  .animate-shimmer {
-    animation: shimmer-sweep 3.2s ease-in-out infinite;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .animate-shimmer {
-      animation: none;
-    }
-  }
-
   /* Standard Icon Sizes */
   .icon-xs {
     @apply w-3.5 h-3.5;

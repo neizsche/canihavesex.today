@@ -1,5 +1,4 @@
 import { Db } from '../db.js';
-import { formatIsoDateLocal } from '../utils/dates.js';
 
 export interface Cycle {
     id: string; // UUID
@@ -61,7 +60,7 @@ export class CycleRepository {
             `SELECT * FROM cycles WHERE user_id = $1 ORDER BY start_date DESC`,
             [userId]
         );
-        return rows.map(this.mapCycle);
+        return rows.map(mapCycle);
     }
 
     async getEarliestCycleStartDate(userId: string): Promise<string | null> {
@@ -70,23 +69,20 @@ export class CycleRepository {
             [userId]
         );
         const value = rows[0]?.min_start;
-        if (!value) return null;
-        return value instanceof Date ? formatIsoDateLocal(value) : String(value);
+        return value ? String(value) : null;
     }
 
     async deleteCyclesByUserId(userId: string): Promise<void> {
         await this.db.query(`DELETE FROM cycles WHERE user_id = $1`, [userId]);
     }
 
-    private mapCycle(r: any): Cycle {
-        const toIso = (d: any) => (d instanceof Date ? formatIsoDateLocal(d) : d);
-        return {
-            ...r,
-            start_date: toIso(r.start_date),
-            end_date: toIso(r.end_date),
-            ovulation_prediction: toIso(r.ovulation_prediction),
-            ovulation_confirmed_date: toIso(r.ovulation_confirmed_date),
-            analysis_flags: Array.isArray(r.analysis_flags) ? r.analysis_flags : (r.analysis_flags ? JSON.parse(r.analysis_flags) : [])
-        };
-    }
+}
+
+function mapCycle(r: any): Cycle {
+    return {
+        ...r,
+        // DATE columns arrive as 'YYYY-MM-DD' strings and analysis_flags (jsonb)
+        // as a parsed array via the pg type config (see db.ts).
+        analysis_flags: Array.isArray(r.analysis_flags) ? r.analysis_flags : [],
+    };
 }

@@ -4,13 +4,12 @@ import { UserRepository } from '../repositories/UserRepository.js';
 import { LogRepository } from '../repositories/LogRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
-import { PreferencesRepository } from '../repositories/PreferencesRepository.js';
-import { UserMetaRepository } from '../repositories/UserMetaRepository.js';
+import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { ApiKeyRepository } from '../repositories/ApiKeyRepository.js';
+import { EngineService } from '../services/EngineService.js';
 import { generateApiKey } from '../apiKeys.js';
 import { cacheService } from '../services/CacheService.js';
 import { addDaysIso, isoToday } from '../utils/dates.js';
-import { runFusionEngine } from '../engine.js';
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -20,10 +19,11 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     const logRepo = new LogRepository(opts.db);
     const cycleRepo = new CycleRepository(opts.db);
     const statusRepo = new DailyStatusRepository(opts.db);
-    const prefRepo = new PreferencesRepository(opts.db);
+    const settingsRepo = new SettingsRepository(opts.db);
     const apiKeyRepo = new ApiKeyRepository(opts.db);
+    const engineService = new EngineService(opts.db);
 
-    // PATCH /api/v1/user/preferences
+    // PATCH /api/v1/user/preferences — completes onboarding
     app.patch('/api/v1/user/preferences', {
         schema: {
             body: z.object({
@@ -53,42 +53,35 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             [cycle_length_min, cycle_length_max] = [cycle_length_max, cycle_length_min];
         }
 
+        let avgLength = 28;
+        if (cycle_length_min && cycle_length_max) {
+            avgLength = (cycle_length_min + cycle_length_max) / 2;
+        }
+
         // Use transaction for atomic onboarding. Idempotent: re-running onboarding
         // (e.g. a client retry after a perceived failure) must not duplicate state.
         const sessionData = await opts.db.transaction(async (txDb: any) => {
-            const txPrefRepo = new PreferencesRepository(txDb);
-            const txMetaRepo = new UserMetaRepository(txDb);
-            const txCycleRepo = new CycleRepository(txDb);
-            const txUserRepo = new UserRepository(txDb);
+            const txSettings = new SettingsRepository(txDb);
+            const txCycle = new CycleRepository(txDb);
+            const txUser = new UserRepository(txDb);
 
-            // 1. Save Preferences
-            await txPrefRepo.completeOnboarding(userId, {
+            // 1. Persist onboarding answers + avg cycle length in a single upsert
+            // (previously two writes across user_preferences and user_metadata).
+            await txSettings.completeOnboarding(userId, {
                 intent,
                 cycle_regularity,
-                context_flags: context_flags || []
+                context_flags: context_flags || [],
+                avgCycleLength: avgLength,
             });
 
-            // 2. Update User Meta (Avg Cycle Length)
-            let avgLength = 28;
-            if (cycle_length_min && cycle_length_max) {
-                avgLength = (cycle_length_min + cycle_length_max) / 2;
-            }
-
-            await txMetaRepo.upsertMeta({
-                user_id: userId,
-                app_mode: intent === 'conceive' ? 'conceive' : 'prevent',
-                baseline_temp_avg: 36.5,
-                avg_cycle_length: avgLength
-            });
-
-            // 3. Create/Update Initial Active Cycle.
+            // 2. Create/Update Initial Active Cycle.
             // Reuse the existing active cycle (no end_date) instead of always
             // inserting a fresh UUID — otherwise a retry leaves duplicate active cycles.
-            const existingCycles = await txCycleRepo.getCycleHistory(userId);
+            const existingCycles = await txCycle.getCycleHistory(userId);
             const activeCycle = existingCycles.find((c) => !c.end_date);
             const cycleId = activeCycle?.id ?? randomUUID();
 
-            await txCycleRepo.upsertCycles([{
+            await txCycle.upsertCycles([{
                 id: cycleId,
                 user_id: userId,
                 start_date: last_period_start,
@@ -100,8 +93,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 analysis_flags: []
             }]);
 
-            // 4. Get User data for session update
-            const user = await txUserRepo.findById(userId);
+            // 3. Get User data for session update
+            const user = await txUser.findById(userId);
 
             return {
                 userId,
@@ -118,10 +111,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     app.get('/api/v1/user/profile', async (req, reply) => {
         const userId = req.userId!;
 
-        const metaRepo = new UserMetaRepository(opts.db);
-        const [prefs, meta, cycles] = await Promise.all([
-            prefRepo.getOnboardingData(userId),
-            metaRepo.getUserMeta(userId),
+        const [settings, cycles] = await Promise.all([
+            settingsRepo.getSettings(userId),
             cycleRepo.getCycleHistory(userId)
         ]);
 
@@ -131,14 +122,14 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         const latestCompleted = cycles.find(c => c.end_date && c.period_length);
 
         return {
-            cycle_regularity: prefs.cycle_regularity,
-            context_flags: prefs.context_flags,
-            intent: prefs.intent,
-            avg_cycle_length: Number(meta.avg_cycle_length),
+            cycle_regularity: settings.cycle_regularity,
+            context_flags: settings.context_flags,
+            intent: settings.intent,
+            avg_cycle_length: Number(settings.avg_cycle_length),
             last_period_start: activeCycle?.start_date ?? null,
             period_length: activeCycle?.period_length ?? latestCompleted?.period_length ?? 5,
-            show_branding: prefs.show_branding ?? true,
-            theme: prefs.theme ?? 'dark',
+            show_branding: settings.show_branding ?? true,
+            theme: settings.theme ?? 'dark',
         };
     });
 
@@ -161,48 +152,49 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
 
         let engineTriggerNeeded = false;
 
-        // 1. Update preferences (regularity, context_flags)
-        if (body.cycle_regularity !== undefined || body.context_flags !== undefined) {
-            await prefRepo.updateProfile(userId, {
-                cycle_regularity: body.cycle_regularity,
-                context_flags: body.context_flags
-            });
+        // 1. Settings updates (regularity, context_flags, avg_cycle_length).
+        const profilePatch: { cycle_regularity?: string; context_flags?: string[]; avg_cycle_length?: number } = {};
+        if (body.cycle_regularity !== undefined) profilePatch.cycle_regularity = body.cycle_regularity;
+        if (body.context_flags !== undefined) profilePatch.context_flags = body.context_flags;
+        if (body.avg_cycle_length !== undefined) {
+            profilePatch.avg_cycle_length = body.avg_cycle_length;
+            engineTriggerNeeded = true;
+        }
+        if (Object.keys(profilePatch).length > 0) {
+            await settingsRepo.updateProfile(userId, profilePatch);
         }
 
         // 1b. Update show_branding (discreet mode)
         if (body.show_branding !== undefined) {
-            await prefRepo.updateShowBranding(userId, body.show_branding);
+            await settingsRepo.updateShowBranding(userId, body.show_branding);
         }
 
         // 1c. Update theme (light/dark)
         if (body.theme !== undefined) {
-            await prefRepo.updateTheme(userId, body.theme);
+            await settingsRepo.updateTheme(userId, body.theme);
         }
 
-        // 2. Update user_metadata (avg_cycle_length)
-        if (body.avg_cycle_length !== undefined) {
-            const metaRepo = new UserMetaRepository(opts.db);
-            const existing = await metaRepo.getUserMeta(userId);
-            await metaRepo.upsertMeta({
-                ...existing,
-                avg_cycle_length: body.avg_cycle_length
-            });
-            engineTriggerNeeded = true;
-        }
-
-        // 3. Update active cycle start_date (last_period_start)
-        if (body.last_period_start !== undefined) {
+        // 2. Cycle edits (last_period_start, period_length). Read the history
+        // once, mutate in memory, and write once — this previously re-read the
+        // full cycle history up to three times in a single request.
+        if (body.last_period_start !== undefined || body.period_length !== undefined) {
             const cycles = await cycleRepo.getCycleHistory(userId);
             const activeCycle = cycles.find(c => !c.end_date);
             if (activeCycle) {
-                const activeCycleIdx = cycles.indexOf(activeCycle);
-                const prevCycle = cycles[activeCycleIdx + 1];
-                activeCycle.start_date = body.last_period_start;
                 const cyclesToUpsert = [activeCycle];
 
-                if (prevCycle) {
-                    prevCycle.end_date = addDaysIso(body.last_period_start, -1);
-                    cyclesToUpsert.push(prevCycle);
+                if (body.last_period_start !== undefined) {
+                    const activeCycleIdx = cycles.indexOf(activeCycle);
+                    const prevCycle = cycles[activeCycleIdx + 1];
+                    activeCycle.start_date = body.last_period_start;
+                    if (prevCycle) {
+                        prevCycle.end_date = addDaysIso(body.last_period_start, -1);
+                        cyclesToUpsert.push(prevCycle);
+                    }
+                }
+
+                if (body.period_length !== undefined) {
+                    activeCycle.period_length = body.period_length;
                 }
 
                 await cycleRepo.upsertCycles(cyclesToUpsert);
@@ -210,45 +202,10 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             }
         }
 
-        // 4. Update period_length on active cycle
-        if (body.period_length !== undefined) {
-            const cycles = await cycleRepo.getCycleHistory(userId);
-            const activeCycle = cycles.find(c => !c.end_date);
-            if (activeCycle) {
-                activeCycle.period_length = body.period_length;
-                await cycleRepo.upsertCycles([activeCycle]);
-                engineTriggerNeeded = true;
-            }
-        }
-
-        // Trigger Engine recalculation if required to prevent stale data
+        // 3. Recompute so cached statuses don't go stale.
         if (engineTriggerNeeded) {
             try {
-                const today = isoToday();
-                const existingCycles = await cycleRepo.getCycleHistory(userId);
-
-                let lookbackDate = addDaysIso(today, -120);
-                if (existingCycles.length >= 3) {
-                    lookbackDate = existingCycles[2].start_date;
-                } else if (existingCycles.length > 0) {
-                    lookbackDate = existingCycles[existingCycles.length - 1].start_date;
-                }
-
-                const metaRepo = new UserMetaRepository(opts.db);
-                const [logs, meta] = await Promise.all([
-                    logRepo.getLogsSince(userId, lookbackDate),
-                    metaRepo.getUserMeta(userId)
-                ]);
-
-                const { statuses, cycles } = runFusionEngine(userId, {
-                    logs,
-                    meta,
-                    existingCycles,
-                    today
-                });
-
-                await statusRepo.saveDailyStatuses(statuses);
-                await cycleRepo.upsertCycles(cycles);
+                await engineService.recompute(userId, isoToday());
             } catch (err) {
                 app.log.error(err, '[userRoute] Profile update engine trigger error');
             }
@@ -263,18 +220,9 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         await statusRepo.deleteStatusByUserId(userId);
         await cycleRepo.deleteCyclesByUserId(userId);
 
-        // Reset Onboarding & Preferences
-        await prefRepo.deletePreferencesByUserId(userId);
-        await prefRepo.createDefault(userId);
-
-        // Reset User Meta
-        const metaRepo = new UserMetaRepository(opts.db);
-        await metaRepo.upsertMeta({
-            user_id: userId,
-            app_mode: 'prevent',
-            baseline_temp_avg: 36.5,
-            avg_cycle_length: 28.0
-        });
+        // Reset settings (preferences + engine baselines) back to defaults.
+        await settingsRepo.deleteByUserId(userId);
+        await settingsRepo.createDefault(userId);
     }
 
     // DELETE /api/v1/user/data (Delete All Data)

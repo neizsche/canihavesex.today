@@ -13,7 +13,7 @@ import { migrate } from './migrate.js';
 import { createRateLimitMiddleware } from './rateLimiter.js';
 import { loadEnv } from './env.js';
 import { UserRepository } from './repositories/UserRepository.js';
-import { PreferencesRepository } from './repositories/PreferencesRepository.js';
+import { SettingsRepository } from './repositories/SettingsRepository.js';
 import { ApiKeyRepository } from './repositories/ApiKeyRepository.js';
 import { extractApiKey, hashApiKey } from './apiKeys.js';
 import authPlugin from './plugins/auth.js';
@@ -177,7 +177,7 @@ export async function createApp() {
   await migrate(db);
 
   const userRepository = new UserRepository(db);
-  const preferencesRepository = new PreferencesRepository(db);
+  const settingsRepository = new SettingsRepository(db);
   const apiKeyRepository = new ApiKeyRepository(db);
 
   // 2. Register Auth Plugin
@@ -250,7 +250,7 @@ export async function createApp() {
 
 
   // Register Routes
-  app.register(authRoutes, { userRepository, preferencesRepository });
+  app.register(authRoutes, { userRepository, settingsRepository });
 
   // V5 Routes (Consolidated & Segregated)
   app.register(logsRoutes, { db });
