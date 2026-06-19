@@ -1,6 +1,32 @@
 import type { Db } from './db.js';
 
+// Bump this whenever the schema below changes (new table/column/index/trigger).
+// Boot compares it against the stored version and skips the full DDL pass when
+// the DB is already at this version — turning ~9 round-trips into 2 on warm
+// starts. Forgetting to bump means a schema change won't apply, so increment it
+// alongside any edit to the migration body.
+const SCHEMA_VERSION = 1;
+
 export async function migrate(db: Db) {
+  // --- Fast path: skip the full migration when the DB is already current ---
+  // A single-row meta table records the applied schema version. On an
+  // up-to-date database this costs two cheap round-trips instead of replaying
+  // every idempotent CREATE/ALTER, which is the bulk of cold-start latency.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_meta (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      version INTEGER NOT NULL,
+      CONSTRAINT schema_meta_singleton CHECK (id = 1)
+    );
+  `);
+
+  const versionRows = await db.query<{ version: number }>(
+    `SELECT version FROM schema_meta WHERE id = 1`
+  );
+  if (versionRows.length > 0 && versionRows[0].version >= SCHEMA_VERSION) {
+    return;
+  }
+
   // --- 0. Helper Functions & Extensions ---
   await db.exec(`
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -206,6 +232,12 @@ export async function migrate(db: Db) {
     CREATE INDEX IF NOT EXISTS idx_daily_status_user_date ON daily_status (user_id, date DESC);
     CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_id ON user_api_keys (user_id);
     CREATE INDEX IF NOT EXISTS idx_user_api_keys_hash ON user_api_keys (key_hash);
+  `);
+
+  // Record the applied version so subsequent boots take the fast path above.
+  await db.exec(`
+    INSERT INTO schema_meta (id, version) VALUES (1, ${SCHEMA_VERSION})
+    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version;
   `);
 
   console.log('[Migrate] Production schema created (Clean Start).');

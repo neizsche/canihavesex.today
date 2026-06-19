@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { hydrate, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 
@@ -17,6 +17,37 @@ function redirectToAuth(): void {
   window.location.href = `/?openAuth=true&returnTo=${encodeURIComponent(rt)}`;
 }
 
+// Shared localStorage key for the persisted query cache. Used both by the
+// persister (writes) and by the synchronous restore below (reads) so they
+// agree on the same blob.
+const PERSIST_KEY = 'chs-query-cache';
+const PERSIST_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
+// Rehydrate the query cache from localStorage *synchronously*, before the first
+// render. The persister's own restore runs in a post-mount effect, which is too
+// late: the session query has already mounted empty and flashed the loading
+// gate. Seeding here lets returning users paint the app instantly while the
+// session revalidates in the background.
+function restorePersistedCache(client: QueryClient): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = window.localStorage.getItem(PERSIST_KEY);
+    if (!raw) return;
+    const persisted = JSON.parse(raw) as {
+      timestamp?: number;
+      clientState?: unknown;
+    };
+    const fresh =
+      typeof persisted.timestamp === 'number' &&
+      Date.now() - persisted.timestamp < PERSIST_MAX_AGE;
+    if (fresh && persisted.clientState) {
+      hydrate(client, persisted.clientState);
+    }
+  } catch {
+    // Corrupt/old cache shape — ignore and fall back to a normal fetch.
+  }
+}
+
 export function AppShell() {
   const { route } = useRoute();
   const online = useOnlineStatus();
@@ -32,7 +63,7 @@ export function AppShell() {
         }
       },
     });
-    return new QueryClient({
+    const client = new QueryClient({
       queryCache: cache,
       defaultOptions: {
         queries: {
@@ -43,17 +74,22 @@ export function AppShell() {
         },
       },
     });
+    // Seed from localStorage synchronously so the first render already has the
+    // last known session — no loading-gate flash for returning users.
+    restorePersistedCache(client);
+    return client;
   }, []);
 
   React.useEffect(() => {
     const persister = createSyncStoragePersister({
       storage: window.localStorage,
+      key: PERSIST_KEY,
     });
 
     persistQueryClient({
       queryClient,
       persister,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: PERSIST_MAX_AGE,
     });
   }, [queryClient]);
 
