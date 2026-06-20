@@ -9,8 +9,6 @@ import {
   Copy,
   Minus,
   Plus,
-  Pill,
-  Baby,
   EyeOff,
   Moon,
   Share,
@@ -31,7 +29,6 @@ import {
   SettingsToggleRow,
 } from '@/components/common/ui/settings-row';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
-import { ToggleTile } from '@/components/common/ui/toggle-tile';
 import { useSession } from '@/hooks/queries/useSession';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useTheme } from '@/hooks/useTheme';
@@ -39,39 +36,11 @@ import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 
 interface UserProfile {
   cycle_regularity: string | null;
-  context_flags: string[];
-  intent: string | null;
   avg_cycle_length: number;
-  last_period_start: string | null;
   period_length: number;
   show_branding: boolean;
   theme: 'light' | 'dark';
 }
-
-const CONTEXT_FLAG_OPTIONS = [
-  { id: 'pcos', label: 'PCOS', icon: Activity, bg: 'bg-purple-500/10', text: 'text-purple-500' },
-  {
-    id: 'thyroid',
-    label: 'Thyroid',
-    icon: Activity,
-    bg: 'bg-orange-500/10',
-    text: 'text-orange-500',
-  },
-  {
-    id: 'post_birth_control',
-    label: 'Post-BC',
-    icon: Pill,
-    bg: 'bg-blue-500/10',
-    text: 'text-blue-500',
-  },
-  {
-    id: 'breastfeeding',
-    label: 'Nursing',
-    icon: Baby,
-    bg: 'bg-pink-500/10',
-    text: 'text-pink-500',
-  },
-] as const;
 
 type ConfirmAction = 'delete-all' | 'delete-account' | null;
 
@@ -116,12 +85,10 @@ export function SettingsScreen() {
   const [installOpen, setInstallOpen] = React.useState(false);
 
   // Profile data state - Populated from server on load
-  const [lastPeriod, setLastPeriod] = React.useState(new Date().toISOString().slice(0, 10));
   const [cycleMin, setCycleMin] = React.useState(26);
   const [cycleMax, setCycleMax] = React.useState(30);
   const [periodLength, setPeriodLength] = React.useState(5);
   const [regularity, setRegularity] = React.useState<'regular' | 'irregular' | 'unsure'>('regular');
-  const [contextFlags, setContextFlags] = React.useState<string[]>([]);
   const [profileSaved, setProfileSaved] = React.useState(false);
   const [profileLoaded, setProfileLoaded] = React.useState(false);
   const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -154,7 +121,6 @@ export function SettingsScreen() {
   React.useEffect(() => {
     if (profileQuery.data && !profileLoaded) {
       const p = profileQuery.data;
-      if (p.last_period_start) setLastPeriod(p.last_period_start);
       if (p.avg_cycle_length) {
         // Derive min/max from avg (±2 days)
         const avg = Math.round(p.avg_cycle_length);
@@ -164,7 +130,6 @@ export function SettingsScreen() {
       if (p.period_length) setPeriodLength(p.period_length);
       if (p.cycle_regularity)
         setRegularity(p.cycle_regularity as 'regular' | 'irregular' | 'unsure');
-      if (p.context_flags) setContextFlags(p.context_flags);
       // Server preference wins so the theme syncs across devices.
       if (p.theme === 'light' || p.theme === 'dark') setTheme(p.theme);
       setProfileLoaded(true);
@@ -361,21 +326,6 @@ export function SettingsScreen() {
     }
   }
 
-  const handleDateBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    const d = new Date(val);
-    if (
-      isNaN(d.getTime()) ||
-      val.length !== 10 ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(val) ||
-      d > new Date()
-    ) {
-      setLastPeriod(new Date().toISOString().slice(0, 10)); // Reset to today
-    } else {
-      setLastPeriod(val);
-    }
-  };
-
   if (view === 'help') {
     return <HelpScreen onBack={() => setView('main')} />;
   }
@@ -495,33 +445,6 @@ export function SettingsScreen() {
                 {/* Grouped Settings Card */}
                 <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 overflow-hidden">
                   <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
-                    {/* Date Row */}
-                    <div className="flex items-center justify-between p-3 px-4">
-                      <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
-                        Last Period Start
-                      </div>
-                      <input
-                        type="text"
-                        value={lastPeriod}
-                        onChange={(e) => setLastPeriod(e.target.value)}
-                        onBlur={(e) => {
-                          handleDateBlur(e);
-                          const val = e.target.value;
-                          const d = new Date(val);
-                          if (
-                            !isNaN(d.getTime()) &&
-                            val.length === 10 &&
-                            /^\d{4}-\d{2}-\d{2}$/.test(val) &&
-                            d <= new Date()
-                          ) {
-                            saveProfile({ last_period_start: val });
-                          }
-                        }}
-                        placeholder="YYYY-MM-DD"
-                        className="w-[140px] text-right bg-transparent border-none focus:ring-0 text-[14px] font-medium text-zinc-900 dark:text-zinc-100 p-0 placeholder:text-zinc-400"
-                      />
-                    </div>
-
                     {/* Minimum Cycle Length Stepper */}
                     <div className="flex items-center justify-between p-3 px-4">
                       <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
@@ -650,35 +573,6 @@ export function SettingsScreen() {
                         {option}
                       </button>
                     ))}
-                  </div>
-                </div>
-
-                {/* Context Flags */}
-                <div className="space-y-1.5 pt-2">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground pl-2">
-                    Health Context
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {CONTEXT_FLAG_OPTIONS.map((flag) => (
-                      <ToggleTile
-                        key={flag.id}
-                        label={flag.label}
-                        icon={flag.icon}
-                        activeBgClass={flag.bg}
-                        activeTextClass={flag.text}
-                        checked={contextFlags.includes(flag.id)}
-                        onChange={() => {
-                          const newFlags = contextFlags.includes(flag.id)
-                            ? contextFlags.filter((f) => f !== flag.id)
-                            : [...contextFlags, flag.id];
-                          setContextFlags(newFlags);
-                          saveProfile({ context_flags: newFlags });
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-2 pt-1">
-                    Helps tune cycle predictions for your situation.
                   </div>
                 </div>
 

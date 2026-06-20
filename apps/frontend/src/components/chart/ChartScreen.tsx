@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
@@ -46,8 +46,7 @@ export function ChartScreen() {
   });
 
   // Data Fetching
-  const startOfMonth = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
-  const endOfMonth = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+  const queryClient = useQueryClient();
 
   // 1. Calendar Data (Includes QuickStats)
   interface CalendarDay {
@@ -63,19 +62,38 @@ export function ChartScreen() {
     minDate?: string;
   }
 
+  // Shared options builder so the active query and the prefetch of adjacent
+  // months use identical keys/fetchers (otherwise prefetch wouldn't populate
+  // the cache the navigation reads from).
+  const calendarOptions = (year: number, month: number) => {
+    const start = new Date(year, month, 1).toISOString().split('T')[0];
+    const end = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    return {
+      queryKey: ['calendar', start, end],
+      queryFn: async () =>
+        apiJson<CalendarResponse>(`/api/v1/insights/calendar?start=${start}&end=${end}`),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 15 * 60 * 1000, // 15 minutes
+    };
+  };
+
   const calendarQuery = useQuery({
-    queryKey: ['calendar', startOfMonth, endOfMonth],
-    queryFn: async () => {
-      return apiJson<CalendarResponse>(
-        `/api/v1/insights/calendar?start=${startOfMonth}&end=${endOfMonth}`
-      );
-    },
+    ...calendarOptions(currentYear, currentMonth),
     // Keep showing the current month while the next one loads, so changing
     // months updates in place instead of unmounting to a full-screen spinner.
     placeholderData: keepPreviousData,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
   });
+
+  // Warm the cache for the previous and next month so navigating to them shows
+  // the colours instantly instead of after a network round-trip.
+  React.useEffect(() => {
+    for (const offset of [-1, 1]) {
+      const d = new Date(currentYear, currentMonth + offset, 1);
+      void queryClient.prefetchQuery(calendarOptions(d.getFullYear(), d.getMonth()));
+    }
+    // calendarOptions is recreated each render but only depends on these values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentYear, currentMonth, queryClient]);
 
   // 2. Stats Data (Cycle History)
   const statsQuery = useQuery({

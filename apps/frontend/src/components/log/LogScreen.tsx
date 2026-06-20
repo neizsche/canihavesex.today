@@ -15,6 +15,7 @@ import {
   Moon,
   HeartPulse,
   Heart,
+  Lock,
 } from 'lucide-react';
 
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
@@ -190,6 +191,9 @@ export function LogScreen() {
 
   const minDate = query.data?.minDate || '2020-01-01';
   const isAtMinDate = date <= minDate;
+  // Edit lock: minDate is the back-log window floor (server-enforced). Days
+  // before it are read-only — older entries can be viewed but not changed.
+  const isEditable = date >= minDate;
 
   return (
     <div className="h-full bg-background font-sans flex flex-col">
@@ -245,7 +249,30 @@ export function LogScreen() {
             </div>
           )}
 
-          <div className="relative cursor-default">
+          {!isEditable && (
+            <div className="mx-4 mt-3 mb-1 bg-zinc-100/80 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl p-3.5 flex items-center gap-3.5 backdrop-blur-xl shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-zinc-500/10 dark:bg-zinc-400/10 flex items-center justify-center shrink-0">
+                <Lock className="icon-sm text-zinc-500 dark:text-zinc-400" />
+              </div>
+              <div className="flex flex-col gap-0.5 flex-1 p-0.5">
+                <span className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  Read-only entry
+                </span>
+                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-snug">
+                  This day is too far in the past to edit.
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div
+            className={cn(
+              'relative cursor-default',
+              // Read-only: make every field non-interactive (not just Save) and
+              // dim it so the locked state reads clearly.
+              !isEditable && 'pointer-events-none select-none opacity-60'
+            )}
+          >
             <div className="mt-4 flex flex-col gap-3">
               {/* ═══ ZONE 1: Daily Observations ═══ */}
               <InsetGroup
@@ -585,7 +612,7 @@ export function LogScreen() {
               <div className="px-4 pb-8 space-y-3">
                 <Button
                   onClick={save}
-                  disabled={saveMutation.isPending || !isDirty || (!hasData && !anyInput)}
+                  disabled={saveMutation.isPending || !isEditable || !isDirty || (!hasData && !anyInput)}
                   className="w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                 >
                   {saveMutation.isPending
@@ -593,7 +620,7 @@ export function LogScreen() {
                     : LOG_SCREEN_LABELS.buttons.save}
                 </Button>
 
-                {anyInput && (
+                {anyInput && isEditable && (
                   <button
                     onClick={clearAll}
                     disabled={saveMutation.isPending}

@@ -2,9 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
 import { LogRepository, logHasMeaningfulData } from '../repositories/LogRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
-import { UserRepository } from '../repositories/UserRepository.js';
 import { EngineService } from '../services/EngineService.js';
-import { addDaysIso, daysBetweenIso, isoDateForOffset, isoToday, parseTimezoneOffsetMinutes } from '../utils/dates.js';
+import { addDaysIso, backlogFloorIso, daysBetweenIso, isoToday, parseTimezoneOffsetMinutes } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
 
 import { z } from 'zod';
@@ -16,7 +15,6 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     const statusRepo = new DailyStatusRepository(opts.db);
     const logRepo = new LogRepository(opts.db);
     const cycleRepo = new CycleRepository(opts.db);
-    const userRepo = new UserRepository(opts.db);
     const engineService = new EngineService(opts.db);
     const getTzOffsetMinutes = (req: any) =>
         parseTimezoneOffsetMinutes(req.headers['x-timezone-offset'] ?? req.headers['x-tz-offset']);
@@ -83,10 +81,9 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
         const cachedResponse = cacheService.get<any>(cacheKey);
         if (cachedResponse) return cachedResponse;
 
-        const [statuses, cycles, user] = await Promise.all([
+        const [statuses, cycles] = await Promise.all([
             statusRepo.getRangeStatus(userId, s, e),
-            cycleRepo.getCycleHistory(userId),
-            userRepo.findById(userId)
+            cycleRepo.getCycleHistory(userId)
         ]);
 
         // Helper: Find cycle overlapping the middle of the view
@@ -166,13 +163,13 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                 };
             });
 
-        // Calculate minDate for swipe restriction
-        // Earliest of: Account Creation Date OR First Logged Period
-        let minDate = user?.created_at ? isoDateForOffset(new Date(user.created_at), tzOffsetMinutes) : '2024-01-01';
+        // minDate for swipe restriction. Floor is the back-log window so a
+        // first-time user mid-cycle can still reach her last period; extended
+        // further back when older logged cycles exist, so history stays viewable
+        // (viewing is unrestricted — only editing is locked to the window).
+        let minDate = backlogFloorIso(today);
 
         if (cycles.length > 0) {
-            // Cycles are usually ordered or we can find the min start_date
-            // Assuming we need to check all cycles to find absolute min
             const earliestCycleStart = cycles.reduce((min, c) => {
                 if (!c.start_date) return min;
                 return c.start_date < min ? c.start_date : min;

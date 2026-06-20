@@ -15,12 +15,11 @@ type Phase = 'Follicular' | 'Ovulatory' | 'Luteal' | 'Period';
 type SignalSource = 'BBT' | 'LH' | 'MUCUS' | 'CALENDAR';
 
 // Engine inputs from per-user settings. `avg_cycle_length` is the onboarding
-// fallback; `cycle_regularity` + `context_flags` drive irregular-cycle handling
-// (Tier B). The new fields are optional so callers that predate them still compile.
+// fallback used until enough cycles are logged; `cycle_regularity` flags
+// irregular-cycle handling (Tier B) before history alone can detect it.
 export interface EngineMeta {
     avg_cycle_length: number;
     cycle_regularity?: 'regular' | 'irregular' | 'unsure' | null;
-    context_flags?: string[];
 }
 
 interface EngineContext {
@@ -191,6 +190,27 @@ export function runFusionEngine(userId: string, context: EngineContext): {
         cycle.ovulation_confirmed_date = result.isConfirmed ? cycle.ovulation_prediction : null;
         cycle.analysis_flags = result.anomalies;
 
+        const activeCycleLength = result.ovulationDay > 0 ? result.ovulationDay + personalizedLuteal : predictedLength;
+        const cycleDayOfToday = daysBetween(cycle.start_date, today) + 1;
+
+        const expectedEndDate = addDays(cycle.start_date, activeCycleLength - 1);
+        const logsAfterThreshold = sortedLogs.filter(l => l.date > expectedEndDate && l.date >= cycle.start_date);
+
+        const hasFertilitySignal = logsAfterThreshold.some(l => {
+            const hasTemp = l.temperature !== null && l.temperature !== undefined;
+            const hasMucus = l.mucus !== null && l.mucus !== undefined;
+            const hasLh = l.lh_test !== null && l.lh_test !== undefined && String(l.lh_test) !== 'notTaken';
+            return hasTemp || hasMucus || hasLh;
+        });
+
+        const hasMenstruationOrCervicalFluid = logsAfterThreshold.some(l => {
+            const hasBleeding = l.bleeding !== null && l.bleeding !== undefined && l.bleeding !== 'none';
+            const hasMucus = l.mucus !== null && l.mucus !== undefined;
+            return hasBleeding || hasMucus;
+        });
+
+        const lostTrack = !cycle.end_date && cycleDayOfToday > activeCycleLength && !(hasFertilitySignal && hasMenstruationOrCervicalFluid);
+
         const cycleEnd = cycle.end_date || viewEnd;
         const daysToGen = generateDateRange(cycle.start_date, cycleEnd);
         const periodLength = cycle.period_length || CONFIG.cycle.DEFAULT_PERIOD_LENGTH;
@@ -208,7 +228,8 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 result,
                 irregular,
                 strongHistory: cycleStats.completedCount >= CONFIG.cycle.MIN_CYCLES_FOR_STRONG_HISTORY && !irregular.isIrregular,
-                activeCycleLength: result.ovulationDay > 0 ? result.ovulationDay + personalizedLuteal : predictedLength,
+                activeCycleLength,
+                lostTrack,
             });
 
             statuses.push({
@@ -220,7 +241,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 is_predicted: date > (lastLogDate || today),
                 engine_version: ENGINE_VERSION,
                 updated_at: new Date().toISOString(),
-                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData, irregular),
+                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData, irregular, lostTrack),
             });
         }
     }
@@ -635,8 +656,9 @@ function classifyDay(args: {
     irregular: IrregularInfo;
     strongHistory: boolean;
     activeCycleLength: number;
+    lostTrack: boolean;
 }): { status: FertilityStatus; phase: Phase } {
-    const { cycleDay, log, cycleStartsWithBleed, periodLength, result, strongHistory, activeCycleLength } = args;
+    const { cycleDay, log, cycleStartsWithBleed, periodLength, result, strongHistory, activeCycleLength, lostTrack } = args;
 
     // Period override: actual bleeding ≥light, or within the period span of a
     // bleeding-started cycle (uses real period_length, not a hardcoded 5).
@@ -647,6 +669,9 @@ function classifyDay(args: {
 
     // Predict next cycle's period if we are past this cycle's predicted length
     if (cycleDay > activeCycleLength) {
+        if (lostTrack) {
+            return { status: 'unsure', phase: 'Luteal' };
+        }
         const projectedDay = ((cycleDay - 1) % activeCycleLength) + 1;
         if (projectedDay <= periodLength) {
             return { status: 'period', phase: 'Period' };
@@ -719,6 +744,7 @@ function buildDayMeta(
     date: string,
     day: EngineDay | undefined,
     irregular: IrregularInfo,
+    lostTrack?: boolean,
 ) {
     const primarySignal: SignalSource = result.signals.length > 0 ? result.signals[0].source : 'CALENDAR';
     const daysToOvulation = day ? result.ovulationDay - day.cycleDay : null;
@@ -734,6 +760,7 @@ function buildDayMeta(
         hasTemp: !!day?.tempValue,
         hasLh: !!day?.log?.lh_test,
         hasMucus: !!day?.log?.mucus,
+        lostTrack,
         stats: {
             avgCycleLength: stats.avgCycleLength,
             medianCycleLength: stats.medianCycleLength,

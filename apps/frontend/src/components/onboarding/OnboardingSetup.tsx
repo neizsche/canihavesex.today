@@ -1,21 +1,15 @@
 import * as React from 'react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
-import { ToggleTile } from '@/components/common/ui/toggle-tile';
-import { Check, Activity, Pill, Baby } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OnboardingSkipLink } from './OnboardingSkipLink';
 
 interface OnboardingSetupProps {
-  // intent handled by default now
   regularity?: 'regular' | 'irregular' | 'unsure' | null;
-  contextFlags?: string[];
-  lastPeriodStart?: string;
   cycleLengthMin?: number;
   cycleLengthMax?: number;
   onUpdate: (data: {
     regularity?: any;
-    contextFlags?: string[];
-    lastPeriodStart?: string;
     cycleLengthMin?: number;
     cycleLengthMax?: number;
   }) => void;
@@ -26,8 +20,6 @@ interface OnboardingSetupProps {
 
 export function OnboardingSetup({
   regularity,
-  contextFlags,
-  lastPeriodStart,
   cycleLengthMin = 26,
   cycleLengthMax = 30,
   onUpdate,
@@ -35,17 +27,7 @@ export function OnboardingSetup({
   onSkip,
   skipBusy,
 }: OnboardingSetupProps) {
-  const flags = contextFlags || [];
   const [useRange, setUseRange] = React.useState(true);
-  const [knowsDate, setKnowsDate] = React.useState(true);
-  const today = new Date().toISOString().slice(0, 10);
-
-  const handleFlagToggle = (flag: string) => {
-    const newFlags = flags.includes(flag)
-      ? flags.filter((f: string) => f !== flag)
-      : [...flags, flag];
-    onUpdate({ contextFlags: newFlags });
-  };
 
   return (
     <div className="flex h-full w-full flex-col bg-background font-sans">
@@ -102,108 +84,9 @@ export function OnboardingSetup({
                 </button>
               ))}
             </InsetGroup>
-
-            {/* 3. Context Flags (Optional) */}
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1 px-4">
-                <h3 className="font-semibold text-[17px] text-zinc-900 dark:text-zinc-100">
-                  Additional Context
-                </h3>
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
-                  Select any that apply to help tune your cycle predictions.
-                </p>
-              </div>
-
-              <div className="px-4">
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    {
-                      id: 'pcos',
-                      label: 'PCOS',
-                      icon: Activity,
-                      bg: 'bg-purple-500/10',
-                      text: 'text-purple-500',
-                    },
-                    {
-                      id: 'thyroid',
-                      label: 'Thyroid',
-                      icon: Activity,
-                      bg: 'bg-orange-500/10',
-                      text: 'text-orange-500',
-                    },
-                    {
-                      id: 'post_birth_control',
-                      label: 'Post-BC',
-                      icon: Pill,
-                      bg: 'bg-blue-500/10',
-                      text: 'text-blue-500',
-                    },
-                    {
-                      id: 'breastfeeding',
-                      label: 'Nursing',
-                      icon: Baby,
-                      bg: 'bg-pink-500/10',
-                      text: 'text-pink-500',
-                    },
-                  ].map((flag) => (
-                    <ToggleTile
-                      key={flag.id}
-                      label={flag.label}
-                      icon={flag.icon}
-                      activeBgClass={flag.bg}
-                      activeTextClass={flag.text}
-                      checked={flags.includes(flag.id)}
-                      onChange={() => handleFlagToggle(flag.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* 4. Last Period Start */}
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1 px-4">
-              <h3 className="font-semibold text-[17px] text-zinc-900 dark:text-zinc-100">
-                Last Period
-              </h3>
-            </div>
-            <InsetGroup>
-              <div className="p-4 space-y-4">
-                {knowsDate ? (
-                  <input
-                    type="date"
-                    value={lastPeriodStart}
-                    max={today}
-                    onChange={(e) => onUpdate({ lastPeriodStart: e.target.value })}
-                    className="w-full h-12 px-4 text-[17px] bg-transparent border-none text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#007aff] rounded-lg"
-                  />
-                ) : (
-                  <div className="text-center py-2">
-                    <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-                      No worries. We'll start tracking from today.
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => {
-                    const newKnows = !knowsDate;
-                    setKnowsDate(newKnows);
-                    if (!newKnows) {
-                      // If skipping, assume today for backend requirement
-                      onUpdate({ lastPeriodStart: today });
-                    }
-                  }}
-                  className="w-full text-[15px] text-[#007aff] font-medium active:opacity-70 transition-opacity"
-                >
-                  {knowsDate ? "I don't remember" : 'I know the date'}
-                </button>
-              </div>
-            </InsetGroup>
-          </div>
-
-          {/* 5. Cycle Length */}
+          {/* Cycle Length */}
           <div className="space-y-4 pt-2">
             <div className="space-y-1 px-4">
               <h3 className="font-semibold text-[17px] text-zinc-900 dark:text-zinc-100">

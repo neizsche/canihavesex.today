@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Activity, ChevronRight, TrendingUp } from 'lucide-react';
+import { Activity, ChevronRight, Droplets, TrendingUp } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
@@ -78,6 +78,7 @@ export function TodayScreen() {
 
   const todayData = safeInsights['today'];
   const phase = todayData?.phase || '';
+  const lostTrack = todayData?.lostTrack || false;
   const signals = todayData?.confidence?.signals || {};
 
   const cycle = todayData?.cycle;
@@ -119,8 +120,10 @@ export function TodayScreen() {
           !brandingVisible && 'pt-10 sm:pt-12'
         )}
       >
-        {!dailyLogDone ? (
-          /* ── Not Logged ── */
+
+
+        {!dailyLogDone || lostTrack ? (
+          /* ── Not Logged / Overdue Cycle (Lost Track) ── */
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
             <img
               src="/logo.png"
@@ -139,7 +142,9 @@ export function TodayScreen() {
             </h1>
 
             <p className="text-[15px] text-zinc-400 dark:text-zinc-600 mt-3 max-w-[230px] leading-relaxed">
-              Log your symptoms to see today's fertility status.
+              {lostTrack
+                ? "You're past your usual cycle length. Log today to refresh your predictions."
+                : "Log your symptoms to see today's fertility status."}
             </p>
 
             <button

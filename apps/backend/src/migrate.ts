@@ -198,6 +198,21 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    name: 'drop_unused_onboarding_fields',
+    up: async (db) => {
+      // `intent` and `context_flags` were collected at onboarding but never
+      // consumed: intent defaulted to a constant and was only echoed back, and
+      // context_flags was stored but read by nothing (the engine never looked at
+      // it). The engine inputs that actually matter — avg_cycle_length and
+      // cycle_regularity — stay. Dropping both columns end-to-end.
+      await db.exec(`
+        ALTER TABLE user_settings DROP COLUMN IF EXISTS intent;
+        ALTER TABLE user_settings DROP COLUMN IF EXISTS context_flags;
+      `);
+    },
+  },
 ];
 
 export async function migrate(db: Db) {

@@ -158,9 +158,7 @@ async function seed() {
     CYCLE_LENGTHS.reduce((a, b) => a + b, 0) / CYCLE_LENGTHS.length
   );
   await settingsRepo.completeOnboarding(userId, {
-    intent: 'avoid',
     cycle_regularity: 'regular',
-    context_flags: [],
     avgCycleLength,
   });
 
@@ -170,14 +168,51 @@ async function seed() {
   let cycleIdx = 0;
   let cycleLength = CYCLE_LENGTHS[0];
 
-  for (let i = 0; i < TOTAL_DAYS; i++) {
+  for (let i = 0; i <= TOTAL_DAYS; i++) {
     const date = addDaysIso(startDate, i);
     const ovulationDay = cycleLength - 14; // luteal phase ~14 days
+
+    // Simulate missing logs: user forgot to log for the last ~34 days,
+    // but logs today to check status.
+    const isToday = date === today;
+    const isGapDay = i >= 146 && i < TOTAL_DAYS;
+
+    if (isGapDay) {
+      // Skip inserting logs for this period to simulate forgetting to log,
+      // but still advance the cycle days so the timeline stays correct.
+      if (dayInCycle >= cycleLength) {
+        dayInCycle = 1;
+        cycleIdx += 1;
+        cycleLength = CYCLE_LENGTHS[cycleIdx % CYCLE_LENGTHS.length];
+      } else {
+        dayInCycle += 1;
+      }
+      continue;
+    }
 
     let bleeding: Log['bleeding'] = 'none';
     let mucus: Log['mucus'] = null;
     let lh: 'negative' | 'positive' = 'negative';
     let temp = 36.5 + jitter(0.05);
+
+    if (isToday) {
+      // Logged today: has headache, but no bleeding (period is overdue!)
+      const tempValue = 36.5 + jitter(0.05);
+      logs.push({
+        id: randomUUID(),
+        user_id: userId,
+        date,
+        bleeding: 'none',
+        temperature: Number(tempValue.toFixed(2)),
+        mucus: null,
+        lh_test: 'negative',
+        disturbances: [],
+        symptoms: ['headache', 'energy:normal', 'mood:calm'],
+        notes: 'Forgot to log my period, it is super late.',
+        created_at: new Date().toISOString(),
+      });
+      continue;
+    }
 
     // Menstruation: first ~5 days, tapering.
     if (dayInCycle <= 5) {
@@ -237,6 +272,7 @@ async function seed() {
   // 5. Run the real engine so charts/predictions match a genuine account.
   const meta = await settingsRepo.getEngineMeta(userId);
   const result = runFusionEngine(userId, { logs, meta, today });
+  console.log("RESULT CYCLES:", result.cycles.map(c => ({ id: c.id, start: c.start_date, end: c.end_date })));
   await statusRepo.saveDailyStatuses(result.statuses);
   await cycleRepo.upsertCycles(result.cycles);
 

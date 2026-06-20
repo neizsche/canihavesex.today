@@ -53,10 +53,34 @@ export default defineConfig({
       },
     },
     plugins: [
+      // Dev only: Vite serves files in `public/` with `Cache-Control: no-cache`,
+      // which forces the browser to revalidate static images (e.g. the logo
+      // shown on many screens) on every component remount — causing a visible
+      // blink. Give image assets a real max-age in dev so they stay cached.
+      // (Production caching is handled by the backend's static file server.)
+      {
+        name: 'cache-static-images-dev',
+        apply: 'serve',
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            if (req.url && /\.(png|jpe?g|svg|webp|ico|gif)(\?.*)?$/i.test(req.url)) {
+              res.setHeader('Cache-Control', 'public, max-age=86400');
+              // Stop Vite's static handler from overwriting the header back to
+              // no-cache once it serves the file.
+              const setHeader = res.setHeader.bind(res);
+              res.setHeader = (name, value) =>
+                /^cache-control$/i.test(name) ? res : setHeader(name, value);
+            }
+            next();
+          });
+        },
+      },
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null,
-        includeAssets: ['icon.svg', 'offline.html'],
+        // Precache the shared logo so the installed PWA renders it instantly
+        // from cache across screens instead of re-fetching it each time.
+        includeAssets: ['icon.svg', 'offline.html', 'logo.png'],
         manifest: {
           name: 'canihavesex.today',
           short_name: 'canihavesex',

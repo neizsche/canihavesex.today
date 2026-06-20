@@ -22,7 +22,7 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
 
     if (m.isConfirmed) pool.push('Ovulation confirmed via temp shift.');
 
-    if (phase === 'Luteal' && m.isConfirmed && cycleDay) {
+    if (phase === 'Luteal' && m.isConfirmed && cycleDay && !m.lostTrack) {
         const daysToNextPeriod = avgLen - cycleDay;
         if (daysToNextPeriod > 0 && daysToNextPeriod <= 5)
             pool.push(`Period in ~${daysToNextPeriod} days.`);
@@ -67,13 +67,16 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
     const daysToNextPeriod =
         cycleDay == null
             ? null
-            : ovulationDay != null
-              ? Math.max(0, ovulationDay + 14 - cycleDay) // luteal phase ~14 days
-              : Math.max(0, avgLen - cycleDay);
+            : m.lostTrack
+              ? null
+              : ovulationDay != null
+                ? Math.max(0, ovulationDay + 14 - cycleDay) // luteal phase ~14 days
+                : Math.max(0, avgLen - cycleDay);
 
     return {
         today: {
             phase,
+            lostTrack: m.lostTrack || false,
             cycle: {
                 day: cycleDay,
                 length: avgLen,

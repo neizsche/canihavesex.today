@@ -293,3 +293,87 @@ describe('property: engine output is always well-formed (fuzz)', () => {
         }
     });
 });
+
+describe('lostTrack - overdue cycle handling', () => {
+    test('computes lostTrack correctly and drops projected days to unsure/Luteal status', () => {
+        const start = '2026-03-01';
+        const logs = [
+            log(start, { bleeding: 'heavy' }),
+            log(addDaysIso(start, 1), { bleeding: 'medium' }),
+        ];
+        const today = addDaysIso(start, 34); // CD 35
+        const { statuses } = runFusionEngine('u', { logs, meta: META, today });
+        const byDate = new Map(statuses.map((s) => [s.date, s]));
+        
+        const cd28Status = byDate.get(addDaysIso(start, 27)); // CD 28
+        assert.ok(cd28Status);
+        
+        const cd29Status = byDate.get(addDaysIso(start, 28)); // CD 29
+        assert.ok(cd29Status);
+        assert.equal(cd29Status.fertility_status, 'unsure');
+        assert.equal(cd29Status.phase, 'Luteal');
+        assert.equal(cd29Status.insights_payload.lostTrack, true);
+        
+        const todayEarly = addDaysIso(start, 19); // CD 20
+        const { statuses: statusesEarly } = runFusionEngine('u', { logs, meta: META, today: todayEarly });
+        const byDateEarly = new Map(statusesEarly.map((s) => [s.date, s]));
+        const cd29StatusEarly = byDateEarly.get(addDaysIso(start, 28)); // CD 29
+        assert.ok(cd29StatusEarly);
+        assert.equal(cd29StatusEarly.fertility_status, 'period');
+        assert.equal(cd29StatusEarly.phase, 'Period');
+        assert.equal(cd29StatusEarly.insights_payload.lostTrack, false);
+
+        // 1. If a user logs ONLY temperature (fertility signal but no menstruation/cervical fluid) after expected length:
+        const logsWithOnlyTemp = [
+            ...logs,
+            log(addDaysIso(start, 29), { temperature: 36.6 }), // CD 30 log
+        ];
+        const { statuses: statusesOnlyTemp } = runFusionEngine('u', { logs: logsWithOnlyTemp, meta: META, today });
+        const byDateOnlyTemp = new Map(statusesOnlyTemp.map((s) => [s.date, s]));
+        const statusOnlyTemp = byDateOnlyTemp.get(addDaysIso(start, 28)); // CD 29
+        assert.ok(statusOnlyTemp);
+        assert.equal(statusOnlyTemp.fertility_status, 'unsure');
+        assert.equal(statusOnlyTemp.phase, 'Luteal');
+        assert.equal(statusOnlyTemp.insights_payload.lostTrack, true);
+
+        // 2. If a user logs ONLY mucus (both fertility signal and cervical fluid) after expected length:
+        const logsWithOnlyMucus = [
+            ...logs,
+            log(addDaysIso(start, 29), { mucus: 'sticky' }), // CD 30 log
+        ];
+        const { statuses: statusesOnlyMucus } = runFusionEngine('u', { logs: logsWithOnlyMucus, meta: META, today });
+        const byDateOnlyMucus = new Map(statusesOnlyMucus.map((s) => [s.date, s]));
+        const statusOnlyMucus = byDateOnlyMucus.get(addDaysIso(start, 28)); // CD 29
+        assert.ok(statusOnlyMucus);
+        assert.equal(statusOnlyMucus.fertility_status, 'period');
+        assert.equal(statusOnlyMucus.phase, 'Period');
+        assert.equal(statusOnlyMucus.insights_payload.lostTrack, false);
+
+        // 3. If a user logs temperature and spotting (fertility signal + menstruation) after expected length:
+        const logsWithTempAndSpotting = [
+            ...logs,
+            log(addDaysIso(start, 29), { temperature: 36.6, bleeding: 'spotting' }), // CD 30 log
+        ];
+        const { statuses: statusesTempAndSpotting } = runFusionEngine('u', { logs: logsWithTempAndSpotting, meta: META, today });
+        const byDateTempAndSpotting = new Map(statusesTempAndSpotting.map((s) => [s.date, s]));
+        const statusTempAndSpotting = byDateTempAndSpotting.get(addDaysIso(start, 28)); // CD 29
+        assert.ok(statusTempAndSpotting);
+        assert.equal(statusTempAndSpotting.fertility_status, 'period');
+        assert.equal(statusTempAndSpotting.phase, 'Period');
+        assert.equal(statusTempAndSpotting.insights_payload.lostTrack, false);
+
+        // 4. If a user logs ONLY menstruation/spotting (no fertility signal like temp/mucus/LH):
+        const logsWithOnlySpotting = [
+            ...logs,
+            log(addDaysIso(start, 29), { bleeding: 'spotting' }), // CD 30 log
+        ];
+        const { statuses: statusesOnlySpotting } = runFusionEngine('u', { logs: logsWithOnlySpotting, meta: META, today });
+        const byDateOnlySpotting = new Map(statusesOnlySpotting.map((s) => [s.date, s]));
+        const statusOnlySpotting = byDateOnlySpotting.get(addDaysIso(start, 28)); // CD 29
+        assert.ok(statusOnlySpotting);
+        assert.equal(statusOnlySpotting.fertility_status, 'unsure');
+        assert.equal(statusOnlySpotting.phase, 'Luteal');
+        assert.equal(statusOnlySpotting.insights_payload.lostTrack, true);
+    });
+});
+

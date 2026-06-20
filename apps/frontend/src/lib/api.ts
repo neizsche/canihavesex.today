@@ -10,6 +10,11 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   return fetch(url, {
     ...init,
     credentials: 'include',
+    // Never serve API responses from the browser HTTP cache. These are
+    // per-user and cookie-scoped, but the HTTP cache does not vary on cookies —
+    // without this, a cached identity (e.g. /api/session) can survive a logout
+    // and the next account would still see the previous user.
+    cache: 'no-store',
     headers: {
       'X-Requested-With': 'XMLHttpRequest',
       ...(init.headers || {}),

@@ -1,6 +1,13 @@
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_TZ_OFFSET_MINUTES = 14 * 60;
 
+// How far back a user may log or edit an entry. Doubles as the onboarding
+// back-log window (a first-time user mid-cycle can reach her last period) and
+// the rolling edit lock (older days are read-only). ~2 average cycles — wide
+// enough to anchor even an irregular cycle, narrow enough that a forgotten
+// intervening period is unlikely to create a bogus long cycle.
+export const BACKLOG_WINDOW_DAYS = 56;
+
 function pad2(value: number): string {
     return String(value).padStart(2, '0');
 }
@@ -60,4 +67,15 @@ export function isoDateForOffset(date: Date, offsetMinutes?: number | null): str
 
 export function isoToday(offsetMinutes?: number | null): string {
     return isoDateForOffset(new Date(), offsetMinutes);
+}
+
+// Earliest date (inclusive) a user may still log or edit, given `today`.
+export function backlogFloorIso(today: string): string {
+    return addDaysIso(today, -BACKLOG_WINDOW_DAYS);
+}
+
+// Whether `date` falls inside the editable back-log window ending at `today`.
+// Future dates are out of range too (callers normally clamp to today first).
+export function isWithinBacklogWindow(date: string, today: string): boolean {
+    return date >= backlogFloorIso(today) && date <= today;
 }

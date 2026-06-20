@@ -216,6 +216,20 @@ export async function createApp() {
   });
 
 
+  // API responses are per-user and cookie-scoped — never let the browser (or
+  // any intermediary) cache them. The HTTP cache does not vary on cookies, so a
+  // cached identity could otherwise outlive a logout and leak into the next
+  // account. Applies in dev and prod (the static-file no-cache hook below only
+  // runs when this process also serves the frontend).
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (req.url.startsWith('/api/')) {
+      reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+      reply.header('Pragma', 'no-cache');
+      reply.header('Expires', '0');
+    }
+    return payload;
+  });
+
   // CSRF validation hook (C2)
   app.addHook('preHandler', async (req, reply) => {
     // Only check state-changing API endpoints
@@ -263,7 +277,23 @@ export async function createApp() {
   // where Vite serves the frontend), this is skipped entirely.
   const frontendDir = process.env.FRONTEND_DIST ? resolve(process.env.FRONTEND_DIST) : null;
   if (frontendDir && existsSync(frontendDir)) {
-    await app.register(fastifyStatic, { root: frontendDir });
+    await app.register(fastifyStatic, {
+      root: frontendDir,
+      // By default @fastify/static serves with `max-age=0`, so the browser
+      // revalidates static assets on every request — which makes images like
+      // the logo (reused across many screens) blink on each remount. Cache
+      // fingerprinted build assets forever, and stable-named assets (logo,
+      // favicons, fonts) for a day. HTML, the service worker and the manifest
+      // are intentionally left uncached (the latter two by the hook below) so
+      // new deploys are always picked up.
+      setHeaders: (res, filePath) => {
+        if (filePath.includes('/_astro/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (/\.(png|jpe?g|svg|webp|ico|gif|woff2?)$/i.test(filePath)) {
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+        }
+      },
+    });
 
     // Service worker and manifest must never be cached by the browser so that
     // updates are always picked up on the next navigation.

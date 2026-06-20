@@ -9,7 +9,7 @@ import { ApiKeyRepository } from '../repositories/ApiKeyRepository.js';
 import { EngineService } from '../services/EngineService.js';
 import { generateApiKey } from '../apiKeys.js';
 import { cacheService } from '../services/CacheService.js';
-import { addDaysIso, isoToday } from '../utils/dates.js';
+import { isoToday } from '../utils/dates.js';
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -23,14 +23,15 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     const apiKeyRepo = new ApiKeyRepository(opts.db);
     const engineService = new EngineService(opts.db);
 
-    // PATCH /api/v1/user/preferences — completes onboarding
+    // PATCH /api/v1/user/preferences — completes onboarding.
+    // Captures only the two engine inputs that matter for a cold start:
+    // cycle regularity and typical cycle length. The cycle anchor is no longer
+    // collected here — the user back-logs her last period from the calendar
+    // (within the 56-day window), and the engine derives the cycle from that log.
     app.patch('/api/v1/user/preferences', {
         schema: {
             body: z.object({
-                intent: z.enum(['avoid_pregnancy', 'conceive', 'understand_cycle']),
                 cycle_regularity: z.enum(['regular', 'irregular', 'unsure']),
-                context_flags: z.array(z.string()).max(20).optional(),
-                last_period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
                 cycle_length_min: z.number().int().min(18).max(45).optional(),
                 cycle_length_max: z.number().int().min(18).max(45).optional()
             })
@@ -39,14 +40,8 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         const userId = req.userId!;
         const body = req.body;
 
-        const { intent, cycle_regularity, context_flags } = body;
-        let { last_period_start, cycle_length_min, cycle_length_max } = body;
-
-        // Normalize: last_period_start cannot be in the future (clamp to today).
-        const today = isoToday();
-        if (last_period_start > today) {
-            last_period_start = today;
-        }
+        const { cycle_regularity } = body;
+        let { cycle_length_min, cycle_length_max } = body;
 
         // Normalize: ensure min <= max when both supplied.
         if (cycle_length_min && cycle_length_max && cycle_length_min > cycle_length_max) {
@@ -58,53 +53,21 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             avgLength = (cycle_length_min + cycle_length_max) / 2;
         }
 
-        // Use transaction for atomic onboarding. Idempotent: re-running onboarding
-        // (e.g. a client retry after a perceived failure) must not duplicate state.
-        const sessionData = await opts.db.transaction(async (txDb: any) => {
-            const txSettings = new SettingsRepository(txDb);
-            const txCycle = new CycleRepository(txDb);
-            const txUser = new UserRepository(txDb);
-
-            // 1. Persist onboarding answers + avg cycle length in a single upsert
-            // (previously two writes across user_preferences and user_metadata).
-            await txSettings.completeOnboarding(userId, {
-                intent,
-                cycle_regularity,
-                context_flags: context_flags || [],
-                avgCycleLength: avgLength,
-            });
-
-            // 2. Create/Update Initial Active Cycle.
-            // Reuse the existing active cycle (no end_date) instead of always
-            // inserting a fresh UUID — otherwise a retry leaves duplicate active cycles.
-            const existingCycles = await txCycle.getCycleHistory(userId);
-            const activeCycle = existingCycles.find((c) => !c.end_date);
-            const cycleId = activeCycle?.id ?? randomUUID();
-
-            await txCycle.upsertCycles([{
-                id: cycleId,
-                user_id: userId,
-                start_date: last_period_start,
-                end_date: null,
-                ovulation_prediction: null,
-                ovulation_confirmed_date: null,
-                length: null,
-                period_length: activeCycle?.period_length ?? null,
-                analysis_flags: []
-            }]);
-
-            // 3. Get User data for session update
-            const user = await txUser.findById(userId);
-
-            return {
-                userId,
-                email: user?.email ?? null,
-                onboardingCompleted: true
-            };
+        // Idempotent: re-running onboarding (e.g. a client retry after a perceived
+        // failure) is a single settings upsert, so it cannot duplicate state.
+        await settingsRepo.completeOnboarding(userId, {
+            cycle_regularity,
+            avgCycleLength: avgLength,
         });
 
+        const user = await new UserRepository(opts.db).findById(userId);
+
         cacheService.invalidateUser(userId);
-        return sessionData;
+        return {
+            userId,
+            email: user?.email ?? null,
+            onboardingCompleted: true
+        };
     });
 
     // GET /api/v1/user/profile — Load full profile for settings screen
@@ -116,17 +79,13 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             cycleRepo.getCycleHistory(userId)
         ]);
 
-        // Find the active cycle (no end_date) for last_period_start
+        // Active cycle (no end_date) then latest completed cycle, for period_length.
         const activeCycle = cycles.find(c => !c.end_date);
-        // Find latest completed cycle for period_length
         const latestCompleted = cycles.find(c => c.end_date && c.period_length);
 
         return {
             cycle_regularity: settings.cycle_regularity,
-            context_flags: settings.context_flags,
-            intent: settings.intent,
             avg_cycle_length: Number(settings.avg_cycle_length),
-            last_period_start: activeCycle?.start_date ?? null,
             period_length: activeCycle?.period_length ?? latestCompleted?.period_length ?? 5,
             show_branding: settings.show_branding ?? true,
             theme: settings.theme ?? 'dark',
@@ -138,9 +97,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         schema: {
             body: z.object({
                 cycle_regularity: z.enum(['regular', 'irregular', 'unsure']).optional(),
-                context_flags: z.array(z.string()).optional(),
                 avg_cycle_length: z.number().min(18).max(45).optional(),
-                last_period_start: z.string().optional(),
                 period_length: z.number().min(1).max(10).optional(),
                 show_branding: z.boolean().optional(),
                 theme: z.enum(['light', 'dark']).optional(),
@@ -152,10 +109,9 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
 
         let engineTriggerNeeded = false;
 
-        // 1. Settings updates (regularity, context_flags, avg_cycle_length).
-        const profilePatch: { cycle_regularity?: string; context_flags?: string[]; avg_cycle_length?: number } = {};
+        // 1. Settings updates (regularity, avg_cycle_length).
+        const profilePatch: { cycle_regularity?: string; avg_cycle_length?: number } = {};
         if (body.cycle_regularity !== undefined) profilePatch.cycle_regularity = body.cycle_regularity;
-        if (body.context_flags !== undefined) profilePatch.context_flags = body.context_flags;
         if (body.avg_cycle_length !== undefined) {
             profilePatch.avg_cycle_length = body.avg_cycle_length;
             engineTriggerNeeded = true;
@@ -174,30 +130,15 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             await settingsRepo.updateTheme(userId, body.theme);
         }
 
-        // 2. Cycle edits (last_period_start, period_length). Read the history
-        // once, mutate in memory, and write once — this previously re-read the
-        // full cycle history up to three times in a single request.
-        if (body.last_period_start !== undefined || body.period_length !== undefined) {
+        // 2. Period-length edit on the active cycle. The cycle anchor itself is
+        // no longer editable here — it's derived from logged bleeding (see the
+        // back-log window), so there's no last_period_start override path.
+        if (body.period_length !== undefined) {
             const cycles = await cycleRepo.getCycleHistory(userId);
             const activeCycle = cycles.find(c => !c.end_date);
             if (activeCycle) {
-                const cyclesToUpsert = [activeCycle];
-
-                if (body.last_period_start !== undefined) {
-                    const activeCycleIdx = cycles.indexOf(activeCycle);
-                    const prevCycle = cycles[activeCycleIdx + 1];
-                    activeCycle.start_date = body.last_period_start;
-                    if (prevCycle) {
-                        prevCycle.end_date = addDaysIso(body.last_period_start, -1);
-                        cyclesToUpsert.push(prevCycle);
-                    }
-                }
-
-                if (body.period_length !== undefined) {
-                    activeCycle.period_length = body.period_length;
-                }
-
-                await cycleRepo.upsertCycles(cyclesToUpsert);
+                activeCycle.period_length = body.period_length;
+                await cycleRepo.upsertCycles([activeCycle]);
                 engineTriggerNeeded = true;
             }
         }

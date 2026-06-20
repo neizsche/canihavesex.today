@@ -1,11 +1,10 @@
 import { Db } from '../db.js';
 import { LogRepository, Log, logHasMeaningfulData } from '../repositories/LogRepository.js';
-import { UserRepository } from '../repositories/UserRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
 import { EngineService } from './EngineService.js';
 import { randomUUID } from 'node:crypto';
-import { addDaysIso } from '../utils/dates.js';
+import { addDaysIso, backlogFloorIso } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
 
 export interface LogUpsertData {
@@ -109,18 +108,11 @@ export class LogService {
     }
 
     async getLogWithSuggestion(userId: string, date: string, today: string) {
-        const [user, earliestCycleStart, log] = await Promise.all([
-            new UserRepository(this.db).findById(userId),
-            this.cycleRepo.getEarliestCycleStartDate(userId),
-            this.logRepo.getLog(userId, date)
-        ]);
+        const log = await this.logRepo.getLog(userId, date);
 
-        // Fallback for minDate
-        const createdAt = user?.created_at ? (typeof user.created_at === 'string' ? user.created_at : (user.created_at as any).toISOString()) : null;
-        let minDate = createdAt ? createdAt.split('T')[0] : '2024-01-01';
-        if (earliestCycleStart && earliestCycleStart < minDate) {
-            minDate = earliestCycleStart;
-        }
+        // Earliest editable day: the back-log window floor. Drives the log
+        // screen's backward navigation limit (matches the server edit lock).
+        const minDate = backlogFloorIso(today);
 
         if (log) {
             return {

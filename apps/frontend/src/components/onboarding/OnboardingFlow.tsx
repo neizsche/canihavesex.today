@@ -11,10 +11,7 @@ type OnboardingStep = 'consent' | 'education' | 'setup' | 'cycle_basics' | 'sign
 
 interface OnboardingData {
   consent: boolean;
-  intent: 'avoid_pregnancy' | 'conceive' | 'understand_cycle' | null;
   cycle_regularity: 'regular' | 'irregular' | 'unsure' | null;
-  context_flags: string[];
-  last_period_start: string;
   cycle_length_min: number;
   cycle_length_max: number;
 }
@@ -44,10 +41,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [data, setData] = React.useState<OnboardingData>({
     consent: false,
-    intent: 'avoid_pregnancy', // Default per user request
     cycle_regularity: 'regular', // Default to make flow skippable
-    context_flags: [],
-    last_period_start: new Date().toISOString().slice(0, 10),
     cycle_length_min: 26,
     cycle_length_max: 30,
   });
@@ -62,7 +56,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     // Guard against double-submit (the button can be tapped twice before busy renders).
     if (busy) return;
 
-    if (!data.intent || !data.cycle_regularity || !data.last_period_start) {
+    if (!data.cycle_regularity) {
       setError('Please complete all required fields.');
       return;
     }
@@ -76,10 +70,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            intent: data.intent,
             cycle_regularity: data.cycle_regularity,
-            context_flags: data.context_flags,
-            last_period_start: data.last_period_start,
             cycle_length_min: data.cycle_length_min,
             cycle_length_max: data.cycle_length_max,
           }),
@@ -97,9 +88,6 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         return {
           ...prev,
           cycle_regularity: data.cycle_regularity,
-          context_flags: data.context_flags,
-          intent: data.intent,
-          last_period_start: data.last_period_start,
           avg_cycle_length: (data.cycle_length_min + data.cycle_length_max) / 2,
         };
       });
@@ -203,16 +191,11 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       <BrandLayout>
         <OnboardingSetup
           regularity={data.cycle_regularity}
-          contextFlags={data.context_flags}
-          lastPeriodStart={data.last_period_start}
           cycleLengthMin={data.cycle_length_min}
           cycleLengthMax={data.cycle_length_max}
           onUpdate={(updates) => {
             const payload: Partial<typeof data> = {};
             if (updates.regularity !== undefined) payload.cycle_regularity = updates.regularity;
-            if (updates.contextFlags !== undefined) payload.context_flags = updates.contextFlags;
-            if (updates.lastPeriodStart !== undefined)
-              payload.last_period_start = updates.lastPeriodStart;
             if (updates.cycleLengthMin !== undefined)
               payload.cycle_length_min = updates.cycleLengthMin;
             if (updates.cycleLengthMax !== undefined)

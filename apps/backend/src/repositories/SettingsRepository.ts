@@ -2,7 +2,6 @@ import type { Db } from '../db.js';
 import type { EngineMeta } from '../engine.js';
 
 export type Theme = 'light' | 'dark';
-export type Intent = 'avoid_pregnancy' | 'conceive' | 'understand_cycle';
 export type CycleRegularity = 'regular' | 'irregular' | 'unsure';
 
 // One row per user. Merges the former `user_preferences` (UI/onboarding) and
@@ -11,9 +10,7 @@ export type CycleRegularity = 'regular' | 'irregular' | 'unsure';
 export interface UserSettings {
   user_id: string;
   theme: Theme;
-  intent: Intent | null;
   cycle_regularity: CycleRegularity | null;
-  context_flags: string[];
   show_branding: boolean;
   education_seen: Record<string, boolean>;
   avg_cycle_length: number;
@@ -39,16 +36,14 @@ export class SettingsRepository {
     const rows = await this.db.query<{
       avg_cycle_length: number;
       cycle_regularity: CycleRegularity | null;
-      context_flags: unknown;
     }>(
-      'SELECT avg_cycle_length, cycle_regularity, context_flags FROM user_settings WHERE user_id = $1',
+      'SELECT avg_cycle_length, cycle_regularity FROM user_settings WHERE user_id = $1',
       [userId]
     );
     const row = rows[0];
     return {
       avg_cycle_length: row?.avg_cycle_length ?? DEFAULT_AVG_CYCLE_LENGTH,
       cycle_regularity: row?.cycle_regularity ?? null,
-      context_flags: Array.isArray(row?.context_flags) ? (row!.context_flags as string[]) : [],
     };
   }
 
@@ -74,26 +69,24 @@ export class SettingsRepository {
    */
   async completeOnboarding(
     userId: string,
-    data: { intent: string; cycle_regularity: string; context_flags: string[]; avgCycleLength: number }
+    data: { cycle_regularity: string; avgCycleLength: number }
   ): Promise<void> {
     await this.db.query(
       `INSERT INTO user_settings
-         (user_id, intent, cycle_regularity, context_flags, avg_cycle_length, onboarding_completed_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+         (user_id, cycle_regularity, avg_cycle_length, onboarding_completed_at)
+       VALUES ($1, $2, $3, NOW())
        ON CONFLICT (user_id) DO UPDATE SET
-         intent = EXCLUDED.intent,
          cycle_regularity = EXCLUDED.cycle_regularity,
-         context_flags = EXCLUDED.context_flags,
          avg_cycle_length = EXCLUDED.avg_cycle_length,
          onboarding_completed_at = EXCLUDED.onboarding_completed_at`,
-      [userId, data.intent, data.cycle_regularity, JSON.stringify(data.context_flags), data.avgCycleLength]
+      [userId, data.cycle_regularity, data.avgCycleLength]
     );
   }
 
   /** Partial profile update from the settings screen. updated_at is set by trigger. */
   async updateProfile(
     userId: string,
-    data: { cycle_regularity?: string; context_flags?: string[]; avg_cycle_length?: number }
+    data: { cycle_regularity?: string; avg_cycle_length?: number }
   ): Promise<void> {
     const setClauses: string[] = [];
     const values: any[] = [];
@@ -102,10 +95,6 @@ export class SettingsRepository {
     if (data.cycle_regularity !== undefined) {
       setClauses.push(`cycle_regularity = $${idx++}`);
       values.push(data.cycle_regularity);
-    }
-    if (data.context_flags !== undefined) {
-      setClauses.push(`context_flags = $${idx++}`);
-      values.push(JSON.stringify(data.context_flags));
     }
     if (data.avg_cycle_length !== undefined) {
       setClauses.push(`avg_cycle_length = $${idx++}`);
@@ -146,9 +135,7 @@ function mapSettings(userId: string, row: any): UserSettings {
     return {
       user_id: userId,
       theme: 'dark',
-      intent: null,
       cycle_regularity: null,
-      context_flags: [],
       show_branding: true,
       education_seen: {},
       avg_cycle_length: DEFAULT_AVG_CYCLE_LENGTH,
@@ -159,10 +146,7 @@ function mapSettings(userId: string, row: any): UserSettings {
   return {
     user_id: row.user_id,
     theme: row.theme === 'light' ? 'light' : 'dark',
-    intent: row.intent ?? null,
     cycle_regularity: row.cycle_regularity ?? null,
-    // jsonb columns are returned already-parsed by pg.
-    context_flags: Array.isArray(row.context_flags) ? row.context_flags : [],
     show_branding: row.show_branding ?? true,
     education_seen:
       row.education_seen && typeof row.education_seen === 'object' && !Array.isArray(row.education_seen)
