@@ -272,7 +272,6 @@ async function seed() {
   // 5. Run the real engine so charts/predictions match a genuine account.
   const meta = await settingsRepo.getEngineMeta(userId);
   const result = runFusionEngine(userId, { logs, meta, today });
-  console.log("RESULT CYCLES:", result.cycles.map(c => ({ id: c.id, start: c.start_date, end: c.end_date })));
   await statusRepo.saveDailyStatuses(result.statuses);
   await cycleRepo.upsertCycles(result.cycles);
 

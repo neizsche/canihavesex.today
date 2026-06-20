@@ -102,6 +102,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
 
                 // Get today's status for the card
                 const todayStatus = statuses.find(st => st.date === today);
+                const isLostTrack = todayStatus?.insights_payload?.lostTrack || false;
 
                 if (cycle.ovulation_prediction) {
                     // Luteal phase is ~14 days, period starts on the 15th day after ovulation
@@ -125,7 +126,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                     cycleDay: cycleDay,
                     fertilityStatus: todayStatus?.fertility_status === 'fertile' ? 'High' : (todayStatus?.fertility_status === 'period' ? 'Period' : 'Low'),
                     phase: phaseName.includes('Phase') ? phaseName : `${phaseName} Phase`,
-                    isPredicted: daysToPeriod !== null
+                    isPredicted: daysToPeriod !== null,
+                    lostTrack: isLostTrack
                 };
             } else {
                 // HISTORICAL CYCLE (Past Month View)
@@ -139,7 +141,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                     cycleDay: null,
                     fertilityStatus: 'Low',
                     phase: 'Luteal Phase',
-                    isPredicted: false
+                    isPredicted: false,
+                    lostTrack: false
                 };
             }
         }

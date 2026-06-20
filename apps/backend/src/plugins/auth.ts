@@ -31,6 +31,8 @@ const authPlugin: FastifyPluginAsync<AuthPluginOptions> = async (fastify, opts) 
             req.url.startsWith('/api/auth/oauth/') ||
             req.url === '/api/auth/register' ||
             req.url === '/api/auth/login' ||
+            req.url === '/api/auth/verify-email' ||
+            req.url === '/api/auth/resend-code' ||
             req.url === '/api/auth/demo' ||
             req.url === '/api/auth/providers' ||
             req.url === '/api/signout' ||

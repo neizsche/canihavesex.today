@@ -4,6 +4,7 @@ export interface User {
     id: string; // UUID
     email: string;
     password_hash?: string | null;
+    email_verified?: boolean; // cloud-only; defaults true (see migration v4)
     created_at: string;
 }
 
@@ -38,6 +39,10 @@ export class UserRepository {
 
     async setPassword(userId: string, passwordHash: string): Promise<void> {
         await this.db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+    }
+
+    async setEmailVerified(userId: string, verified: boolean): Promise<void> {
+        await this.db.query('UPDATE users SET email_verified = $1 WHERE id = $2', [verified, userId]);
     }
 
     async delete(id: string): Promise<void> {

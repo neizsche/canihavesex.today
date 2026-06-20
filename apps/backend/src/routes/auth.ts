@@ -5,6 +5,8 @@ import type { UserRepository } from '../repositories/UserRepository.js';
 import type { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { hashPassword, verifyPassword } from '../password.js';
 import { DEMO_EMAIL, isDemoAccountEnabled } from '../demo.js';
+import { isEmailVerificationEnabled } from '../emailVerification.js';
+import type { EmailVerificationService } from '../services/EmailVerificationService.js';
 import {
     appBase,
     ensureUserForEmail,
@@ -21,19 +23,32 @@ import {
 
 export async function authRoutes(
     app: FastifyInstance,
-    opts: { userRepository: UserRepository; settingsRepository: SettingsRepository }
+    opts: {
+        userRepository: UserRepository;
+        settingsRepository: SettingsRepository;
+        emailVerification: EmailVerificationService;
+    }
 ) {
-    const { userRepository, settingsRepository } = opts;
+    const { userRepository, settingsRepository, emailVerification } = opts;
 
     const credsSchema = z.object({
         email: z.string().email().transform((s) => s.trim().toLowerCase()),
         password: z.string().min(8).max(200),
     });
 
+    const emailSchema = z.object({
+        email: z.string().email().transform((s) => s.trim().toLowerCase()),
+    });
+
+    const verifyCodeSchema = z.object({
+        email: z.string().email().transform((s) => s.trim().toLowerCase()),
+        code: z.string().trim().regex(/^\d{6}$/),
+    });
+
     // Which auth providers are enabled (driven by env). The sign-in page reads this
     // to render only the buttons that are available for this deployment.
     app.get('/api/auth/providers', async (_req, reply) => {
-        return reply.send({ password: false, google: googleConfigured(), oidc: false, demo: isDemoAccountEnabled() });
+        return reply.send({ password: isPasswordAuthEnabled(), google: googleConfigured(), oidc: false, demo: isDemoAccountEnabled() });
     });
 
     // One-tap demo: drops a session cookie for the shared, pre-seeded demo
@@ -71,6 +86,21 @@ export async function authRoutes(
         const userId = await ensureUserForEmail(userRepository, settingsRepository, email);
         await userRepository.setPassword(userId, await hashPassword(password));
 
+        // CLOUD: don't issue a session yet — mark the account unverified, email a
+        // code, and tell the client to collect it. SELF-HOSTED: the account is
+        // verified by default (column default), so sign in immediately as before.
+        if (isEmailVerificationEnabled()) {
+            await userRepository.setEmailVerified(userId, false);
+            try {
+                await emailVerification.requestCode(userId, email);
+            } catch (err) {
+                // The code is already stored; the user can use "resend". Surface
+                // nothing sensitive — just log and let them proceed to the code step.
+                req.log.error({ err, route: 'auth/register' }, 'verification email send failed');
+            }
+            return reply.send({ email, needsVerification: true });
+        }
+
         setSessionCookie(reply, userId);
         const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(userId);
         return reply.send({ userId, email, onboardingCompleted });
@@ -93,9 +123,67 @@ export async function authRoutes(
             return reply.status(401).send({ error: 'invalid_credentials', message: 'Incorrect email or password.' });
         }
 
+        // CLOUD: an account that never confirmed its email can't sign in. Signal
+        // the client to route to the code step. (Always false in self-hosted.)
+        if (isEmailVerificationEnabled() && user.email_verified === false) {
+            return reply.status(403).send({
+                error: 'email_not_verified',
+                message: 'Please verify your email to continue.',
+                needsVerification: true,
+            });
+        }
+
         setSessionCookie(reply, user.id);
         const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
         return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
+    });
+
+    // CLOUD ONLY: confirm a 6-digit code. On success the account is verified and
+    // a session is issued. Failure is a single generic error — it never reveals
+    // whether the email exists or why the code was rejected (no enumeration).
+    app.post('/api/auth/verify-email', async (req, reply) => {
+        if (!isEmailVerificationEnabled()) {
+            return reply.status(403).send({ error: 'verification_disabled', message: 'Email verification is not required in this environment.' });
+        }
+        const parsed = verifyCodeSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return reply.status(400).send({ error: 'invalid_input', message: 'Enter your email and the 6-digit code.' });
+        }
+        const { email, code } = parsed.data;
+
+        const user = await userRepository.findByEmail(email);
+        const result = user ? await emailVerification.verify(user.id, code) : 'invalid';
+        if (result !== 'ok' || !user) {
+            return reply.status(400).send({ error: 'invalid_code', message: 'That code is invalid or has expired.' });
+        }
+
+        setSessionCookie(reply, user.id);
+        const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
+        return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
+    });
+
+    // CLOUD ONLY: re-send a code. Always returns a generic success (so it can't
+    // be used to probe which emails exist); the per-account cooldown and the
+    // request rate limiter throttle abuse.
+    app.post('/api/auth/resend-code', async (req, reply) => {
+        if (!isEmailVerificationEnabled()) {
+            return reply.status(403).send({ error: 'verification_disabled', message: 'Email verification is not required in this environment.' });
+        }
+        const parsed = emailSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return reply.status(400).send({ error: 'invalid_input', message: 'Enter a valid email.' });
+        }
+        const { email } = parsed.data;
+
+        const user = await userRepository.findByEmail(email);
+        if (user && user.email_verified === false) {
+            try {
+                await emailVerification.requestCode(user.id, email);
+            } catch (err) {
+                req.log.error({ err, route: 'auth/resend-code' }, 'verification email send failed');
+            }
+        }
+        return reply.send({ ok: true });
     });
 
     app.get<{ Params: { provider: string } }>('/api/auth/oauth/:provider/start', async (req, reply) => {

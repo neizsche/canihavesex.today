@@ -117,6 +117,7 @@ export function ChartScreen() {
     daysToPeriod: null,
     fertilityStatus: 'Low',
     phase: 'Follicular',
+    lostTrack: false,
   };
 
   // Calculate Min Date Limit Logic
@@ -377,7 +378,7 @@ export function ChartScreen() {
                   </div>
 
                   {/* Quick Stats - Added Phase 4 */}
-                  <QuickStats data={quickStats} />
+                  {!quickStats.lostTrack && <QuickStats data={quickStats} />}
                 </div>
               )}
 

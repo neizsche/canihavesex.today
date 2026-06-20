@@ -15,6 +15,10 @@ import { loadEnv } from './env.js';
 import { UserRepository } from './repositories/UserRepository.js';
 import { SettingsRepository } from './repositories/SettingsRepository.js';
 import { ApiKeyRepository } from './repositories/ApiKeyRepository.js';
+import { EmailVerificationRepository } from './repositories/EmailVerificationRepository.js';
+import { EmailVerificationService } from './services/EmailVerificationService.js';
+import { sendVerificationEmail } from './email.js';
+import { isEmailVerificationEnabled } from './emailVerification.js';
 import { extractApiKey, hashApiKey } from './apiKeys.js';
 import authPlugin from './plugins/auth.js';
 
@@ -160,6 +164,12 @@ export async function createApp() {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     console.warn('[auth] Google OAuth not configured; email + password login is available.');
   }
+  // Email verification is cloud-only. Self-hosted leaves REQUIRE_EMAIL_VERIFICATION
+  // unset, so no email credentials are needed. If it IS on, RESEND_API_KEY must be
+  // set or codes can't be delivered — warn loudly rather than fail at send time.
+  if (isEmailVerificationEnabled() && !process.env.RESEND_API_KEY) {
+    console.warn('[auth] REQUIRE_EMAIL_VERIFICATION is on but RESEND_API_KEY is not set; verification emails cannot be sent.');
+  }
 
   // 1. Register Core Plugins
   await app.register(cors, {
@@ -179,6 +189,13 @@ export async function createApp() {
   const userRepository = new UserRepository(db);
   const settingsRepository = new SettingsRepository(db);
   const apiKeyRepository = new ApiKeyRepository(db);
+  const emailVerification = new EmailVerificationService(
+    new EmailVerificationRepository(db),
+    sendVerificationEmail,
+    // COOKIE_SECRET is validated as present (>=32 chars) above; reuse it to key
+    // the code hashes so a DB dump alone can't brute-force the 6-digit codes.
+    process.env.COOKIE_SECRET as string,
+  );
 
   // 2. Register Auth Plugin
   await app.register(authPlugin, {
@@ -256,7 +273,12 @@ export async function createApp() {
   });
 
   app.addHook('preHandler', async (req, reply) => {
-    if (req.url.startsWith('/api/auth/login') || req.url.startsWith('/api/auth/register')) {
+    if (
+      req.url.startsWith('/api/auth/login') ||
+      req.url.startsWith('/api/auth/register') ||
+      req.url.startsWith('/api/auth/verify-email') ||
+      req.url.startsWith('/api/auth/resend-code')
+    ) {
       return authRateLimiter(req, reply);
     }
     return defaultRateLimiter(req, reply);
@@ -264,7 +286,7 @@ export async function createApp() {
 
 
   // Register Routes
-  app.register(authRoutes, { userRepository, settingsRepository });
+  app.register(authRoutes, { userRepository, settingsRepository, emailVerification });
 
   // V5 Routes (Consolidated & Segregated)
   app.register(logsRoutes, { db });

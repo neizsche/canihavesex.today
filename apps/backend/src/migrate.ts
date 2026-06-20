@@ -213,6 +213,37 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    name: 'email_verification',
+    up: async (db) => {
+      // Cloud-only email verification (gated by REQUIRE_EMAIL_VERIFICATION).
+      // `email_verified` defaults TRUE so every account that isn't a cloud
+      // password sign-up is considered verified out of the box: existing rows
+      // (back-filled by ADD COLUMN), OAuth users (Google already verifies the
+      // address), the demo account, and all self-hosted users. The cloud
+      // register path is the only place that explicitly sets it to false, then
+      // a confirmed code flips it back to true.
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true;
+
+        CREATE TABLE IF NOT EXISTS email_verification_codes (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          code_hash TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          consumed_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        -- The hot lookup is "latest unconsumed code for this user".
+        CREATE INDEX IF NOT EXISTS idx_evc_user_active
+          ON email_verification_codes (user_id, created_at DESC)
+          WHERE consumed_at IS NULL;
+      `);
+    },
+  },
 ];
 
 export async function migrate(db: Db) {

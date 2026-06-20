@@ -21,9 +21,10 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
 
   const apiBase = React.useMemo(() => getApiBase(), []);
 
-  const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = React.useState<'signin' | 'signup' | 'verify'>('signin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [code, setCode] = React.useState('');
   const [providers, setProviders] = React.useState<{
     password: boolean;
     google: boolean;
@@ -60,13 +61,66 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json().catch(() => ({}) as any);
+      // Cloud email verification: the account needs a 6-digit code before it can
+      // sign in. Switch to the code step instead of redirecting. (Self-hosted
+      // never returns this, so the flow is unchanged there.)
+      if (data?.needsVerification) {
+        setMode('verify');
+        setStatusTone('muted');
+        setStatus('We sent a 6-digit code to your email.');
+        return;
+      }
+      if (res.ok) {
+        location.href = returnTo;
+        return;
+      }
+      setStatusTone('danger');
+      setStatus(data?.message || 'Something went wrong. Please try again.');
+    } catch {
+      setStatusTone('danger');
+      setStatus('Network error. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifySubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setStatus('');
+    try {
+      const res = await apiFetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
       if (res.ok) {
         location.href = returnTo;
         return;
       }
       const data = await res.json().catch(() => ({}) as any);
       setStatusTone('danger');
-      setStatus(data?.message || 'Something went wrong. Please try again.');
+      setStatus(data?.message || 'That code is invalid or has expired.');
+    } catch {
+      setStatusTone('danger');
+      setStatus('Network error. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendCode() {
+    setBusy(true);
+    setStatus('');
+    try {
+      await apiFetch('/api/auth/resend-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      setStatusTone('muted');
+      setStatus('If that account needs verification, a new code is on its way.');
     } catch {
       setStatusTone('danger');
       setStatus('Network error. Please try again.');
@@ -150,12 +204,16 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     'border border-[var(--input)] outline-none transition-colors duration-200 ' +
     'focus:border-[#0a84ff] focus:ring-2 focus:ring-[#0a84ff]/30';
 
-  const heading = providers.password
-    ? (mode === 'signin' ? 'Welcome back' : 'Create your account')
-    : 'Sign in to your account';
-  const subheading = providers.password
-    ? (mode === 'signin' ? 'Log today. See where you are.' : 'One honest question, answered calmly.')
-    : 'Log today. See where you are.';
+  const heading = mode === 'verify'
+    ? 'Check your email'
+    : providers.password
+      ? (mode === 'signin' ? 'Welcome back' : 'Create your account')
+      : 'Sign in to your account';
+  const subheading = mode === 'verify'
+    ? `Enter the 6-digit code we sent to ${email}.`
+    : providers.password
+      ? (mode === 'signin' ? 'Log today. See where you are.' : 'One honest question, answered calmly.')
+      : 'Log today. See where you are.';
 
   // While checking for an existing session, show only the brand mark — no
   // form — so already-authenticated users redirect without a login flash.
@@ -202,7 +260,50 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
 
             {/* Form */}
             <motion.div variants={itemVariants} className="space-y-5">
-              {providers.password ? (
+              {mode === 'verify' ? (
+                <>
+                  <form onSubmit={handleVerifySubmit} className="space-y-3">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      maxLength={6}
+                      required
+                      className={`${inputClass} text-center tracking-[0.5em] text-[20px]`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={busy || code.length !== 6}
+                      className="w-full h-14 rounded-xl bg-[#0a84ff] text-white font-semibold text-[17px] transition-all hover:bg-[#0070e0] active:scale-[0.98] shadow-lg shadow-[#0a84ff]/20 disabled:opacity-60 disabled:pointer-events-none"
+                    >
+                      {busy ? 'Verifying…' : 'Verify email'}
+                    </button>
+                  </form>
+
+                  <button
+                    type="button"
+                    onClick={resendCode}
+                    disabled={busy}
+                    className="w-full text-[14px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                  >
+                    Didn't get it? Resend code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      setCode('');
+                      setStatus('');
+                    }}
+                    className="w-full text-[14px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    ← Back to sign in
+                  </button>
+                </>
+              ) : providers.password ? (
                 <>
                   <form onSubmit={handleEmailSubmit} className="space-y-3">
                     <input
@@ -333,7 +434,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
                 </div>
               )}
 
-              {providers.demo && (
+              {providers.demo && mode !== 'verify' && (
                 <button
                   type="button"
                   onClick={startDemo}
