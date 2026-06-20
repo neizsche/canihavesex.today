@@ -20,6 +20,7 @@ import {
 
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { todayIso, addDays } from '@/lib/date';
 import { Button } from '@/components/common/ui/button';
 import { Header } from '@/components/common/Header';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
@@ -58,16 +59,6 @@ const CHIP_ACTIVE_SYMPTOMS =
   'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
 const CHIP_ACTIVE_FACTORS =
   'bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 export function LogScreen() {
   const { showBranding } = useDiscreetMode();

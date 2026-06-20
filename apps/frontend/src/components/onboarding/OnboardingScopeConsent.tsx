@@ -44,7 +44,7 @@ export function OnboardingScopeConsent({
       </div>
 
       {/* Pinned footer — primary action always sits in the same spot. */}
-      <div className="mx-auto w-full max-w-md flex-shrink-0 space-y-4 pt-2 pb-8">
+      <div className="onboarding-footer space-y-4">
         <button
           onClick={onContinue}
           className="h-14 w-full rounded-2xl bg-[#007aff] text-[17px] font-bold text-white shadow-xl shadow-blue-500/25 transition-all hover:bg-[#0051d5] active:scale-[0.98]"

@@ -247,4 +247,35 @@
       @apply text-[17px];
     }
   }
+
+  /* ── Onboarding shell spacing ──────────────────────────────────────────────
+     Single source of truth for where the brand header and the primary CTA rest
+     on every onboarding step. Both are safe-area aware (clear of the notch and
+     the home indicator) and tighten on short viewports, so the flow breathes the
+     same on a small phone, a tall phone, and desktop. Tune the resting heights
+     here rather than per-screen. */
+  .onboarding-header {
+    @apply flex flex-shrink-0 items-center justify-center;
+    padding-top: max(env(safe-area-inset-top, 0px), 2rem);
+    padding-bottom: 1rem;
+  }
+
+  .onboarding-footer {
+    @apply mx-auto w-full max-w-md flex-shrink-0;
+    padding-top: 0.5rem;
+    /* The "sweet spot": comfortably above the home indicator, not floating high. */
+    padding-bottom: max(env(safe-area-inset-bottom, 0px) + 0.75rem, 1.5rem);
+  }
+
+  @media (max-height: 720px) {
+    .onboarding-header {
+      padding-top: max(env(safe-area-inset-top, 0px), 1rem);
+      padding-bottom: 0.5rem;
+    }
+
+    .onboarding-footer {
+      padding-top: 0.25rem;
+      padding-bottom: max(env(safe-area-inset-bottom, 0px) + 0.5rem, 1rem);
+    }
+  }
 }

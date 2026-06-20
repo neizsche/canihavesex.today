@@ -79,11 +79,12 @@ export class LogService {
         if (hasPhysiologicalData) {
             try {
                 const existingCycles = await existingCyclesPromise;
-                const latestCycle = existingCycles[0];
-                const isCurrentCycle = !latestCycle || date >= latestCycle.start_date;
-                if (isCurrentCycle) {
-                    todayStatus = await this.engine.recompute(userId, today, existingCycles);
-                }
+                // Recompute on every physiological edit, even into a prior cycle. An
+                // edit anywhere in the editable window can move cycle boundaries and
+                // the history-derived stats (median length, luteal, regularity) that
+                // drive the current prediction — and we want the touched cycle's
+                // calendar colours refreshed now, not lazily on the next Today read.
+                todayStatus = await this.engine.recompute(userId, today, existingCycles);
             } catch (err) {
                 console.error('[LogService] Engine Error:', err);
                 throw err;

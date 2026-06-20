@@ -6,13 +6,8 @@ import { OnboardingSkipLink } from './OnboardingSkipLink';
 
 interface OnboardingSetupProps {
   regularity?: 'regular' | 'irregular' | 'unsure' | null;
-  cycleLengthMin?: number;
-  cycleLengthMax?: number;
-  onUpdate: (data: {
-    regularity?: any;
-    cycleLengthMin?: number;
-    cycleLengthMax?: number;
-  }) => void;
+  cycleLength?: number;
+  onUpdate: (data: { regularity?: any; cycleLength?: number }) => void;
   onContinue: () => void;
   onSkip?: () => void;
   skipBusy?: boolean;
@@ -20,15 +15,12 @@ interface OnboardingSetupProps {
 
 export function OnboardingSetup({
   regularity,
-  cycleLengthMin = 26,
-  cycleLengthMax = 30,
+  cycleLength = 28,
   onUpdate,
   onContinue,
   onSkip,
   skipBusy,
 }: OnboardingSetupProps) {
-  const [useRange, setUseRange] = React.useState(true);
-
   return (
     <div className="flex h-full w-full flex-col bg-background font-sans">
       {/* Scrollable form region — the Continue button below stays pinned. */}
@@ -86,7 +78,9 @@ export function OnboardingSetup({
             </InsetGroup>
           </div>
 
-          {/* Cycle Length */}
+          {/* Cycle Length — a single typical value. The engine only needs an
+              average for its cold start, so we ask for one number and refine it
+              from real logs later. */}
           <div className="space-y-4 pt-2">
             <div className="space-y-1 px-4">
               <h3 className="font-semibold text-[17px] text-zinc-900 dark:text-zinc-100">
@@ -94,79 +88,26 @@ export function OnboardingSetup({
               </h3>
             </div>
             <InsetGroup>
-              <div className="p-6 space-y-6">
-                {useRange ? (
-                  <>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[15px] text-zinc-600 dark:text-zinc-400">
-                          Minimum
-                        </span>
-                        <span className="text-[22px] font-semibold text-zinc-900 dark:text-zinc-100">
-                          {cycleLengthMin} days
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={21}
-                        max={35}
-                        value={cycleLengthMin}
-                        onChange={(e) => {
-                          const newMin = Number(e.target.value);
-                          if (newMin <= cycleLengthMax) {
-                            onUpdate({ cycleLengthMin: newMin });
-                          }
-                        }}
-                        className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#007aff]"
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[15px] text-zinc-600 dark:text-zinc-400">
-                          Maximum
-                        </span>
-                        <span className="text-[22px] font-semibold text-zinc-900 dark:text-zinc-100">
-                          {cycleLengthMax} days
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={21}
-                        max={35}
-                        value={cycleLengthMax}
-                        onChange={(e) => {
-                          const newMax = Number(e.target.value);
-                          if (newMax >= cycleLengthMin) {
-                            onUpdate({ cycleLengthMax: newMax });
-                          }
-                        }}
-                        className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#007aff]"
-                      />
-                    </div>
-
-                    <div className="text-center pt-2">
-                      <span className="text-[15px] text-zinc-500 dark:text-zinc-400">
-                        {cycleLengthMin === cycleLengthMax
-                          ? `${cycleLengthMin} days`
-                          : `${cycleLengthMin}–${cycleLengthMax} days`}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4 space-y-2">
-                    <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-                      No problem. We'll learn from your logs.
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setUseRange(!useRange)}
-                  className="w-full text-[15px] text-[#007aff] font-medium active:opacity-70 transition-opacity"
-                >
-                  {useRange ? 'Not sure' : 'I know my cycle length'}
-                </button>
+              <div className="p-6 space-y-5">
+                <div className="flex items-baseline justify-center gap-1.5">
+                  <span className="text-[44px] font-bold leading-none text-zinc-900 dark:text-zinc-100">
+                    {cycleLength}
+                  </span>
+                  <span className="text-[17px] font-medium text-zinc-500 dark:text-zinc-400">
+                    days
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={21}
+                  max={35}
+                  value={cycleLength}
+                  onChange={(e) => onUpdate({ cycleLength: Number(e.target.value) })}
+                  className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#007aff]"
+                />
+                <p className="text-center text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Not sure? 28 days is typical — we'll fine-tune it as you log.
+                </p>
               </div>
             </InsetGroup>
           </div>
@@ -174,7 +115,7 @@ export function OnboardingSetup({
       </div>
 
       {/* Pinned footer — Continue is always visible without scrolling to it. */}
-      <div className="mx-auto w-full max-w-md flex-shrink-0 space-y-3 px-4 pt-2 pb-8">
+      <div className="onboarding-footer space-y-3 px-4">
         <button
           onClick={onContinue}
           className="h-14 w-full rounded-xl bg-[#007aff] text-[17px] font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-[#0051d5] active:scale-[0.98]"

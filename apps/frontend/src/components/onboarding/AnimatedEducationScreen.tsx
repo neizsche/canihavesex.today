@@ -53,7 +53,7 @@ export function AnimatedEducationScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background animate-in fade-in duration-300 motion-reduce:animate-none">
-      <div className="z-50 flex flex-shrink-0 items-center justify-center pt-8 pb-4">
+      <div className="onboarding-header z-50">
         <BrandTitle />
       </div>
 
@@ -122,7 +122,7 @@ export function AnimatedEducationScreen({
 
       {/* Pinned footer — primary CTA and skip are available immediately so the
           user never has to wait for the content reveal to finish. */}
-      <div className="mx-auto w-full max-w-md flex-shrink-0 space-y-4 px-6 pt-2 pb-8">
+      <div className="onboarding-footer space-y-4 px-6">
         {error && (
           <p className="text-center text-[15px] text-red-500" role="alert">
             {error}

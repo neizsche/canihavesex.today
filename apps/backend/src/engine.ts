@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Log } from './repositories/LogRepository.js';
 import { DailyStatus } from './repositories/DailyStatusRepository.js';
 import { Cycle } from './repositories/CycleRepository.js';
-import { addDaysIso as addDays, daysBetweenIso as daysBetween, generateIsoDateRange as generateDateRange, isoToday } from './utils/dates.js';
+import { addDaysIso as addDays, daysBetweenIso as daysBetween, generateIsoDateRange as generateDateRange, isoToday, BACKLOG_WINDOW_DAYS } from './utils/dates.js';
 
 // Identifies the engine revision that produced a daily_status row. Bump this
 // when engine output changes so the read path can recompute stale cached rows.
@@ -160,7 +160,9 @@ export function runFusionEngine(userId: string, context: EngineContext): {
 
     const relevantCycles = cycles.filter((c) => {
         const isActive = !c.end_date;
-        const isRecent = !!c.end_date && daysBetween(c.end_date, today) < 45;
+        // Regenerate statuses for any cycle still inside the editable back-log
+        // window so editing an old day immediately refreshes its calendar colours.
+        const isRecent = !!c.end_date && daysBetween(c.end_date, today) <= BACKLOG_WINDOW_DAYS;
         const isUnanalyzed = !c.ovulation_prediction;
         return isActive || isRecent || isUnanalyzed;
     });
@@ -241,7 +243,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 is_predicted: date > (lastLogDate || today),
                 engine_version: ENGINE_VERSION,
                 updated_at: new Date().toISOString(),
-                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData, irregular, lostTrack),
+                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData, irregular, lostTrack, activeCycleLength),
             });
         }
     }
@@ -745,6 +747,7 @@ function buildDayMeta(
     day: EngineDay | undefined,
     irregular: IrregularInfo,
     lostTrack?: boolean,
+    activeCycleLength?: number,
 ) {
     const primarySignal: SignalSource = result.signals.length > 0 ? result.signals[0].source : 'CALENDAR';
     const daysToOvulation = day ? result.ovulationDay - day.cycleDay : null;
@@ -761,6 +764,11 @@ function buildDayMeta(
         hasLh: !!day?.log?.lh_test,
         hasMucus: !!day?.log?.mucus,
         lostTrack,
+        // The engine's predicted length for THIS cycle (ovulationDay + luteal, or
+        // the calendar fallback). The single source for "days to next period":
+        // next period date = cycle start + activeCycleLength. Both the calendar
+        // route and the Today cycle line read this so they can never disagree.
+        activeCycleLength: activeCycleLength ?? null,
         stats: {
             avgCycleLength: stats.avgCycleLength,
             medianCycleLength: stats.medianCycleLength,

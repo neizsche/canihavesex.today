@@ -12,8 +12,7 @@ type OnboardingStep = 'consent' | 'education' | 'setup' | 'cycle_basics' | 'sign
 interface OnboardingData {
   consent: boolean;
   cycle_regularity: 'regular' | 'irregular' | 'unsure' | null;
-  cycle_length_min: number;
-  cycle_length_max: number;
+  cycle_length: number;
 }
 
 interface OnboardingFlowProps {
@@ -21,7 +20,7 @@ interface OnboardingFlowProps {
 }
 
 const BrandingHeader = () => (
-  <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center z-50">
+  <div className="onboarding-header z-50">
     <BrandTitle />
   </div>
 );
@@ -42,8 +41,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [data, setData] = React.useState<OnboardingData>({
     consent: false,
     cycle_regularity: 'regular', // Default to make flow skippable
-    cycle_length_min: 26,
-    cycle_length_max: 30,
+    cycle_length: 28,
   });
 
   const updateData = (partial: Partial<OnboardingData>) => {
@@ -71,8 +69,10 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             cycle_regularity: data.cycle_regularity,
-            cycle_length_min: data.cycle_length_min,
-            cycle_length_max: data.cycle_length_max,
+            // The engine only stores the average; send the single value as both
+            // bounds so the existing min/max API resolves to exactly it.
+            cycle_length_min: data.cycle_length,
+            cycle_length_max: data.cycle_length,
           }),
         },
         // Retry transient failures (network blips / 5xx) with a 15s per-attempt cap.
@@ -88,7 +88,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         return {
           ...prev,
           cycle_regularity: data.cycle_regularity,
-          avg_cycle_length: (data.cycle_length_min + data.cycle_length_max) / 2,
+          avg_cycle_length: data.cycle_length,
         };
       });
 
@@ -191,15 +191,11 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       <BrandLayout>
         <OnboardingSetup
           regularity={data.cycle_regularity}
-          cycleLengthMin={data.cycle_length_min}
-          cycleLengthMax={data.cycle_length_max}
+          cycleLength={data.cycle_length}
           onUpdate={(updates) => {
             const payload: Partial<typeof data> = {};
             if (updates.regularity !== undefined) payload.cycle_regularity = updates.regularity;
-            if (updates.cycleLengthMin !== undefined)
-              payload.cycle_length_min = updates.cycleLengthMin;
-            if (updates.cycleLengthMax !== undefined)
-              payload.cycle_length_max = updates.cycleLengthMax;
+            if (updates.cycleLength !== undefined) payload.cycle_length = updates.cycleLength;
             updateData(payload);
           }}
           onContinue={() => setStep('signals_overview')}

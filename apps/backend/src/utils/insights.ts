@@ -8,6 +8,18 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
     const avgLen = s.avgCycleLength ?? 28;
     const completedCycles = s.completedCycles ?? 0;
 
+    // Days until the next period — one canonical value used by both the luteal
+    // nudge below and the Today cycle line. Next period date = cycle start +
+    // activeCycleLength (the engine's predicted length), i.e. cycle day
+    // activeCycleLength + 1. Matches the calendar route's "days to period".
+    // Falls back to avg length for older payloads that predate activeCycleLength;
+    // lostTrack hides the estimate entirely.
+    const activeCycleLength = m.activeCycleLength ?? avgLen;
+    const daysToNextPeriod =
+        cycleDay == null || m.lostTrack
+            ? null
+            : Math.max(0, activeCycleLength + 1 - cycleDay);
+
     const pool: string[] = [];
 
     if (m.anomalies?.includes('Multiple LH Surges (PCOS Risk)'))
@@ -22,11 +34,8 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
 
     if (m.isConfirmed) pool.push('Ovulation confirmed via temp shift.');
 
-    if (phase === 'Luteal' && m.isConfirmed && cycleDay && !m.lostTrack) {
-        const daysToNextPeriod = avgLen - cycleDay;
-        if (daysToNextPeriod > 0 && daysToNextPeriod <= 5)
-            pool.push(`Period in ~${daysToNextPeriod} days.`);
-    }
+    if (daysToNextPeriod != null && phase === 'Luteal' && m.isConfirmed && daysToNextPeriod > 0 && daysToNextPeriod <= 5)
+        pool.push(`Period in ~${daysToNextPeriod} days.`);
 
     if (m.tempReliability === 0) pool.push('Temp excluded (illness) — no impact on prediction.');
 
@@ -64,14 +73,7 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
             : null;
     const fertileStartDay = ovulationDay != null ? Math.max(1, ovulationDay - 5) : null;
     const fertileEndDay = ovulationDay != null ? ovulationDay + 1 : null;
-    const daysToNextPeriod =
-        cycleDay == null
-            ? null
-            : m.lostTrack
-              ? null
-              : ovulationDay != null
-                ? Math.max(0, ovulationDay + 14 - cycleDay) // luteal phase ~14 days
-                : Math.max(0, avgLen - cycleDay);
+    // daysToNextPeriod is computed once up top (shared with the luteal nudge).
 
     return {
         today: {

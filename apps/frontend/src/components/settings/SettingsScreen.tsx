@@ -7,7 +7,6 @@ import {
   Activity,
   KeyRound,
   Copy,
-  Minus,
   Plus,
   EyeOff,
   Moon,
@@ -22,6 +21,7 @@ import { Header } from '@/components/common/Header';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { ActionSheet } from '@/components/common/ui/action-sheet';
 import { Button } from '@/components/common/ui/button';
+import { StepperRow } from '@/components/common/ui/stepper-row';
 import { HelpScreen } from './HelpScreen';
 import {
   SettingsActionRow,
@@ -85,8 +85,7 @@ export function SettingsScreen() {
   const [installOpen, setInstallOpen] = React.useState(false);
 
   // Profile data state - Populated from server on load
-  const [cycleMin, setCycleMin] = React.useState(26);
-  const [cycleMax, setCycleMax] = React.useState(30);
+  const [cycleLength, setCycleLength] = React.useState(28);
   const [periodLength, setPeriodLength] = React.useState(5);
   const [regularity, setRegularity] = React.useState<'regular' | 'irregular' | 'unsure'>('regular');
   const [profileSaved, setProfileSaved] = React.useState(false);
@@ -122,10 +121,7 @@ export function SettingsScreen() {
     if (profileQuery.data && !profileLoaded) {
       const p = profileQuery.data;
       if (p.avg_cycle_length) {
-        // Derive min/max from avg (±2 days)
-        const avg = Math.round(p.avg_cycle_length);
-        setCycleMin(Math.max(21, avg - 2));
-        setCycleMax(Math.min(35, avg + 2));
+        setCycleLength(Math.round(p.avg_cycle_length));
       }
       if (p.period_length) setPeriodLength(p.period_length);
       if (p.cycle_regularity)
@@ -445,107 +441,28 @@ export function SettingsScreen() {
                 {/* Grouped Settings Card */}
                 <div className="rounded-2xl border border-border/40 bg-white/70 dark:bg-zinc-900/50 overflow-hidden">
                   <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
-                    {/* Minimum Cycle Length Stepper */}
-                    <div className="flex items-center justify-between p-3 px-4">
-                      <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
-                        Minimum Length
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = Math.max(21, cycleMin - 1);
-                            setCycleMin(v);
-                            saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
-                          }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">
-                          {cycleMin} days
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = Math.min(cycleMax, cycleMin + 1);
-                            setCycleMin(v);
-                            saveProfile({ avg_cycle_length: Math.round((v + cycleMax) / 2) });
-                          }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Maximum Cycle Length Stepper */}
-                    <div className="flex items-center justify-between p-3 px-4">
-                      <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
-                        Maximum Length
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = Math.max(cycleMin, cycleMax - 1);
-                            setCycleMax(v);
-                            saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
-                          }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">
-                          {cycleMax} days
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = Math.min(35, cycleMax + 1);
-                            setCycleMax(v);
-                            saveProfile({ avg_cycle_length: Math.round((cycleMin + v) / 2) });
-                          }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Period Length Stepper */}
-                    <div className="flex items-center justify-between p-3 px-4">
-                      <div className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
-                        Typical Period
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = Math.max(3, periodLength - 1);
-                            setPeriodLength(v);
-                            saveProfile({ period_length: v });
-                          }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="w-14 text-center font-semibold text-[14px] text-zinc-900 dark:text-zinc-100">
-                          {periodLength} days
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = Math.min(7, periodLength + 1);
-                            setPeriodLength(v);
-                            saveProfile({ period_length: v });
-                          }}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                    <StepperRow
+                      label="Cycle Length"
+                      value={cycleLength}
+                      min={21}
+                      max={35}
+                      unit="days"
+                      onChange={(v) => {
+                        setCycleLength(v);
+                        saveProfile({ avg_cycle_length: v });
+                      }}
+                    />
+                    <StepperRow
+                      label="Typical Period"
+                      value={periodLength}
+                      min={3}
+                      max={7}
+                      unit="days"
+                      onChange={(v) => {
+                        setPeriodLength(v);
+                        saveProfile({ period_length: v });
+                      }}
+                    />
                   </div>
                 </div>
 

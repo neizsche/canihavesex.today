@@ -9,6 +9,7 @@ import { ExportView } from './charts/ExportView';
 import { QuickStats } from './charts/QuickStats';
 import { useSwipe } from '@/components/common/hooks/useSwipe';
 import { apiJson } from '@/lib/api';
+import { toIsoDate, todayIso } from '@/lib/date';
 // Removed local ChartDay/ChartData types below
 
 export function ChartScreen() {
@@ -30,7 +31,7 @@ export function ChartScreen() {
 
   // Calendar Vars
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = todayIso();
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const calendarTitle = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -66,8 +67,8 @@ export function ChartScreen() {
   // months use identical keys/fetchers (otherwise prefetch wouldn't populate
   // the cache the navigation reads from).
   const calendarOptions = (year: number, month: number) => {
-    const start = new Date(year, month, 1).toISOString().split('T')[0];
-    const end = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    const start = toIsoDate(new Date(year, month, 1));
+    const end = toIsoDate(new Date(year, month + 1, 0));
     return {
       queryKey: ['calendar', start, end],
       queryFn: async () =>
@@ -235,10 +236,7 @@ export function ChartScreen() {
                         {/* Days */}
                         {Array.from({ length: daysInMonth }).map((_, i) => {
                           const dayNum = i + 1;
-                          const dateObj = new Date(currentYear, currentMonth, dayNum);
-                          const offset = dateObj.getTimezoneOffset();
-                          const localDate = new Date(dateObj.getTime() - offset * 60000);
-                          const dateIso = localDate.toISOString().slice(0, 10);
+                          const dateIso = toIsoDate(new Date(currentYear, currentMonth, dayNum));
 
                           const dayData = dayMap.get(dateIso);
                           const isFuture = dateIso > todayStr;

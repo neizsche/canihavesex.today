@@ -104,15 +104,15 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                 const todayStatus = statuses.find(st => st.date === today);
                 const isLostTrack = todayStatus?.insights_payload?.lostTrack || false;
 
-                if (cycle.ovulation_prediction) {
-                    // Luteal phase is ~14 days, period starts on the 15th day after ovulation
-                    const periodDate = addDaysIso(cycle.ovulation_prediction, 15);
-                    daysToPeriod = daysBetweenIso(today, periodDate);
-                } else {
-                    const predictedLength = todayStatus?.insights_payload?.stats?.medianCycleLength || 28;
-                    const periodDate = addDaysIso(cycle.start_date, predictedLength);
-                    daysToPeriod = daysBetweenIso(today, periodDate);
-                }
+                // Single source of truth: next period = cycle start + the engine's
+                // predicted cycle length (ovulationDay + luteal, or its fallback).
+                // The Today cycle line reads the same activeCycleLength, so the two
+                // screens always show the same "days to period".
+                const activeCycleLength = todayStatus?.insights_payload?.activeCycleLength
+                    ?? todayStatus?.insights_payload?.stats?.medianCycleLength
+                    ?? 28;
+                const periodDate = addDaysIso(cycle.start_date, activeCycleLength);
+                daysToPeriod = daysBetweenIso(today, periodDate);
 
                 const phaseName = todayStatus?.phase || 'Follicular';
 

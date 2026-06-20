@@ -78,9 +78,10 @@ export default defineConfig({
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null,
-        // Precache the shared logo so the installed PWA renders it instantly
-        // from cache across screens instead of re-fetching it each time.
-        includeAssets: ['icon.svg', 'offline.html', 'logo.png'],
+        // Precache shared icons (logo + the install-card app icon) so the
+        // installed PWA renders them instantly from cache across screens
+        // instead of re-fetching each time.
+        includeAssets: ['icon.svg', 'offline.html', 'logo.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'canihavesex.today',
           short_name: 'canihavesex',
