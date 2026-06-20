@@ -43,25 +43,24 @@ export class LogService {
         const existing = isApiKey ? await this.logRepo.getLog(userId, date) : null;
 
         // Merge logic if API key, otherwise take from body
+        // Normalize UI sentinel values to DB-safe values
+        const sanitizedLhTest = (data.lhTest === 'notTaken' || data.lhTest === '') ? null : data.lhTest;
+        const sanitizedBleeding = data.bleeding === 'none' ? null : data.bleeding;
+
         const logData: Omit<Log, 'created_at'> = {
             id: randomUUID(),
             user_id: userId,
             date: date,
-            bleeding: (isApiKey ? (data.bleeding ?? existing?.bleeding ?? null) : (data.bleeding ?? null)) as any,
+            bleeding: (isApiKey ? (sanitizedBleeding ?? existing?.bleeding ?? null) : (sanitizedBleeding ?? null)) as any,
             temperature: isApiKey ? (data.temperature ?? existing?.temperature ?? null) : (data.temperature ?? null),
             mucus: (isApiKey ? (data.mucusType ?? existing?.mucus ?? null) : (data.mucusType ?? null)) as any,
-            lh_test: (isApiKey ? (data.lhTest ?? existing?.lh_test ?? null) : (data.lhTest ?? null)) as any,
+            lh_test: (isApiKey ? (sanitizedLhTest ?? existing?.lh_test ?? null) : (sanitizedLhTest ?? null)) as any,
             disturbances: isApiKey ? (data.disturbances ?? existing?.disturbances ?? []) : (data.disturbances || []),
             symptoms: isApiKey ? (data.symptoms ?? existing?.symptoms ?? []) : (data.symptoms || []),
             notes: isApiKey ? (data.notes ?? existing?.notes ?? null) : (data.notes ?? null),
         };
 
-        // 1. Write Log
-        await this.logRepo.upsertLog(logData);
-
-        // 2. Trigger Engine (write-through) only when fertility-affecting data
-        // changed, and only when the edit lands in the current/future cycle —
-        // editing ancient history doesn't shift today's status.
+        // 1. Prepare parallel promises
         const hasPhysiologicalData =
             data.bleeding !== undefined ||
             data.temperature !== undefined ||
@@ -69,13 +68,22 @@ export class LogService {
             data.lhTest !== undefined ||
             (data.disturbances && data.disturbances.length > 0);
 
+        const writeLogPromise = this.logRepo.upsertLog(logData);
+        const existingCyclesPromise = hasPhysiologicalData ? this.cycleRepo.getCycleHistory(userId) : Promise.resolve([]);
+
+        // Wait for log to be written before we trigger engine, because engine fetches logs
+        await writeLogPromise;
+
+        let todayStatus;
+
+        // 2. Trigger Engine (write-through) only when fertility-affecting data changed
         if (hasPhysiologicalData) {
             try {
-                const existingCycles = await this.cycleRepo.getCycleHistory(userId);
+                const existingCycles = await existingCyclesPromise;
                 const latestCycle = existingCycles[0];
                 const isCurrentCycle = !latestCycle || date >= latestCycle.start_date;
                 if (isCurrentCycle) {
-                    await this.engine.recompute(userId, today, existingCycles);
+                    todayStatus = await this.engine.recompute(userId, today, existingCycles);
                 }
             } catch (err) {
                 console.error('[LogService] Engine Error:', err);
@@ -83,7 +91,9 @@ export class LogService {
             }
         }
 
-        const todayStatus = await this.statusRepo.getTodayStatus(userId, today);
+        if (!todayStatus) {
+            todayStatus = await this.statusRepo.getTodayStatus(userId, today);
+        }
         return { ok: true, today: this.buildTodayResponse(todayStatus) };
     }
 

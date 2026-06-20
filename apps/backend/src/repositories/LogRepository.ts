@@ -12,6 +12,10 @@ export interface Log {
     disturbances: string[]; // JSONB
     symptoms: string[];     // JSONB
     notes: string | null;
+    // Optional user-set period-start markers (migration #2). Absent/false → the
+    // engine infers cycle starts from bleeding instead.
+    cycle_start?: boolean;
+    is_uncertain?: boolean;
     created_at: string;
 }
 

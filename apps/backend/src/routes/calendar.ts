@@ -102,13 +102,20 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                 // ACTIVE CYCLE (Current)
                 const cycleDay = daysBetweenIso(cycle.start_date, today) + 1;
                 let daysToPeriod = null;
-                if (cycle.ovulation_prediction) {
-                    const periodDate = addDaysIso(cycle.ovulation_prediction, 14);
-                    daysToPeriod = daysBetweenIso(today, periodDate);
-                }
 
                 // Get today's status for the card
                 const todayStatus = statuses.find(st => st.date === today);
+
+                if (cycle.ovulation_prediction) {
+                    // Luteal phase is ~14 days, period starts on the 15th day after ovulation
+                    const periodDate = addDaysIso(cycle.ovulation_prediction, 15);
+                    daysToPeriod = daysBetweenIso(today, periodDate);
+                } else {
+                    const predictedLength = todayStatus?.insights_payload?.stats?.medianCycleLength || 28;
+                    const periodDate = addDaysIso(cycle.start_date, predictedLength);
+                    daysToPeriod = daysBetweenIso(today, periodDate);
+                }
+
                 const phaseName = todayStatus?.phase || 'Follicular';
 
                 quickStats = {

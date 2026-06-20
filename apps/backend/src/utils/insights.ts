@@ -74,8 +74,6 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
     return {
         today: {
             phase,
-            cycleDay,
-            cycleLength: avgLen,
             cycle: {
                 day: cycleDay,
                 length: avgLen,

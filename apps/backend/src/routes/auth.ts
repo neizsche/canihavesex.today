@@ -8,6 +8,7 @@ import {
     appBase,
     ensureUserForEmail,
     googleConfigured,
+    isPasswordAuthEnabled,
     linkIdentity,
     oauthRedirectUri,
     OauthProvider,
@@ -31,11 +32,14 @@ export async function authRoutes(
     // Which auth providers are enabled (driven by env). The sign-in page reads this
     // to render only the buttons that are available for this deployment.
     app.get('/api/auth/providers', async (_req, reply) => {
-        return reply.send({ password: true, google: googleConfigured(), oidc: false });
+        return reply.send({ password: isPasswordAuthEnabled(), google: googleConfigured(), oidc: false });
     });
 
     // Email + password: create account
     app.post('/api/auth/register', async (req, reply) => {
+        if (!isPasswordAuthEnabled()) {
+            return reply.status(403).send({ error: 'password_auth_disabled', message: 'Password registration is disabled in this environment.' });
+        }
         const parsed = credsSchema.safeParse(req.body);
         if (!parsed.success) {
             return reply.status(400).send({ error: 'invalid_input', message: 'Enter a valid email and a password of at least 8 characters.' });
@@ -57,6 +61,9 @@ export async function authRoutes(
 
     // Email + password: sign in
     app.post('/api/auth/login', async (req, reply) => {
+        if (!isPasswordAuthEnabled()) {
+            return reply.status(403).send({ error: 'password_auth_disabled', message: 'Password authentication is disabled in this environment.' });
+        }
         const parsed = credsSchema.safeParse(req.body);
         if (!parsed.success) {
             return reply.status(400).send({ error: 'invalid_input', message: 'Enter a valid email and password.' });

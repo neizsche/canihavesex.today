@@ -162,6 +162,42 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 2,
+    name: 'log_cycle_start_and_enum_checks',
+    up: async (db) => {
+      // R1 (engine v6): optional, user-set period-start markers. The engine
+      // trusts an explicit `cycle_start` over inference and skips an `is_uncertain`
+      // start for prediction. Both default false → existing rows are unaffected
+      // and inference still applies when they are absent.
+      await db.exec(`
+        ALTER TABLE logs ADD COLUMN IF NOT EXISTS cycle_start BOOLEAN NOT NULL DEFAULT false;
+        ALTER TABLE logs ADD COLUMN IF NOT EXISTS is_uncertain BOOLEAN NOT NULL DEFAULT false;
+      `);
+
+      // DB-level enum integrity (was app-only validation). Added NOT VALID so the
+      // migration can never fail on pre-existing rows; the constraint is still
+      // enforced on every INSERT/UPDATE going forward. NULL is allowed where the
+      // column is optional.
+      const checks: Array<[string, string, string]> = [
+        ['logs', 'chk_logs_bleeding', `bleeding IS NULL OR bleeding IN ('none','spotting','light','medium','heavy')`],
+        ['logs', 'chk_logs_mucus', `mucus IS NULL OR mucus IN ('dry','sticky','creamy','watery','eggwhite')`],
+        ['logs', 'chk_logs_lh_test', `lh_test IS NULL OR lh_test IN ('positive','negative')`],
+        ['daily_status', 'chk_daily_status_fertility', `fertility_status IN ('fertile','unsure','not_fertile','period')`],
+        ['daily_status', 'chk_daily_status_phase', `phase IN ('Follicular','Ovulatory','Luteal','Period')`],
+      ];
+      for (const [table, name, expr] of checks) {
+        await db.exec(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '${name}') THEN
+              ALTER TABLE ${table} ADD CONSTRAINT ${name} CHECK (${expr}) NOT VALID;
+            END IF;
+          END $$;
+        `);
+      }
+    },
+  },
 ];
 
 export async function migrate(db: Db) {

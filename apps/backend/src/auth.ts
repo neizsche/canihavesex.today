@@ -110,6 +110,14 @@ export function googleConfigured(): boolean {
     return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
+/** Whether email/password authentication is enabled. Defaults to false in production. */
+export function isPasswordAuthEnabled(): boolean {
+    const envVal = process.env.ENABLE_PASSWORD_AUTH;
+    if (envVal === 'false') return false;
+    if (envVal === 'true') return true;
+    return process.env.NODE_ENV !== 'production';
+}
+
 export function sessionCookieOptions() {
     // COOKIE_SAMESITE=none enables cross-domain cookies (split frontend/backend);
     // default 'lax' is correct for the same-origin single-image deployment.

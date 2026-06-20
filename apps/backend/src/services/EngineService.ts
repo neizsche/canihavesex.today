@@ -43,10 +43,13 @@ export class EngineService {
     if (!logs.length) return null;
 
     const result = runFusionEngine(userId, { logs, meta, existingCycles: cycles, today });
-    await this.statusRepo.saveDailyStatuses(result.statuses);
-    await this.cycleRepo.upsertCycles(result.cycles);
+    await Promise.all([
+      this.statusRepo.saveDailyStatuses(result.statuses),
+      this.cycleRepo.upsertCycles(result.cycles),
+    ]);
 
-    return this.statusRepo.getTodayStatus(userId, today);
+    const todayStatus = result.statuses.find((s) => s.date === today);
+    return todayStatus ? todayStatus : null;
   }
 
   /**

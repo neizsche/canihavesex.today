@@ -36,11 +36,20 @@ export class SettingsRepository {
 
   /** Only the fields the fertility engine consumes. */
   async getEngineMeta(userId: string): Promise<EngineMeta> {
-    const rows = await this.db.query<{ avg_cycle_length: number }>(
-      'SELECT avg_cycle_length FROM user_settings WHERE user_id = $1',
+    const rows = await this.db.query<{
+      avg_cycle_length: number;
+      cycle_regularity: CycleRegularity | null;
+      context_flags: unknown;
+    }>(
+      'SELECT avg_cycle_length, cycle_regularity, context_flags FROM user_settings WHERE user_id = $1',
       [userId]
     );
-    return { avg_cycle_length: rows[0]?.avg_cycle_length ?? DEFAULT_AVG_CYCLE_LENGTH };
+    const row = rows[0];
+    return {
+      avg_cycle_length: row?.avg_cycle_length ?? DEFAULT_AVG_CYCLE_LENGTH,
+      cycle_regularity: row?.cycle_regularity ?? null,
+      context_flags: Array.isArray(row?.context_flags) ? (row!.context_flags as string[]) : [],
+    };
   }
 
   async hasCompletedOnboarding(userId: string): Promise<boolean> {
