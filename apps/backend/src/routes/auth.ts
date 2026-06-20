@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { UserRepository } from '../repositories/UserRepository.js';
 import type { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { hashPassword, verifyPassword } from '../password.js';
+import { DEMO_EMAIL, isDemoAccountEnabled } from '../demo.js';
 import {
     appBase,
     ensureUserForEmail,
@@ -32,7 +33,23 @@ export async function authRoutes(
     // Which auth providers are enabled (driven by env). The sign-in page reads this
     // to render only the buttons that are available for this deployment.
     app.get('/api/auth/providers', async (_req, reply) => {
-        return reply.send({ password: isPasswordAuthEnabled(), google: googleConfigured(), oidc: false });
+        return reply.send({ password: false, google: googleConfigured(), oidc: false, demo: isDemoAccountEnabled() });
+    });
+
+    // One-tap demo: drops a session cookie for the shared, pre-seeded demo
+    // account. Independent of password auth so a deployment can offer the tour
+    // without enabling sign-ups.
+    app.post('/api/auth/demo', async (_req, reply) => {
+        if (!isDemoAccountEnabled()) {
+            return reply.status(403).send({ error: 'demo_disabled', message: 'The demo account is not available in this environment.' });
+        }
+        const user = await userRepository.findByEmail(DEMO_EMAIL);
+        if (!user) {
+            return reply.status(503).send({ error: 'demo_unavailable', message: 'The demo account has not been set up yet.' });
+        }
+        setSessionCookie(reply, user.id);
+        const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
+        return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
     });
 
     // Email + password: create account

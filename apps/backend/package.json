@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "test": "node --import tsx --test src/engine.test.ts",
     "simulate:normal": "tsx src/scripts/simulateUser.ts",
+    "seed:demo": "tsx src/scripts/seedDemo.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },

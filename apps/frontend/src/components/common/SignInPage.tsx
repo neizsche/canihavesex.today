@@ -28,10 +28,12 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     password: boolean;
     google: boolean;
     oidc: boolean;
+    demo: boolean;
   }>({
     password: true,
     google: false,
     oidc: false,
+    demo: false,
   });
 
   React.useEffect(() => {
@@ -76,6 +78,26 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
   function startGoogleOauth() {
     const url = `${apiBase}/api/auth/oauth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
     location.href = url;
+  }
+
+  async function startDemo() {
+    setBusy(true);
+    setStatus('');
+    try {
+      const res = await apiFetch('/api/auth/demo', { method: 'POST' });
+      if (res.ok) {
+        location.href = returnTo;
+        return;
+      }
+      const data = await res.json().catch(() => ({}) as any);
+      setStatusTone('danger');
+      setStatus(data?.message || 'The demo is unavailable right now. Please try again.');
+    } catch {
+      setStatusTone('danger');
+      setStatus('Network error. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   React.useEffect(() => {
@@ -309,6 +331,17 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
                     </div>
                   )}
                 </div>
+              )}
+
+              {providers.demo && (
+                <button
+                  type="button"
+                  onClick={startDemo}
+                  disabled={busy}
+                  className="w-full text-[14px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                >
+                  Just looking? Explore the demo →
+                </button>
               )}
 
               {/* Status */}

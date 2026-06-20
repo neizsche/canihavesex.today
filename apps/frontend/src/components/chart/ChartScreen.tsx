@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
@@ -70,6 +70,9 @@ export function ChartScreen() {
         `/api/v1/insights/calendar?start=${startOfMonth}&end=${endOfMonth}`
       );
     },
+    // Keep showing the current month while the next one loads, so changing
+    // months updates in place instead of unmounting to a full-screen spinner.
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
   });
