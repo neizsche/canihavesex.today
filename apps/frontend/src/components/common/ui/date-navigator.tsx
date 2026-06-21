@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 interface DateNavigatorProps {
   label: string;
   sublabel?: string;
+  /** Tailwind bg-* class for a status dot shown beside the label (e.g. calendar colour). */
+  dotClass?: string;
   onPrev: () => void;
   onNext: () => void;
   prevDisabled?: boolean;
@@ -15,6 +17,7 @@ interface DateNavigatorProps {
 export function DateNavigator({
   label,
   sublabel,
+  dotClass,
   onPrev,
   onNext,
   prevDisabled = false,
@@ -36,7 +39,8 @@ export function DateNavigator({
         </Button>
 
         <div className="flex flex-col items-center">
-          <div className="text-[20px] font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">
+          <div className="flex items-center gap-2 text-[20px] font-bold tracking-tight text-zinc-900 dark:text-white transition-colors">
+            {dotClass && <span className={cn('w-2 h-2 rounded-full', dotClass)} />}
             {label}
           </div>
         </div>

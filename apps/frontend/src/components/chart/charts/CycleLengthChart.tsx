@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type CycleData, getMedian } from '@/lib/mock-data';
+import { type CycleData, getMedian } from '@/lib/cycle-types';
 
 interface CycleLengthChartProps {
   data: CycleData[];
@@ -9,14 +9,12 @@ export function CycleLengthChart({ data }: CycleLengthChartProps) {
   // Requirements: < 3 cycles -> empty state
   if (data.length < 3) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-        <div className="w-12 h-12 bg-zinc-200 dark:bg-zinc-700/50 rounded-full flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-muted/40 rounded-2xl border border-border/30">
+        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
           <span className="text-xl font-bold text-muted-foreground">?</span>
         </div>
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-200 mb-1">
-          Not Enough Pattern Data
-        </p>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-[200px]">
+        <p className="text-sm font-medium text-foreground mb-1">Not enough data yet</p>
+        <p className="text-xs text-muted-foreground max-w-[200px]">
           Log at least 3 complete cycles to see your cycle length trend.
         </p>
       </div>
@@ -71,10 +69,8 @@ export function CycleLengthChart({ data }: CycleLengthChartProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-[17px] font-semibold text-zinc-900 dark:text-white">Cycle Length</h3>
-        <p className="text-[15px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-          {insightText}
-        </p>
+        <h3 className="text-[17px] font-semibold text-foreground tracking-tight">Cycle Length</h3>
+        <p className="text-[14px] text-muted-foreground leading-relaxed">{insightText}</p>
       </div>
 
       <div className="relative w-full aspect-[2/1]">

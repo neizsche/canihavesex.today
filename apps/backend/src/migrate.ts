@@ -180,11 +180,27 @@ const migrations: Migration[] = [
       // enforced on every INSERT/UPDATE going forward. NULL is allowed where the
       // column is optional.
       const checks: Array<[string, string, string]> = [
-        ['logs', 'chk_logs_bleeding', `bleeding IS NULL OR bleeding IN ('none','spotting','light','medium','heavy')`],
-        ['logs', 'chk_logs_mucus', `mucus IS NULL OR mucus IN ('dry','sticky','creamy','watery','eggwhite')`],
+        [
+          'logs',
+          'chk_logs_bleeding',
+          `bleeding IS NULL OR bleeding IN ('none','spotting','light','medium','heavy')`,
+        ],
+        [
+          'logs',
+          'chk_logs_mucus',
+          `mucus IS NULL OR mucus IN ('dry','sticky','creamy','watery','eggwhite')`,
+        ],
         ['logs', 'chk_logs_lh_test', `lh_test IS NULL OR lh_test IN ('positive','negative')`],
-        ['daily_status', 'chk_daily_status_fertility', `fertility_status IN ('fertile','unsure','not_fertile','period')`],
-        ['daily_status', 'chk_daily_status_phase', `phase IN ('Follicular','Ovulatory','Luteal','Period')`],
+        [
+          'daily_status',
+          'chk_daily_status_fertility',
+          `fertility_status IN ('fertile','unsure','not_fertile','period')`,
+        ],
+        [
+          'daily_status',
+          'chk_daily_status_phase',
+          `phase IN ('Follicular','Ovulatory','Luteal','Period')`,
+        ],
       ];
       for (const [table, name, expr] of checks) {
         await db.exec(`
@@ -244,6 +260,173 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 5,
+    name: 'subscriptions',
+    up: async (db) => {
+      // Cloud-only billing (gated by BILLING_ENABLED). Self-host never sets that
+      // flag, so this table simply stays empty and the entitlement gate never
+      // runs. One row per paid purchase. Column names are intentionally
+      // PROVIDER-AGNOSTIC (`provider` + `provider_*_id`) so swapping the payment
+      // provider — Dodo today, anything else later — never touches the schema,
+      // the entitlement rules, or the gate; only the provider adapter changes.
+      // provider_subscription_id is the external id we upsert on (for one-time
+      // lifetime, the adapter stores the payment id there so retries stay
+      // idempotent). current_period_end is NULL for lifetime (never expires).
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL DEFAULT 'dodo',
+          provider_subscription_id TEXT UNIQUE,
+          provider_customer_id TEXT,
+          plan TEXT NOT NULL,
+          status TEXT NOT NULL,
+          current_period_end TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions (user_id);
+        -- Hot path for the entitlement gate: a user's active subscriptions.
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_user_active
+          ON subscriptions (user_id) WHERE status = 'active';
+      `);
+
+      // Enum integrity (NOT VALID so the migration can't fail on existing rows;
+      // still enforced on every write going forward). Mirrors the v2 pattern.
+      const checks: Array<[string, string, string]> = [
+        ['subscriptions', 'chk_subscriptions_plan', `plan IN ('yearly','lifetime')`],
+        ['subscriptions', 'chk_subscriptions_status', `status IN ('active','canceled','past_due')`],
+      ];
+      for (const [table, name, expr] of checks) {
+        await db.exec(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '${name}') THEN
+              ALTER TABLE ${table} ADD CONSTRAINT ${name} CHECK (${expr}) NOT VALID;
+            END IF;
+          END $$;
+        `);
+      }
+
+      await db.exec(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_updated_at_subscriptions') THEN
+            CREATE TRIGGER trg_update_updated_at_subscriptions
+            BEFORE UPDATE ON subscriptions
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+          END IF;
+        END $$;
+      `);
+    },
+  },
+  {
+    version: 6,
+    name: 'subscriptions_provider_columns',
+    up: async (db) => {
+      // Reconcile databases that applied an EARLIER v5 (when the columns were
+      // named dodo_*). v5 was later edited to the provider-agnostic names, but
+      // CREATE TABLE IF NOT EXISTS won't rename columns on a table that already
+      // exists — so any DB that ran the old v5 is left with dodo_* columns and
+      // no `provider`. Rename/add them idempotently here. On a fresh DB (v5
+      // already created provider_*), every guard is false and this is a no-op.
+      await db.exec(`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='subscriptions' AND column_name='dodo_subscription_id') THEN
+            ALTER TABLE subscriptions RENAME COLUMN dodo_subscription_id TO provider_subscription_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='subscriptions' AND column_name='dodo_customer_id') THEN
+            ALTER TABLE subscriptions RENAME COLUMN dodo_customer_id TO provider_customer_id;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                         WHERE table_name='subscriptions' AND column_name='provider') THEN
+            ALTER TABLE subscriptions ADD COLUMN provider TEXT NOT NULL DEFAULT 'dodo';
+          END IF;
+        END $$;
+      `);
+    },
+  },
+  {
+    version: 7,
+    name: 'billing_events',
+    up: async (db) => {
+      // Append-only audit of payment outcomes from the provider webhook: every
+      // verified success or failure, regardless of whether it changed the
+      // subscription state. The `subscriptions` table holds current state; this
+      // holds the history (what happened, when, for whom). Provider-agnostic,
+      // same as subscriptions. provider_event_id is the provider's stable event
+      // id (Standard Webhooks `webhook-id`) and is UNIQUE so webhook retries are
+      // idempotent (INSERT ... ON CONFLICT DO NOTHING). user_id is nullable —
+      // some events may arrive without our metadata — and SET NULL on user
+      // delete so the financial record survives account deletion.
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS billing_events (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+          provider TEXT NOT NULL DEFAULT 'dodo',
+          provider_event_id TEXT UNIQUE,
+          event_type TEXT NOT NULL,
+          outcome TEXT NOT NULL,
+          plan TEXT,
+          provider_payment_id TEXT,
+          provider_subscription_id TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_billing_events_user ON billing_events (user_id);
+        CREATE INDEX IF NOT EXISTS idx_billing_events_created ON billing_events (created_at DESC);
+      `);
+
+      // Enum integrity (NOT VALID so it can't fail on existing rows; enforced on
+      // every write going forward). Mirrors the v5 pattern.
+      await db.exec(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_billing_events_outcome') THEN
+            ALTER TABLE billing_events
+              ADD CONSTRAINT chk_billing_events_outcome CHECK (outcome IN ('succeeded','failed')) NOT VALID;
+          END IF;
+        END $$;
+      `);
+    },
+  },
+  {
+    version: 8,
+    name: 'billing_events_amount',
+    up: async (db) => {
+      // Revenue data on each payment outcome, straight off the provider webhook.
+      // amount_cents is the integer smallest-currency-unit (Dodo `total_amount`,
+      // e.g. cents) to avoid float rounding; currency is the ISO code (e.g. USD).
+      // Nullable: present on payment events, absent on pure subscription-state
+      // events (the matching payment.succeeded row carries the money).
+      await db.exec(`
+        ALTER TABLE billing_events ADD COLUMN IF NOT EXISTS amount_cents INTEGER;
+        ALTER TABLE billing_events ADD COLUMN IF NOT EXISTS currency TEXT;
+      `);
+    },
+  },
+  {
+    version: 9,
+    name: 'subscriptions_cancel_at_period_end',
+    up: async (db) => {
+      // Tracks a cancel-at-period-end request on a recurring (yearly) plan: the
+      // user (or a lifetime upgrade) has asked Dodo to stop renewing, but access
+      // runs out the already-paid term. The row stays status='active' with its
+      // current_period_end until subscription.expired flips it to 'canceled', so
+      // entitlement is unaffected — this flag only lets the UI say "Cancels on X"
+      // instead of "Next billing on X". Lifetime never sets it.
+      await db.exec(`
+        ALTER TABLE subscriptions
+          ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+      `);
+    },
+  },
 ];
 
 export async function migrate(db: Db) {
@@ -255,9 +438,7 @@ export async function migrate(db: Db) {
     );
   `);
 
-  const appliedRows = await db.query<{ version: number }>(
-    `SELECT version FROM schema_migrations`
-  );
+  const appliedRows = await db.query<{ version: number }>(`SELECT version FROM schema_migrations`);
   const applied = new Set(appliedRows.map((r) => r.version));
 
   const pending = migrations
@@ -269,10 +450,10 @@ export async function migrate(db: Db) {
   for (const m of pending) {
     await db.transaction(async (tx) => {
       await m.up(tx);
-      await tx.query(
-        `INSERT INTO schema_migrations (version, name) VALUES ($1, $2)`,
-        [m.version, m.name]
-      );
+      await tx.query(`INSERT INTO schema_migrations (version, name) VALUES ($1, $2)`, [
+        m.version,
+        m.name,
+      ]);
     });
     console.log(`[migrate] applied #${m.version} ${m.name}`);
   }

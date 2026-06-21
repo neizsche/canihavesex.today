@@ -48,3 +48,40 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
     throw new Error(`Resend send failed: ${error.message ?? 'unknown error'}`);
   }
 }
+
+/**
+ * Send a purchase/renewal confirmation. CLOUD ONLY — the billing webhook is the
+ * sole caller and never fires on self-host (billing is hard-disabled there).
+ * Throws if Resend is unconfigured or the send fails.
+ */
+export async function sendPurchaseConfirmationEmail(
+  to: string,
+  plan: 'yearly' | 'lifetime',
+): Promise<void> {
+  const from = process.env.EMAIL_FROM || 'canihavesex.today <onboarding@resend.dev>';
+  const planLabel = plan === 'lifetime' ? 'Lifetime' : 'Yearly';
+  const blurb =
+    plan === 'lifetime'
+      ? 'You have lifetime access — no renewals, ever.'
+      : 'Your yearly access is active and will renew automatically.';
+
+  const { error } = await getClient().emails.send({
+    from,
+    to,
+    subject: `You're all set — ${planLabel} access is active`,
+    text:
+      `Thanks for subscribing to canihavesex.today.\n\n` +
+      `Your ${planLabel} plan is now active. ${blurb}\n\n` +
+      `Manage your subscription anytime from Settings.`,
+    html:
+      `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:420px;margin:0 auto">` +
+      `<p style="font-size:16px;color:#111">Thanks for subscribing to canihavesex.today.</p>` +
+      `<p style="font-size:16px;color:#111">Your <strong>${planLabel}</strong> plan is now active. ${blurb}</p>` +
+      `<p style="font-size:14px;color:#666">You can manage your subscription anytime from Settings.</p>` +
+      `</div>`,
+  });
+
+  if (error) {
+    throw new Error(`Resend send failed: ${error.message ?? 'unknown error'}`);
+  }
+}

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Download } from 'lucide-react';
-import { type CycleData } from '@/lib/mock-data';
+import { type CycleData } from '@/lib/cycle-types';
 import { EXPORT_VIEW_LABELS } from './ExportView.config';
 
 interface ExportViewProps {

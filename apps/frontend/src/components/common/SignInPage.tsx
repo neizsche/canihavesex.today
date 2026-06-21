@@ -50,6 +50,17 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     };
   }, [apiBase]);
 
+  // Auto-start the demo when arriving from the landing page (?demo=1).
+  const demoTriggered = React.useRef(false);
+  React.useEffect(() => {
+    if (demoTriggered.current || busy) return;
+    const wantsDemo = new URLSearchParams(window.location.search).has('demo');
+    if (wantsDemo && providers.demo) {
+      demoTriggered.current = true;
+      startDemo();
+    }
+  }, [providers.demo, busy]);
+
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -434,16 +445,9 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
                 </div>
               )}
 
-              {providers.demo && mode !== 'verify' && (
-                <button
-                  type="button"
-                  onClick={startDemo}
-                  disabled={busy}
-                  className="w-full text-[14px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60 disabled:pointer-events-none"
-                >
-                  Just looking? Explore the demo →
-                </button>
-              )}
+              {/* Demo is offered from the landing page ("Try the live demo" →
+                  ?demo=1), which the auto-trigger above handles. No in-app
+                  button — keep the sign-in screen focused on actual sign-in. */}
 
               {/* Status */}
               <AnimatePresence>

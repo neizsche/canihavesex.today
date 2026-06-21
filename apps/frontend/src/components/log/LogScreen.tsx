@@ -27,6 +27,7 @@ import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
+import { useCalendarDayStatus, type CalendarStatus } from '@/hooks/queries/useCalendar';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { FieldHeader, PillGroup, ChipGroup } from './LogControls';
 import {
@@ -59,6 +60,16 @@ const CHIP_ACTIVE_SYMPTOMS =
   'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
 const CHIP_ACTIVE_FACTORS =
   'bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200';
+const CHIP_ACTIVE_MOOD =
+  'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300';
+
+// Calendar status → dot colour, matching the calendar grid in ChartScreen.
+const STATUS_DOT: Record<CalendarStatus, string> = {
+  period: 'bg-[#ff3b30]',
+  fertile: 'bg-[#af52de]',
+  safe: 'bg-emerald-500',
+  unsure: '',
+};
 
 export function LogScreen() {
   const { showBranding } = useDiscreetMode();
@@ -90,6 +101,11 @@ export function LogScreen() {
 
   const query = useLog(date);
   const saveMutation = useSaveLog();
+
+  // Colour the date with its calendar status (red/purple/green) so editing a
+  // past day carries over the visual cue from the calendar cell that opened it.
+  const calendarStatus = useCalendarDayStatus(date);
+  const statusDot = calendarStatus ? STATUS_DOT[calendarStatus] : '';
 
   const hasData = query.data?.found;
 
@@ -204,6 +220,7 @@ export function LogScreen() {
               const weekday = dObj.toLocaleDateString('en-US', { weekday: 'short' });
               return `${month} ${day}, ${weekday}`;
             })()}
+            dotClass={statusDot || undefined}
             sublabel={
               date === todayIso()
                 ? LOG_SCREEN_LABELS.status.today
@@ -391,10 +408,11 @@ export function LogScreen() {
                     iconWrapClass="rounded-sm bg-amber-500 shadow-sm"
                     label={LOG_SCREEN_LABELS.fields.mood}
                   />
-                  <PillGroup
+                  <ChipGroup
                     options={LOG_SCREEN_LABELS.bodySignals.mood}
-                    value={form.mood}
-                    onChange={(v) => patch({ mood: v })}
+                    selected={form.mood}
+                    onToggle={(id) => patch({ mood: toggleInArray(form.mood, id) })}
+                    activeClass={CHIP_ACTIVE_MOOD}
                   />
                 </div>
 

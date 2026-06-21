@@ -7,6 +7,9 @@ loadEnv();
 // App-owned tables only. Supabase-managed schemas (auth, storage, etc.) are NOT touched.
 const APP_TABLES = [
   // children first (FKs), though CASCADE handles ordering anyway
+  'billing_events',
+  'subscriptions',
+  'email_verification_codes',
   'logs',
   'daily_status',
   'cycles',

@@ -124,6 +124,7 @@ export default defineConfig({
           // the redirected response can't be rendered as a top-level navigation
           // and the page hangs ("application not found"). Letting them fall
           // through to the browser preserves the native redirect handling.
+          navigateFallback: null,
           runtimeCaching: [
             {
               urlPattern: ({ request, url }) =>

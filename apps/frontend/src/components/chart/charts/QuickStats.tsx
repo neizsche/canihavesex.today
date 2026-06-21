@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Sparkles } from 'lucide-react';
-import { QuickStatsData } from '@/lib/mock-data';
+import { QuickStatsData } from '@/lib/cycle-types';
 import { CHARTS_VIEW_LABELS } from './ChartsView.config';
 
 interface QuickStatsProps {

@@ -23,7 +23,7 @@ describe('encodeSymptoms / decodeSymptoms', () => {
     const encoded = encodeSymptoms(
       stateWith({
         bodySymptoms: ['cramps', 'bloating'],
-        mood: 'calm',
+        mood: ['calm', 'happy'],
         energy: 'high',
         sleepQuality: 'good',
         libido: 'low',
@@ -34,6 +34,7 @@ describe('encodeSymptoms / decodeSymptoms', () => {
       'cramps',
       'bloating',
       'mood:calm',
+      'mood:happy',
       'energy:high',
       'sleep:good',
       'libido:low',
@@ -49,7 +50,7 @@ describe('encodeSymptoms / decodeSymptoms', () => {
   it('round-trips through decode', () => {
     const original = stateWith({
       bodySymptoms: ['headache'],
-      mood: 'sad',
+      mood: ['sad'],
       energy: 'low',
       sleepQuality: 'poor',
       libido: 'high',
@@ -58,7 +59,7 @@ describe('encodeSymptoms / decodeSymptoms', () => {
     const decoded = decodeSymptoms(encodeSymptoms(original));
     expect(decoded).toEqual({
       bodySymptoms: ['headache'],
-      mood: 'sad',
+      mood: ['sad'],
       energy: 'low',
       sleepQuality: 'poor',
       libido: 'high',
@@ -69,7 +70,7 @@ describe('encodeSymptoms / decodeSymptoms', () => {
   it('decodes an empty list to all-null signals', () => {
     expect(decodeSymptoms([])).toEqual({
       bodySymptoms: [],
-      mood: null,
+      mood: [],
       energy: null,
       sleepQuality: null,
       libido: null,
@@ -99,7 +100,7 @@ describe('payloadToFormState', () => {
       disturbances: ['alcohol'],
       notes: 'hi',
       bodySymptoms: ['cramps'],
-      mood: 'calm',
+      mood: ['calm'],
     });
   });
 
@@ -173,7 +174,7 @@ describe('predicates', () => {
   it('hasAnyInput ignores empty and sexActivity "none"', () => {
     expect(hasAnyInput(EMPTY_LOG_STATE)).toBe(false);
     expect(hasAnyInput(stateWith({ sexActivity: 'none' }))).toBe(false);
-    expect(hasAnyInput(stateWith({ mood: 'calm' }))).toBe(true);
+    expect(hasAnyInput(stateWith({ mood: ['calm'] }))).toBe(true);
     expect(hasAnyInput(stateWith({ bbt: '36.6' }))).toBe(true);
   });
 
@@ -204,14 +205,14 @@ describe('toggleInArray', () => {
 
 describe('logFormReducer', () => {
   it('patch merges a partial update', () => {
-    const next = logFormReducer(EMPTY_LOG_STATE, { type: 'patch', patch: { mood: 'calm' } });
-    expect(next.mood).toBe('calm');
+    const next = logFormReducer(EMPTY_LOG_STATE, { type: 'patch', patch: { mood: ['calm'] } });
+    expect(next.mood).toEqual(['calm']);
     expect(next.energy).toBeNull();
     expect(next).not.toBe(EMPTY_LOG_STATE);
   });
 
   it('reset replaces the whole state', () => {
-    const dirty = stateWith({ notes: 'x', mood: 'sad' });
+    const dirty = stateWith({ notes: 'x', mood: ['sad'] });
     expect(logFormReducer(dirty, { type: 'reset', state: EMPTY_LOG_STATE })).toEqual(
       EMPTY_LOG_STATE
     );

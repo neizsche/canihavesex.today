@@ -386,6 +386,9 @@ export function ChartScreen() {
                   data={statsData}
                   insufficientData={statsQuery.data?.insufficientData}
                   trends={statsQuery.data?.trends || []}
+                  summary={statsQuery.data?.summary || null}
+                  averages={statsQuery.data?.averages || null}
+                  patterns={statsQuery.data?.patterns || []}
                 />
               )}
 

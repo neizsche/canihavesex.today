@@ -11,6 +11,8 @@ import {
   EyeOff,
   Moon,
   Share,
+  CreditCard,
+  Infinity as InfinityIcon,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,11 @@ import { useSession } from '@/hooks/queries/useSession';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useTheme } from '@/hooks/useTheme';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
+import { PlanPicker } from '@/components/billing/PlanPicker';
+import { PLANS } from '@/components/billing/plans';
+import { usePlanCheckout } from '@/components/billing/usePlanCheckout';
+import { CONTACT_EMAIL } from '@/lib/siteConfig';
 
 interface UserProfile {
   cycle_regularity: string | null;
@@ -43,6 +50,196 @@ interface UserProfile {
 }
 
 type ConfirmAction = 'delete-all' | 'delete-account' | null;
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/** Whole days from now until `iso` (0 if already past). Null when no date. */
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  return ms <= 0 ? 0 : Math.ceil(ms / 86_400_000);
+}
+
+/**
+ * Subscription card in Settings (cloud only, BILLING_ENABLED). A single
+ * collapsible row that mirrors the rest of the settings list: a calm one-line
+ * status when closed, the relevant action when open — subscribe while
+ * trialing/lapsed, or manage (upgrade to lifetime / cancel) once paid. Ink +
+ * grey with the one blue accent, per BRAND.md.
+ */
+function BillingSection({ session }: { session?: { userId?: string } | null }) {
+  const { data: billing, isLoading } = useBillingStatus();
+  const { checkoutBusy, cancelBusy, startCheckout, cancelSubscription } = usePlanCheckout();
+  const [open, setOpen] = React.useState(false);
+  const [cancelSheetOpen, setCancelSheetOpen] = React.useState(false);
+
+  // Greet the user expanded when there's something to act on (trial running,
+  // lapsed, or never subscribed); stay tucked away once they're settled on a
+  // paid plan. Fires once so a manual collapse afterwards sticks.
+  const autoOpened = React.useRef(false);
+  React.useEffect(() => {
+    if (!billing || autoOpened.current) return;
+    autoOpened.current = true;
+    if (billing.state !== 'active') setOpen(true);
+  }, [billing]);
+
+  // Don't render at all if billing is disabled (self-host) or user not logged in.
+  if (!session?.userId || isLoading || !billing?.billingEnabled) return null;
+
+  const { state, plan, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd } = billing;
+  const isActivePaid = state === 'active';
+  const isYearly = isActivePaid && plan === 'yearly';
+  const isLifetime = isActivePaid && plan === 'lifetime';
+
+  // Collapsed-row summary: status at a glance, calm and plain-spoken.
+  const summary = (() => {
+    if (isLifetime) return 'Lifetime · yours forever';
+    if (isYearly) {
+      if (cancelAtPeriodEnd) {
+        return currentPeriodEnd ? `Cancels ${formatDate(currentPeriodEnd)}` : 'Cancels at period end';
+      }
+      return currentPeriodEnd ? `Yearly · renews ${formatDate(currentPeriodEnd)}` : 'Yearly';
+    }
+    if (state === 'trialing') {
+      const left = daysUntil(trialEndsAt);
+      return left !== null ? `Free trial · ${left} day${left === 1 ? '' : 's'} left` : 'Free trial';
+    }
+    if (state === 'expired') return 'Trial ended';
+    return 'No active plan';
+  })();
+
+  return (
+    <>
+      <InsetGroup>
+        <SettingsExpandableRow
+          icon={<CreditCard className="icon-sm text-white" />}
+          iconBgColor="bg-[#007aff]"
+          title="Subscription"
+          description={summary}
+          open={open}
+          onToggle={() => setOpen((prev) => !prev)}
+        >
+          {/* Subscribe — trialing, expired, or never subscribed. */}
+          {!isActivePaid && (
+            <>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                {state === 'trialing' && trialEndsAt
+                  ? `Your free trial runs through ${formatDate(trialEndsAt)}. Subscribe anytime to keep going.`
+                  : state === 'expired'
+                    ? 'Your trial has ended. Choose a plan to keep logging.'
+                    : 'Choose a plan to continue.'}
+              </p>
+              <PlanPicker defaultPlan={plan ?? 'yearly'} />
+            </>
+          )}
+
+          {/* Manage an active yearly plan: upgrade to lifetime, or cancel. */}
+          {isYearly && (
+            <div className="space-y-3">
+              {cancelAtPeriodEnd && (
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Your plan cancels on {formatDate(currentPeriodEnd)}. You keep full access until
+                  then.
+                </p>
+              )}
+
+              {/* Lifetime upgrade offer — a calm, self-contained card. Ink + grey
+                  on a faint blue wash, the one accent; the infinity mark and a
+                  one-payment line carry the value without hype. */}
+              <div className="overflow-hidden rounded-2xl border border-[#007aff]/25 bg-gradient-to-b from-[#007aff]/[0.06] to-[#007aff]/[0.02] dark:border-[#0a84ff]/25 dark:from-[#0a84ff]/[0.12] dark:to-[#0a84ff]/[0.04]">
+                <div className="flex items-center gap-3 px-4 pt-4">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#007aff]/10 dark:bg-[#0a84ff]/20">
+                    <InfinityIcon
+                      className="h-[18px] w-[18px] text-[#007aff] dark:text-[#0a84ff]"
+                      strokeWidth={2.25}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+                      {PLANS.lifetime.name}
+                    </div>
+                    <div className="text-[12px] text-muted-foreground">Pay once. Never renews.</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[17px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+                      {PLANS.lifetime.price}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {PLANS.lifetime.cadence}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 pt-3">
+                  <button
+                    type="button"
+                    disabled={checkoutBusy !== null}
+                    onClick={() => startCheckout('lifetime')}
+                    className="w-full rounded-full bg-[#007aff] py-3 text-[15px] font-semibold text-white transition-all duration-150 active:scale-[0.99] disabled:opacity-60 dark:bg-[#0a84ff]"
+                  >
+                    {checkoutBusy === 'lifetime' ? 'Redirecting…' : 'Upgrade to Lifetime'}
+                  </button>
+                </div>
+              </div>
+
+              {!cancelAtPeriodEnd && (
+                <button
+                  type="button"
+                  disabled={cancelBusy}
+                  onClick={() => setCancelSheetOpen(true)}
+                  className="w-full rounded-full border border-border/40 bg-zinc-50/60 py-2.5 text-[13px] font-medium text-zinc-600 transition-opacity active:opacity-70 disabled:opacity-50 dark:bg-zinc-900/40 dark:text-zinc-300"
+                >
+                  {cancelBusy ? 'Canceling…' : 'Cancel subscription'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Lifetime — nothing to manage; it never renews. */}
+          {isLifetime && (
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              You have lifetime access — there's nothing to manage. Thank you for the support.
+            </p>
+          )}
+
+          {/* Quiet billing-help line for paying users (the door to billing
+              questions and refunds — present, not promoted). */}
+          {isActivePaid && (
+            <p className="pt-1 text-center text-[12px] text-muted-foreground">
+              Billing question?{' '}
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="font-medium text-[#007aff] transition-opacity active:opacity-70 dark:text-[#0a84ff]"
+              >
+                Contact us
+              </a>
+            </p>
+          )}
+        </SettingsExpandableRow>
+      </InsetGroup>
+
+      <ActionSheet
+        isOpen={cancelSheetOpen}
+        onClose={() => setCancelSheetOpen(false)}
+        title="Cancel subscription?"
+        description="You keep full access until the end of your current billing period. No further charges."
+        actions={[
+          {
+            label: 'Cancel subscription',
+            isDestructive: true,
+            onClick: () => void cancelSubscription(),
+          },
+        ]}
+      />
+    </>
+  );
+}
 
 const SHORTCUT_INSTALL_URL = 'https://example.com/shortcut';
 
@@ -275,8 +472,10 @@ export function SettingsScreen() {
       const data = await apiJson<MutationResponse>('/api/v1/user/data', { method: 'DELETE' });
       updateCacheFromMutation(queryClient, data);
 
-      // Clear all queries and redirect to onboarding
+      // Clear all queries and the persisted localStorage cache so a
+      // subsequent login on the same device starts clean.
       queryClient.clear();
+      try { window.localStorage.removeItem('chs-query-cache'); } catch {}
 
       setConfirmAction(null);
       setSuccess({ caption: 'Data Deleted', variant: 'destructive' });
@@ -296,6 +495,12 @@ export function SettingsScreen() {
     setBusy(true);
     try {
       await apiJson('/api/v1/user/account', { method: 'DELETE' });
+
+      // Wipe in-memory cache + persisted localStorage cache so the next
+      // user on this device doesn't inherit stale session/data.
+      queryClient.clear();
+      try { window.localStorage.removeItem('chs-query-cache'); } catch {}
+
       setConfirmAction(null);
       setSuccess({ caption: 'Account Deleted', variant: 'destructive' });
       setTimeout(() => {
@@ -316,6 +521,12 @@ export function SettingsScreen() {
   async function signout() {
     try {
       await apiJson('/api/signout', { method: 'POST' });
+
+      // Purge the persisted query cache so the next user on this device
+      // doesn't see stale session data from the previous account.
+      queryClient.clear();
+      try { window.localStorage.removeItem('chs-query-cache'); } catch {}
+
       window.location.href = '/';
     } catch (err) {
       alert('Signout failed. Please try again.');
@@ -373,6 +584,10 @@ export function SettingsScreen() {
               </h1>
             </div>
 
+            {/* Billing / Subscription — surfaced at the top so plans are the
+                first thing a trialing or blocked user sees. */}
+            <BillingSection session={session} />
+
             {/* Install App — an elevated "material" card that complements each
                 mode (raised light surface in light, graphite in dark). It earns
                 attention through hierarchy, elevation, and a blue accent CTA.
@@ -418,8 +633,12 @@ export function SettingsScreen() {
                           </span>
                           <span className="flex items-center gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-300">
                             {step}
-                            {isIOS && i === 0 && <Share className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />}
-                            {isIOS && i === 1 && <Plus className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />}
+                            {isIOS && i === 0 && (
+                              <Share className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+                            )}
+                            {isIOS && i === 1 && (
+                              <Plus className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+                            )}
                           </span>
                         </li>
                       ))}

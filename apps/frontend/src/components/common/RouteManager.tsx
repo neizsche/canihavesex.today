@@ -3,6 +3,8 @@ import { TodayScreen } from '@/components/today/TodayScreen';
 import { LogScreen } from '@/components/log/LogScreen';
 import { ChartScreen } from '@/components/chart/ChartScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
+import { Paywall } from '@/components/billing/Paywall';
+import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
 
 export type RouteKey = 'today' | 'log' | 'chart' | 'settings' | 'onboarding';
 
@@ -47,6 +49,17 @@ export function useRoute() {
 }
 
 export function RouteManager({ route }: { route: RouteKey }) {
+  const { data: billing } = useBillingStatus();
+  // Block the whole app when billing is on and the user is no longer entitled
+  // (trial expired or no plan). The Paywall replaces every screen — the bottom
+  // nav is also hidden (see AppShell) — so subscribing or signing out are the
+  // only ways forward. The backend gate enforces the same on /api/v1/logs and
+  // /api/v1/insights (402); /api/v1/user/* stays open for data export/delete.
+  const blocked = billing?.billingEnabled === true && billing.entitled === false;
+  if (blocked) {
+    return <Paywall state={billing.state} />;
+  }
+
   switch (route) {
     case 'log':
       return <LogScreen />;

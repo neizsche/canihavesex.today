@@ -28,6 +28,10 @@ services:
       DB_SSL: "false"
       NODE_ENV: production
       PORT: "1299"
+      # This is the free, self-hosted edition. SELF_HOST hard-disables billing,
+      # payments and purchase emails — they stay off even if BILLING_ENABLED or
+      # the DODO_*/RESEND_* keys are added.
+      SELF_HOST: "true"
       # Generate with: openssl rand -hex 32
       COOKIE_SECRET: ${COOKIE_SECRET:?set COOKIE_SECRET in .env (openssl rand -hex 32)}
       # Optional Google OAuth. Leave unset for email + password only.

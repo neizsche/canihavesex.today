@@ -1,4 +1,6 @@
-import { createDb } from '../db.js';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { createDb, type Db } from '../db.js';
 import { migrate } from '../migrate.js';
 import { LogRepository, Log } from '../repositories/LogRepository.js';
 import { SettingsRepository } from '../repositories/SettingsRepository.js';
@@ -36,6 +38,7 @@ const USER_SCOPED_TABLES = [
   'user_settings',
   'user_identities',
   'user_api_keys',
+  'subscriptions',
 ];
 
 function jitter(amount: number): number {
@@ -126,29 +129,41 @@ function buildSignals(
   return { symptoms, disturbances, notes };
 }
 
-async function seed() {
-  const db = await createDb();
-  await migrate(db);
-
+export async function seedDemoAccount(db: Db): Promise<{ logs: number; cycles: number }> {
   const userRepo = new UserRepository(db);
   const settingsRepo = new SettingsRepository(db);
   const logRepo = new LogRepository(db);
   const cycleRepo = new CycleRepository(db);
   const statusRepo = new DailyStatusRepository(db);
 
-  // 1. Wipe any prior demo state so this is a clean rebuild.
+  // 1. Wipe any prior demo state so this is a clean rebuild. We clear the
+  // user-scoped child rows but KEEP the users row: the shared demo is reachable
+  // mid-session by anyone whose cookie is signed with this user id, and deleting
+  // the row would orphan those sessions (auth plugin clears the cookie + 401s).
+  // ensureUserForEmail below reuses the same id, so live demo tabs keep working.
   const existing = await userRepo.findByEmail(DEMO_EMAIL);
   if (existing) {
     console.log(`[seed:demo] Clearing previous demo data (${existing.id})...`);
     for (const t of USER_SCOPED_TABLES) {
       await db.query(`DELETE FROM "${t}" WHERE user_id = $1`, [existing.id]);
     }
-    await db.query('DELETE FROM users WHERE id = $1', [existing.id]);
   }
 
   // 2. Fresh user + credentials so the demo is also reachable via the login form.
   const userId = await ensureUserForEmail(userRepo, settingsRepo, DEMO_EMAIL);
   await userRepo.setPassword(userId, await hashPassword(DEMO_PASSWORD));
+
+  // Grant the demo a lifetime plan so the account screen reads as a paid,
+  // fully-unlocked account. The paywall already exempts the demo via isDemo,
+  // but this makes the billing UI show "Lifetime" rather than a trial. provider
+  // 'demo' keeps these synthetic rows distinct from real provider webhooks.
+  await db.query(
+    `INSERT INTO subscriptions
+       (user_id, provider, provider_subscription_id, provider_customer_id,
+        plan, status, current_period_end)
+     VALUES ($1, 'demo', $2, NULL, 'lifetime', 'active', NULL)`,
+    [userId, `demo-lifetime-${userId}`],
+  );
 
   const today = isoToday();
   const startDate = addDaysIso(today, -TOTAL_DAYS);
@@ -243,13 +258,25 @@ async function seed() {
   await statusRepo.saveDailyStatuses(result.statuses);
   await cycleRepo.upsertCycles(result.cycles);
 
-  console.log(
-    `[seed:demo] Done. ${logs.length} logs, ${result.cycles.length} cycles for ${DEMO_EMAIL}.`
-  );
-  await db.close();
+  return { logs: logs.length, cycles: result.cycles.length };
 }
 
-seed().catch((err) => {
-  console.error('[seed:demo] FAILED:', err);
-  process.exit(1);
-});
+// CLI entrypoint: `npm run seed:demo`. Guarded so that importing this module
+// (e.g. from the admin reseed route) never triggers a seed — only a direct
+// `node .../seedDemo.js` invocation does.
+const invokedDirectly =
+  !!process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (invokedDirectly) {
+  (async () => {
+    const db = await createDb();
+    await migrate(db);
+    const result = await seedDemoAccount(db);
+    console.log(
+      `[seed:demo] Done. ${result.logs} logs, ${result.cycles} cycles for ${DEMO_EMAIL}.`
+    );
+    await db.close();
+  })().catch((err) => {
+    console.error('[seed:demo] FAILED:', err);
+    process.exit(1);
+  });
+}

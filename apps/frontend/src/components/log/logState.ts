@@ -17,7 +17,7 @@ export interface LogFormState {
   disturbances: string[];
   notes: string;
   bodySymptoms: string[];
-  mood: string | null;
+  mood: string[];
   energy: string | null;
   sleepQuality: string | null;
   libido: string | null;
@@ -34,7 +34,7 @@ export const EMPTY_LOG_STATE: LogFormState = {
   disturbances: [],
   notes: '',
   bodySymptoms: [],
-  mood: null,
+  mood: [],
   energy: null,
   sleepQuality: null,
   libido: null,
@@ -81,7 +81,7 @@ export function encodeSymptoms(state: LogFormState): string[] {
   const { bodySymptoms, mood, energy, sleepQuality, libido, sexActivity } = state;
   return [
     ...bodySymptoms,
-    ...(mood ? [`mood:${mood}`] : []),
+    ...mood.map((m) => `mood:${m}`),
     ...(energy ? [`energy:${energy}`] : []),
     ...(sleepQuality ? [`sleep:${sleepQuality}`] : []),
     ...(libido ? [`libido:${libido}`] : []),
@@ -99,7 +99,7 @@ export function decodeSymptoms(
     symptoms.find((s) => s.startsWith(`${prefix}:`))?.split(':')[1] || null;
   return {
     bodySymptoms: symptoms.filter((s) => BODY_SYMPTOM_IDS.includes(s)),
-    mood: valueFor('mood'),
+    mood: symptoms.filter((s) => s.startsWith('mood:')).map((s) => s.split(':')[1]),
     energy: valueFor('energy'),
     sleepQuality: valueFor('sleep'),
     libido: valueFor('libido'),
@@ -177,7 +177,7 @@ export function hasAnyInput(s: LogFormState): boolean {
     s.disturbances.length > 0 ||
     s.notes ||
     s.bodySymptoms.length > 0 ||
-    s.mood ||
+    s.mood.length > 0 ||
     s.energy ||
     s.sleepQuality ||
     s.libido ||
@@ -199,13 +199,13 @@ export function isLogDirty(a: LogFormState, b: LogFormState): boolean {
     a.mucus !== b.mucus ||
     a.lhTest !== b.lhTest ||
     a.notes !== b.notes ||
-    a.mood !== b.mood ||
     a.energy !== b.energy ||
     a.sleepQuality !== b.sleepQuality ||
     a.libido !== b.libido ||
     a.sexActivity !== b.sexActivity ||
     !arraysEqual(a.disturbances, b.disturbances) ||
-    !arraysEqual(a.bodySymptoms, b.bodySymptoms)
+    !arraysEqual(a.bodySymptoms, b.bodySymptoms) ||
+    !arraysEqual(a.mood, b.mood)
   );
 }
 

@@ -1,4 +1,5 @@
-// Shared chart/cycle types and helpers used by the chart views.
+// Shared cycle/stats types and helpers used by the chart views. These are
+// derived from real API data — kept here as the single source of truth.
 
 export interface QuickStatsData {
   // Historical / At-a-Glance fields
@@ -28,6 +29,7 @@ export interface CycleData {
   periodIntensity: Intensity;
   ovulationDay?: number; // Estimated day of ovulation
   ovulationConfirmed?: boolean;
+  complete?: boolean; // false for the in-progress current cycle
 }
 
 export function getMedian(values: number[]): number {

@@ -37,7 +37,9 @@ const authPlugin: FastifyPluginAsync<AuthPluginOptions> = async (fastify, opts) 
             req.url === '/api/auth/providers' ||
             req.url === '/api/signout' ||
             req.url === '/api/session/check' ||
+            req.url === '/api/billing/webhook' ||
             req.url.startsWith('/api/waitlist') ||
+            req.url.startsWith('/api/admin/') ||
             req.url === '/health';
 
         if (!isApiRoute || isPublicRoute) {

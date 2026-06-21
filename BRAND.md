@@ -12,7 +12,7 @@
 **What it is:** a calm, ad-free, privacy-first app that answers today's biological fertility question from real signals (cervical mucus, basal temperature, LH tests, bleeding). It does **not** predict periods, generate a future "safe-days" calendar, or promise contraception. If uncertain, it assumes fertile.
 
 **Positioning statement:**
-> For people practicing fertility awareness, **Can I Have Sex Today** is a calm, ad-free app that answers one honest question — *am I fertile today?* — without the predictions, clutter, or data-harvesting of Flo and Clue.
+> For people practicing fertility awareness, **Can I Have Sex Today** is a calm, ad-free app that answers one honest question — *am I fertile today?* — without the predictions, clutter, or data-harvesting of the mainstream cycle apps.
 
 **Why we win (structural, not cosmetic):** incumbents have soft names on loud, cluttered, ad-driven apps. We have a bold name on a quiet, respectful one. That posture can't be copied.
 
@@ -33,12 +33,12 @@
 
 Plain words. Short sentences. Second person ("you"). Confident, but humble about uncertainty. **The name is bold so the copy doesn't have to be** — let the name carry the edge; keep everything else gentle.
 
-| Do | Don't |
-|----|-------|
-| "You're likely fertile today." | "⚠️ HIGH RISK!!" |
-| "Not enough signal yet — assume fertile to be safe." | "We can't predict anything 🤷" |
-| "Your data stays yours." | "Military-grade encryption for your privacy!" |
-| "Log today to see your status." | "Don't break your streak!" |
+| Do                                                   | Don't                                         |
+| ---------------------------------------------------- | --------------------------------------------- |
+| "You're likely fertile today."                       | "⚠️ HIGH RISK!!"                               |
+| "Not enough signal yet — assume fertile to be safe." | "We can't predict anything 🤷"                 |
+| "Your data stays yours."                             | "Military-grade encryption for your privacy!" |
+| "Log today to see your status."                      | "Don't break your streak!"                    |
 
 **Rules**
 - No fear, no hype, no shame, no moralizing about sex.
@@ -50,7 +50,7 @@ Plain words. Short sentences. Second person ("you"). Confident, but humble about
 
 ## 3. Gender-neutral language (non-negotiable)
 
-Default to **"you / your."** This is a category differentiator — Flo/Clue lean "women's health"; we don't.
+Default to **"you / your."** This is a category differentiator — mainstream cycle apps lean "women's health"; we don't.
 
 - ✅ your body · your cycle · people who track their cycle · you
 - ❌ women · girls · feminine · "for her" · pink-coded framing
@@ -81,25 +81,25 @@ Default to **"you / your."** This is a category differentiator — Flo/Clue lean
 **Discipline that makes it feel calm:** color carries **meaning, never decoration.** The interface is ink + grey. The *only* accent is the interactive blue. Status colors appear *only* on fertility status.
 
 ### Brand / system (ink monochrome + one blue)
-| Token | Light | Dark |
-|-------|-------|------|
-| Background | `#F2F2F7` | `#000000` |
-| Card / surface | `#FFFFFF` | `#1C1C1E` |
-| Popover / sheet | `#FFFFFF` | `#2C2C2E` |
-| Ink (primary text) | `#000000` | `#FFFFFF` |
-| Muted text | `#636366` | `#8E8E93` |
-| Hairline / input | `#E5E5EA` | `#38383A` |
+| Token                    | Light     | Dark      |
+| ------------------------ | --------- | --------- |
+| Background               | `#F2F2F7` | `#000000` |
+| Card / surface           | `#FFFFFF` | `#1C1C1E` |
+| Popover / sheet          | `#FFFFFF` | `#2C2C2E` |
+| Ink (primary text)       | `#000000` | `#FFFFFF` |
+| Muted text               | `#636366` | `#8E8E93` |
+| Hairline / input         | `#E5E5EA` | `#38383A` |
 | **Accent (interactive)** | `#007AFF` | `#0A84FF` |
-| Destructive | `#FF3B30` | `#FF453A` |
+| Destructive              | `#FF3B30` | `#FF453A` |
 
 ### Status colors (meaning only — consolidate to these)
 > Today's screen currently mixes `red-500`, `--risk-high`, and `--destructive`. Pick **one** canonical iOS-system set:
 
-| Status | Meaning | Light | Dark |
-|--------|---------|-------|------|
-| 🔴 High / Fertile | high chance today | `#FF3B30` | `#FF453A` |
-| 🟠 Unsure / Medium | assume fertile | `#FF9500` | `#FF9F0A` |
-| 🟢 Low / Not fertile | low chance today | `#34C759` | `#32D74B` |
+| Status              | Meaning           | Light     | Dark      |
+| ------------------- | ----------------- | --------- | --------- |
+| 🔴 High / Fertile    | high chance today | `#FF3B30` | `#FF453A` |
+| 🟠 Unsure / Medium   | assume fertile    | `#FF9500` | `#FF9F0A` |
+| 🟢 Low / Not fertile | low chance today  | `#34C759` | `#32D74B` |
 
 ---
 
@@ -107,15 +107,15 @@ Default to **"you / your."** This is a category differentiator — Flo/Clue lean
 
 **Typeface:** `Inter` for everything (system fallback). Ruthless consistency over variety. *Optional:* `Inter Display` / `Inter Tight` for the wordmark only. **Remove `Dancing Script`.**
 
-| Role | Size | Weight | Tracking |
-|------|------|--------|----------|
-| Hero status | 42px | 800 | -0.05em |
-| Screen title | 30px | 800 | -0.04em |
-| Wordmark | 22px | 700/800 | tight |
-| Section value | 17–20px | 700 | tight |
-| Body | 15px | 400–500 | normal |
-| Label | 12px | 600 | normal |
-| Micro-label (uppercase) | 10px | 600 | +0.08em |
+| Role                    | Size    | Weight  | Tracking |
+| ----------------------- | ------- | ------- | -------- |
+| Hero status             | 42px    | 800     | -0.05em  |
+| Screen title            | 30px    | 800     | -0.04em  |
+| Wordmark                | 22px    | 700/800 | tight    |
+| Section value           | 17–20px | 700     | tight    |
+| Body                    | 15px    | 400–500 | normal   |
+| Label                   | 12px    | 600     | normal   |
+| Micro-label (uppercase) | 10px    | 600     | +0.08em  |
 
 Rules: tracking-tight on large display type; **UPPERCASE + letter-spacing** for the smallest labels; weight range 400–800.
 
@@ -144,7 +144,7 @@ Rules: tracking-tight on large display type; **UPPERCASE + letter-spacing** for 
 
 ---
 
-## 10. What we are NOT (anti-patterns vs. Flo / Clue)
+## 10. What we are NOT (anti-patterns vs. mainstream cycle apps)
 
 - ❌ pink/purple gradients, flowers, petals, cutesy mascots
 - ❌ streaks, badges, points, gamification
@@ -152,3 +152,5 @@ Rules: tracking-tight on large display type; **UPPERCASE + letter-spacing** for 
 - ❌ ads, upsell interstitials, selling data
 - ❌ fake certainty / future-prediction theater
 - ❌ gendered "women's health" framing
+
+
