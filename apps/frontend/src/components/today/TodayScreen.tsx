@@ -65,6 +65,7 @@ export function TodayScreen() {
   const { navigate } = useNavigation();
   const { showBranding: brandingVisible } = useDiscreetMode();
   const todayQuery = useInsights();
+  const [whyOpen, setWhyOpen] = React.useState(false);
 
   const apiData = todayQuery.data;
   const safeInsights = apiData?.insights || {};
@@ -87,7 +88,14 @@ export function TodayScreen() {
   const confidenceMessage = todayData?.confidence?.message || '';
 
   const notifications: string[] = todayData?.notifications || [];
-  const dynamicSubtitle = notifications[0] || status.fallbackSubtitle;
+  // When the engine returns `unsure`, it now also says *why* (statusReason). Prefer
+  // that plain-language explanation over a generic notification or the static
+  // fallback — it's the dynamic, honest answer to "why aren't you sure?".
+  const statusReason: { reason: string; message: string } | null = todayData?.statusReason || null;
+  const dynamicSubtitle = statusReason?.message || notifications[0] || status.fallbackSubtitle;
+
+  // Backend-composed "Why this?" lines — the dynamic explanation behind today's call.
+  const why: string[] = todayData?.why || [];
 
   const sourceText: string = todayData?.sourceText || '';
   const basisShort = BASIS_SHORT[sourceText] || 'Calendar';
@@ -205,18 +213,61 @@ export function TodayScreen() {
                   {basisShort}
                 </div>
                 <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.08em] mt-0.5">
-                  Basis
+                  Based on
                 </div>
               </div>
             </div>
 
-            {/* ── Confidence context ── */}
-            {confidenceMessage && (
-              <div className="text-center py-3 px-6">
-                <p className="text-[12px] font-medium text-zinc-400 dark:text-zinc-600">
-                  {confidenceMessage}
-                </p>
+            {/* ── Why this? — backend-composed explanation, tap to reveal ── */}
+            {why.length > 0 ? (
+              <div className="px-6 pt-3 pb-1 flex flex-col items-center">
+                <button
+                  onClick={() => setWhyOpen((v) => !v)}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-[#007AFF] dark:text-[#0A84FF] transition-transform active:scale-95"
+                  aria-expanded={whyOpen}
+                >
+                  Why this?
+                  <ChevronRight
+                    className={cn(
+                      'h-3.5 w-3.5 transition-transform duration-300',
+                      whyOpen && 'rotate-90'
+                    )}
+                  />
+                </button>
+
+                <div
+                  className={cn(
+                    'w-full overflow-hidden transition-all duration-300 ease-out',
+                    whyOpen ? 'max-h-[28rem] opacity-100 mt-3' : 'max-h-0 opacity-0'
+                  )}
+                >
+                  <ul className="mx-auto max-w-[300px] space-y-1.5 text-left">
+                    {why.map((line, i) => (
+                      <li
+                        key={i}
+                        className="flex gap-2 text-[13px] leading-snug text-zinc-500 dark:text-zinc-400"
+                      >
+                        <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {!whyOpen && confidenceMessage && (
+                  <p className="mt-2 text-center text-[12px] font-medium text-zinc-400 dark:text-zinc-600">
+                    {confidenceMessage}
+                  </p>
+                )}
               </div>
+            ) : (
+              confidenceMessage && (
+                <div className="text-center py-3 px-6">
+                  <p className="text-[12px] font-medium text-zinc-400 dark:text-zinc-600">
+                    {confidenceMessage}
+                  </p>
+                </div>
+              )
             )}
 
             {/* ── Signals ── */}

@@ -91,6 +91,21 @@ function AddButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// Quiet "remove" affordance — lets a mistaken temperature/LH entry be cleared
+// and the field collapsed back to its tap-to-add state, which a value toggle
+// alone (or an empty number input) doesn't make obvious.
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Remove"
+      className="grid place-items-center size-7 -mr-1 rounded-full text-muted-foreground transition-transform active:scale-90"
+    >
+      <X className="icon-xs" strokeWidth={2.5} />
+    </button>
+  );
+}
+
 export function LogScreen() {
   const { showBranding } = useDiscreetMode();
   const [date, setDate] = React.useState<string>(() => {
@@ -116,6 +131,7 @@ export function LogScreen() {
   const [showMore, setShowMore] = React.useState(false);
   const [tempOpen, setTempOpen] = React.useState(false);
   const [lhOpen, setLhOpen] = React.useState(false);
+  const [mucusGuideOpen, setMucusGuideOpen] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [coachOpen, setCoachOpen] = React.useState(false);
 
@@ -376,6 +392,12 @@ export function LogScreen() {
             )}
           >
             <div className="mt-5 flex flex-col gap-5">
+              {/* Reassure no-context users that the period toggle alone is enough;
+                  the other signals are an optional upgrade, not required homework. */}
+              <p className="px-5 text-[13px] leading-snug text-muted-foreground">
+                {LOG_SCREEN_LABELS.sections.signalsIntro}
+              </p>
+
               {/* ═══ TODAY'S SIGNALS — the four signs that answer the question ═══ */}
               <InsetGroup containerClassName="mb-0">
                 {/* Period Row */}
@@ -484,6 +506,63 @@ export function LogScreen() {
                       ? LOG_SCREEN_LABELS.hints.cervicalMucusDisabled
                       : LOG_SCREEN_LABELS.hints.cervicalMucus}
                   </p>
+
+                  {/* Tap-to-learn: the egg-white vs semen vs arousal-fluid
+                      distinction — the doc-flagged accuracy risk for this signal.
+                      Hidden during real flow, when the field itself is disabled. */}
+                  {!mucusDisabled && (
+                    <div>
+                      <button
+                        onClick={() => setMucusGuideOpen((v) => !v)}
+                        className="flex items-center gap-1 text-[12px] font-medium text-[#007AFF] dark:text-[#0A84FF] transition-transform active:scale-95"
+                      >
+                        {LOG_SCREEN_LABELS.mucusGuide.cta}
+                        <ChevronRight
+                          className={cn(
+                            'h-3.5 w-3.5 transition-transform duration-300',
+                            mucusGuideOpen && 'rotate-90'
+                          )}
+                        />
+                      </button>
+                      <div
+                        className={cn(
+                          'overflow-hidden transition-all duration-300 ease-out',
+                          mucusGuideOpen ? 'max-h-[44rem] opacity-100 mt-2.5' : 'max-h-0 opacity-0'
+                        )}
+                      >
+                        <p className="text-[12px] text-muted-foreground leading-snug">
+                          {LOG_SCREEN_LABELS.mucusGuide.intro}
+                        </p>
+                        <div className="mt-2.5 space-y-2.5">
+                          {LOG_SCREEN_LABELS.mucusGuide.scale.map((item) => (
+                            <div key={item.label} className="flex flex-col gap-0.5">
+                              <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                {item.label}
+                              </span>
+                              <span className="text-[12px] text-muted-foreground leading-snug">
+                                {item.body}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-3 text-[12px] text-muted-foreground leading-snug">
+                          {LOG_SCREEN_LABELS.mucusGuide.lookalikesIntro}
+                        </p>
+                        <div className="mt-2.5 space-y-2.5">
+                          {LOG_SCREEN_LABELS.mucusGuide.lookalikes.map((item) => (
+                            <div key={item.label} className="flex flex-col gap-0.5">
+                              <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                {item.label}
+                              </span>
+                              <span className="text-[12px] text-muted-foreground leading-snug">
+                                {item.body}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
@@ -510,6 +589,12 @@ export function LogScreen() {
                         <span className="text-muted-foreground text-[17px]">
                           {LOG_SCREEN_LABELS.units.temperature}
                         </span>
+                        <RemoveButton
+                          onClick={() => {
+                            patch({ bbt: '' });
+                            setTempOpen(false);
+                          }}
+                        />
                       </div>
                     ) : (
                       <AddButton onClick={() => setTempOpen(true)} />
@@ -532,7 +617,16 @@ export function LogScreen() {
                       iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
                       label={LOG_SCREEN_LABELS.fields.lhTest}
                     />
-                    {!(lhOpen || form.lhTest) && <AddButton onClick={() => setLhOpen(true)} />}
+                    {!(lhOpen || form.lhTest) ? (
+                      <AddButton onClick={() => setLhOpen(true)} />
+                    ) : (
+                      <RemoveButton
+                        onClick={() => {
+                          patch({ lhTest: null });
+                          setLhOpen(false);
+                        }}
+                      />
+                    )}
                   </div>
                   {(lhOpen || form.lhTest) && (
                     <>

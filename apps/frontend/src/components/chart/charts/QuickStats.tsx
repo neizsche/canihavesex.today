@@ -7,11 +7,16 @@ interface QuickStatsProps {
   data?: QuickStatsData;
 }
 
-export function QuickStats({ data }: QuickStatsProps) {
-  // Checkbox state for historical view. Declared before any early return so the
-  // hook is called in the same order on every render (rules-of-hooks).
-  const [isAccurate, setIsAccurate] = React.useState(true);
+// Plain-language gloss for the clinical phase names, so a user with no
+// fertility-tracking background isn't left guessing what "Luteal" means.
+const PHASE_PLAIN: Record<string, string> = {
+  Follicular: 'before ovulation',
+  Ovulatory: 'fertile peak',
+  Luteal: 'after ovulation',
+  Period: 'menstruation',
+};
 
+export function QuickStats({ data }: QuickStatsProps) {
   if (!data) return null;
 
   if (data.isHistorical) {
@@ -46,34 +51,21 @@ export function QuickStats({ data }: QuickStatsProps) {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3">
-            {/* Show Phase if available, else show Accuracy Checkbox */}
-            {data.phase ? (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                <span className="text-[14px] text-zinc-900 dark:text-white font-medium">
-                  {data.phase}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div
-                  onClick={() => setIsAccurate(!isAccurate)}
-                  className={`w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-colors ${isAccurate ? 'bg-zinc-900 border-zinc-900 dark:bg-white dark:border-white' : 'border-zinc-300 dark:border-zinc-600'}`}
-                >
-                  {isAccurate && (
-                    <Sparkles className="w-3 h-3 text-white dark:text-zinc-900 fill-current" />
-                  )}
-                </div>
-                <span
-                  className="text-[14px] text-zinc-600 dark:text-zinc-400 font-medium selection:bg-none cursor-pointer"
-                  onClick={() => setIsAccurate(!isAccurate)}
-                >
-                  Predictions were accurate
-                </span>
-              </div>
-            )}
-          </div>
+          {/* Phase indicator — only when the engine has a phase to show. */}
+          {data.phase && (
+            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span className="text-[14px] text-zinc-900 dark:text-white font-medium">
+                {data.phase}
+                {PHASE_PLAIN[data.phase] && (
+                  <span className="text-zinc-400 dark:text-zinc-500 font-normal">
+                    {' · '}
+                    {PHASE_PLAIN[data.phase]}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );

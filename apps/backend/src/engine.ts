@@ -14,6 +14,16 @@ type FertilityStatus = 'fertile' | 'unsure' | 'not_fertile' | 'period';
 type Phase = 'Follicular' | 'Ovulatory' | 'Luteal' | 'Period';
 type SignalSource = 'BBT' | 'LH' | 'MUCUS' | 'CALENDAR';
 
+// Why a day resolved to `unsure`. Surfaced (via insights_payload) so the Today
+// screen can explain the uncertainty in plain language instead of a bare "Not
+// Sure". Null whenever status is not `unsure`. Purely informational — it never
+// changes which status classifyDay returns (the P1/P2 safety semantics own that).
+type UnsureReason =
+    | 'lost_track' // past the expected cycle length with no anchoring signal
+    | 'awaiting_ovulation' // pre-ovulation, not enough history to call it low-risk
+    | 'awaiting_confirmation' // post-window, ovulation not yet confirmed by a temp shift
+    | 'conflicting_signals'; // signals disagree (e.g. LH+ but no temp shift)
+
 // Engine inputs from per-user settings. `avg_cycle_length` is the onboarding
 // fallback used until enough cycles are logged; `cycle_regularity` flags
 // irregular-cycle handling (Tier B) before history alone can detect it.
@@ -222,7 +232,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
             const dayData = cycleDays.find((d) => d.date === date);
             const log = logMap.get(date);
 
-            const { status, phase } = classifyDay({
+            const { status, phase, unsureReason } = classifyDay({
                 cycleDay,
                 log,
                 cycleStartsWithBleed,
@@ -243,7 +253,7 @@ export function runFusionEngine(userId: string, context: EngineContext): {
                 is_predicted: date > (lastLogDate || today),
                 engine_version: ENGINE_VERSION,
                 updated_at: new Date().toISOString(),
-                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData, irregular, lostTrack, activeCycleLength),
+                insights_payload: buildDayMeta(result, cycleStats, cycleDays, today, date, dayData, irregular, lostTrack, activeCycleLength, unsureReason),
             });
         }
     }
@@ -659,43 +669,59 @@ function classifyDay(args: {
     strongHistory: boolean;
     activeCycleLength: number;
     lostTrack: boolean;
-}): { status: FertilityStatus; phase: Phase } {
+}): { status: FertilityStatus; phase: Phase; unsureReason: UnsureReason | null } {
     const { cycleDay, log, cycleStartsWithBleed, periodLength, result, strongHistory, activeCycleLength, lostTrack } = args;
+
+    // When the day comes out `unsure`, prefer the more specific "signals disagree"
+    // explanation over the generic phase-based one. Conflicting signals are the
+    // most actionable thing to tell the user. (Reason only — never alters status.)
+    const conflicting = result.anomalies.includes('Conflicting Bio-signals');
 
     // Period override: actual bleeding ≥light, or within the period span of a
     // bleeding-started cycle (uses real period_length, not a hardcoded 5).
     const bleedingNow = log && (BLEED_RANK[log.bleeding || 'none'] ?? 0) >= BLEED_RANK.light;
     if (bleedingNow || (cycleStartsWithBleed && cycleDay <= periodLength)) {
-        return { status: 'period', phase: 'Period' };
+        return { status: 'period', phase: 'Period', unsureReason: null };
     }
 
     // Predict next cycle's period if we are past this cycle's predicted length
     if (cycleDay > activeCycleLength) {
         if (lostTrack) {
-            return { status: 'unsure', phase: 'Luteal' };
+            return { status: 'unsure', phase: 'Luteal', unsureReason: 'lost_track' };
         }
         const projectedDay = ((cycleDay - 1) % activeCycleLength) + 1;
         if (projectedDay <= periodLength) {
-            return { status: 'period', phase: 'Period' };
+            return { status: 'period', phase: 'Period', unsureReason: null };
         }
     }
 
     const { start, end } = result.window;
     if (cycleDay >= start && cycleDay <= end) {
-        return { status: 'fertile', phase: 'Ovulatory' };
+        return { status: 'fertile', phase: 'Ovulatory', unsureReason: null };
     }
 
     if (cycleDay < start) {
         // Pre-ovulation. P1: unclear ⇒ unsure unless we have a strong, regular
         // history to justify a (low-confidence) infertile call (O2).
-        return { status: strongHistory ? 'not_fertile' : 'unsure', phase: 'Follicular' };
+        if (strongHistory) {
+            return { status: 'not_fertile', phase: 'Follicular', unsureReason: null };
+        }
+        return {
+            status: 'unsure',
+            phase: 'Follicular',
+            unsureReason: conflicting ? 'conflicting_signals' : 'awaiting_ovulation',
+        };
     }
 
     // Post-window. P2: only confidently infertile when ovulation is confirmed.
     if (result.isConfirmed) {
-        return { status: 'not_fertile', phase: 'Luteal' };
+        return { status: 'not_fertile', phase: 'Luteal', unsureReason: null };
     }
-    return { status: 'unsure', phase: 'Luteal' };
+    return {
+        status: 'unsure',
+        phase: 'Luteal',
+        unsureReason: conflicting ? 'conflicting_signals' : 'awaiting_confirmation',
+    };
 }
 
 // =============================================================================
@@ -748,6 +774,7 @@ function buildDayMeta(
     irregular: IrregularInfo,
     lostTrack?: boolean,
     activeCycleLength?: number,
+    unsureReason?: UnsureReason | null,
 ) {
     const primarySignal: SignalSource = result.signals.length > 0 ? result.signals[0].source : 'CALENDAR';
     const daysToOvulation = day ? result.ovulationDay - day.cycleDay : null;
@@ -759,6 +786,9 @@ function buildDayMeta(
         isConfirmed: result.isConfirmed,
         daysToOvulation,
         anomalies: result.anomalies,
+        // Why this day is `unsure` (null otherwise) — drives the Today screen's
+        // plain-language explanation of the uncertainty. See buildInsightCards.
+        unsureReason: unsureReason ?? null,
         tempReliability: day?.reliability.temp ?? null,
         hasTemp: !!day?.tempValue,
         hasLh: !!day?.log?.lh_test,

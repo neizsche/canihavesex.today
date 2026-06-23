@@ -366,13 +366,16 @@ export function ChartScreen() {
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20" />
-                        <span>Safe</span>
+                        <span>Lower</span>
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-zinc-900 dark:bg-zinc-100" />
                         <span>Today</span>
                       </div>
                     </div>
+                    <p className="mt-3 text-center text-[11px] text-zinc-400 dark:text-zinc-500">
+                      Small blue dot marks a confirmed ovulation day
+                    </p>
                   </div>
 
                   {/* Quick Stats - Added Phase 4 */}

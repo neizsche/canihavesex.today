@@ -142,35 +142,37 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     );
   }
 
-  // Content for "How it Works"
+  // Content for "How it Works" — lead with the plain promise so someone with no
+  // fertility-tracking background feels welcome before any biology shows up.
   const HOW_IT_WORKS_ITEMS = [
     {
-      title: 'More than just dates',
-      desc: 'Most apps guess based on calendars. Pregnancy depends on ovulation, which varies each cycle.',
+      title: 'A clear answer each day',
+      desc: 'Open the app and see your chance of pregnancy today — higher, lower, or unsure. No charts to decode.',
     },
     {
-      title: 'Biological signals',
-      desc: 'Your body gives real signs (like temperature and fluid) that reveal when you are actually fertile.',
+      title: 'Starts with your period',
+      desc: 'Just log when your period starts. That alone is enough to map your cycle and flag your higher-risk days.',
     },
     {
-      title: 'Adaptive predictions',
-      desc: 'We combine your cycle history with these real-time signals to narrow down uncertainty.',
+      title: 'Gets sharper over time',
+      desc: 'The more you log, the better it learns your unique rhythm and narrows down the guesswork.',
     },
   ];
 
-  // Content for "Signals Overview"
+  // Content for "Signals Overview" — framed as an optional upgrade, not homework.
+  // The period-only path already works; these only sharpen the prediction.
   const SIGNALS_ITEMS = [
     {
-      title: 'Cervical Mucus',
-      desc: 'Changes from dry to slippery to identify your fertile window as it approaches.',
+      title: 'Cervical fluid',
+      desc: 'Changes from dry to slippery as your fertile days approach — the earliest natural sign, and no kit needed.',
     },
     {
-      title: 'Body Temperature',
-      desc: 'A slight rise confirms that ovulation has effectively occurred.',
+      title: 'Body temperature',
+      desc: 'A slight rise confirms your fertile window has passed for this cycle. Optional, but it adds certainty.',
     },
     {
-      title: 'LH Tests',
-      desc: 'Positive tests narrow down the exact 12–36 hour window.',
+      title: 'LH tests',
+      desc: 'Optional drugstore strips that pinpoint your most fertile day or two.',
     },
   ];
 
@@ -212,7 +214,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
       {step === 'signals_overview' && (
         <AnimatedEducationScreen
-          title="Understanding your signs"
+          title="Optional: sharpen your answer"
           items={SIGNALS_ITEMS}
           onComplete={handleFinish}
           busy={busy}

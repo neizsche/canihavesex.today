@@ -1,6 +1,8 @@
 export const LOG_SCREEN_LABELS = {
   sections: {
     signals: "Today's Signals",
+    signalsIntro:
+      'Logging your period is enough for a daily answer. Add fluid, temperature, or an LH test anytime to sharpen it.',
     showMore: 'More to track',
     showMoreHint: 'Mood, symptoms, sleep & more',
     showMoreFields: [
@@ -92,6 +94,40 @@ export const LOG_SCREEN_LABELS = {
     save: 'Save Entry',
     saving: 'Saving...',
     add: 'Add',
+  },
+  // Point-of-need explainer for the most error-prone signal. The two look-alikes
+  // (semen, arousal fluid) are the doc-flagged accuracy risk — a misread inflates
+  // the fertile estimate. Copy mirrors HEALTH_SCIENCE.md §5 (mucus observation).
+  mucusGuide: {
+    cta: 'What do these mean?',
+    intro:
+      'Fluid shifts across your cycle from dry to slippery. The wetter and stretchier it gets, the more fertile you are.',
+    scale: [
+      { label: 'Dry', body: 'Nothing there, or a dry feeling. Low fertility.' },
+      {
+        label: 'Sticky',
+        body: 'Pasty, crumbly, or tacky — breaks apart right away. Still low.',
+      },
+      {
+        label: 'Creamy',
+        body: 'Lotion-like, white or cream, smooth. Fertility rising.',
+      },
+      {
+        label: 'Egg-white',
+        body: 'Clear and glossy like raw egg white. It stretches several centimetres between your fingers without breaking, and feels slippery or lubricative at the opening. The slippery feeling alone counts as fertile — even when you can barely see any. This is your peak fertile sign, and it marks your most fertile days.',
+      },
+    ],
+    lookalikesIntro: 'Two look-alikes can fool the egg-white reading:',
+    lookalikes: [
+      {
+        label: 'Semen',
+        body: 'Looks similar but is whiter and frothier and breaks down within hours. Skip checking the morning after unprotected sex — residue distorts the reading.',
+      },
+      {
+        label: 'Arousal fluid',
+        body: 'Also clear and slippery, but watery and gone within an hour — not the lasting stretch of egg-white.',
+      },
+    ],
   },
   hints: {
     temperature:

@@ -49,6 +49,20 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
         CALENDAR: 'Based on cycle history.',
     };
 
+    // Plain-language explanation of WHY a day is `unsure`, keyed by the engine's
+    // structured reason. Honesty-first, and each one nudges the next useful action
+    // (mirrors HEALTH_SCIENCE.md: "assume fertile when unsure"; temp confirms ovulation).
+    const unsureReasonMap: Record<string, string> = {
+        lost_track: "You're past your usual cycle length — log today to refresh your prediction.",
+        awaiting_ovulation: "Not enough signal yet to rule out fertility — assume fertile to be safe.",
+        awaiting_confirmation: "Ovulation isn't confirmed yet — assume fertile until a temperature shift confirms it.",
+        conflicting_signals: "Your signals don't fully agree yet — assume fertile to be safe.",
+    };
+    const statusReason =
+        fertilityStatus === 'unsure' && m.unsureReason && unsureReasonMap[m.unsureReason]
+            ? { reason: m.unsureReason as string, message: unsureReasonMap[m.unsureReason] }
+            : null;
+
     let confidenceLabel: string;
     let confidenceMessage: string;
 
@@ -65,6 +79,24 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
         confidenceLabel = 'Building';
         confidenceMessage = 'More data will sharpen predictions.';
     }
+
+    // ── "Why this?" — the backend composes the ordered explanation so the Today
+    // screen renders a list instead of assembling sentences client-side. Each line
+    // is one reason behind today's call; deduped, most-important first.
+    const why: string[] = [];
+    why.push(sourceMap[m.primarySignal] || sourceMap.CALENDAR); // dominant signal
+    if (daysToOv === 0) why.push('Ovulation is most likely today — your peak fertile day.');
+    else if (daysToOv === 1) why.push('Ovulation is likely tomorrow.');
+    else if (daysToOv != null && daysToOv > 1 && daysToOv <= 7)
+        why.push(`Ovulation is likely in about ${daysToOv} days.`);
+    else if (daysToOv != null && daysToOv < 0 && daysToOv >= -6) {
+        const ago = Math.abs(daysToOv);
+        why.push(`Ovulation was about ${ago} day${ago === 1 ? '' : 's'} ago.`);
+    }
+    if (m.isConfirmed) why.push('Your temperature shift confirms ovulation has passed.');
+    if (statusReason) why.push(statusReason.message); // the specific "unsure" reason
+    if (confidenceMessage) why.push(confidenceMessage); // how much to trust it
+    const whyLines = Array.from(new Set(why.filter(Boolean)));
 
     // Cycle geometry for the Today "cycle line" (period-side context)
     const ovulationDay =
@@ -88,6 +120,17 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
             },
             notifications: pool.slice(0, 2),
             sourceText: sourceMap[m.primarySignal] || sourceMap.CALENDAR,
+            // Why this status (only when `unsure`) — plain-language explanation
+            // for the Today screen. Null otherwise.
+            statusReason,
+            // Raw drivers behind today's call, surfaced so the Today screen can
+            // compose a dynamic "Why this?" view instead of static copy.
+            daysToOvulation: daysToOv ?? null,
+            isConfirmed: !!m.isConfirmed,
+            primarySignal: m.primarySignal || 'CALENDAR',
+            confidenceScore,
+            // Backend-composed "Why this?" explanation lines for the Today screen.
+            why: whyLines,
             confidence: {
                 label: confidenceLabel,
                 message: confidenceMessage,

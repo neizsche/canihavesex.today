@@ -286,9 +286,18 @@ describe('property: engine output is always well-formed (fuzz)', () => {
             if (!logs.length) continue;
             const today = addDaysIso(logs[logs.length - 1].date, 5);
             const { statuses } = runFusionEngine('u', { logs, meta: META, today });
+            const VALID_REASONS = new Set(['lost_track', 'awaiting_ovulation', 'awaiting_confirmation', 'conflicting_signals']);
             for (const s of statuses) {
                 assert.ok(VALID.has(s.fertility_status), `bad status ${s.fertility_status}`);
                 assert.ok(['Follicular', 'Ovulatory', 'Luteal', 'Period'].includes(s.phase));
+                // unsureReason is present exactly when status is `unsure`, and always
+                // from the known set — never leaks onto a confident status.
+                const reason = s.insights_payload.unsureReason;
+                if (s.fertility_status === 'unsure') {
+                    assert.ok(VALID_REASONS.has(reason), `unsure without valid reason: ${reason}`);
+                } else {
+                    assert.equal(reason, null, `reason ${reason} on non-unsure status ${s.fertility_status}`);
+                }
             }
         }
     });
@@ -313,6 +322,7 @@ describe('lostTrack - overdue cycle handling', () => {
         assert.equal(cd29Status.fertility_status, 'unsure');
         assert.equal(cd29Status.phase, 'Luteal');
         assert.equal(cd29Status.insights_payload.lostTrack, true);
+        assert.equal(cd29Status.insights_payload.unsureReason, 'lost_track');
         
         const todayEarly = addDaysIso(start, 19); // CD 20
         const { statuses: statusesEarly } = runFusionEngine('u', { logs, meta: META, today: todayEarly });
