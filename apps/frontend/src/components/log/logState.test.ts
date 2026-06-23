@@ -8,7 +8,7 @@ import {
   payloadToFormState,
   suggestionToFormState,
   formStateToPayload,
-  hasAdvancedData,
+  hasWellnessData,
   hasAnyInput,
   isLogDirty,
   toggleInArray,
@@ -162,13 +162,18 @@ describe('formStateToPayload', () => {
 });
 
 describe('predicates', () => {
-  it('hasAdvancedData detects advanced fields', () => {
-    expect(hasAdvancedData({})).toBe(false);
-    expect(hasAdvancedData({ temperature: 36.6 })).toBe(true);
-    expect(hasAdvancedData({ lhTest: 'notTaken' })).toBe(false);
-    expect(hasAdvancedData({ lhTest: 'positive' })).toBe(true);
-    expect(hasAdvancedData({ disturbances: ['sick'] })).toBe(true);
-    expect(hasAdvancedData({ notes: 'x' })).toBe(true);
+  it('hasWellnessData detects only the secondary wellness fields', () => {
+    expect(hasWellnessData(EMPTY_LOG_STATE)).toBe(false);
+    // Temperature and LH live in the signals section, not "Show more".
+    expect(hasWellnessData(stateWith({ bbt: '36.6' }))).toBe(false);
+    expect(hasWellnessData(stateWith({ lhTest: 'positive' }))).toBe(false);
+    expect(hasWellnessData(stateWith({ disturbances: ['sick'] }))).toBe(true);
+    expect(hasWellnessData(stateWith({ notes: 'x' }))).toBe(true);
+    expect(hasWellnessData(stateWith({ bodySymptoms: ['cramps'] }))).toBe(true);
+    expect(hasWellnessData(stateWith({ mood: ['calm'] }))).toBe(true);
+    expect(hasWellnessData(stateWith({ energy: 'high' }))).toBe(true);
+    expect(hasWellnessData(stateWith({ sexActivity: 'none' }))).toBe(false);
+    expect(hasWellnessData(stateWith({ sexActivity: 'protected' }))).toBe(true);
   });
 
   it('hasAnyInput ignores empty and sexActivity "none"', () => {

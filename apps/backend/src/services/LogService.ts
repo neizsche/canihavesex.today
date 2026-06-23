@@ -84,7 +84,7 @@ export class LogService {
                 // the history-derived stats (median length, luteal, regularity) that
                 // drive the current prediction — and we want the touched cycle's
                 // calendar colours refreshed now, not lazily on the next Today read.
-                todayStatus = await this.engine.recompute(userId, today, existingCycles);
+                todayStatus = await this.engine.recompute(userId, today, existingCycles, date);
             } catch (err) {
                 console.error('[LogService] Engine Error:', err);
                 throw err;

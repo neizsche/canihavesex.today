@@ -156,13 +156,21 @@ export function formStateToPayload(date: string, s: LogFormState): LogPayload {
 
 // ── Derived predicates ───────────────────────────────────────────────────────
 
-/** Whether the Advanced section holds saved data and should open by default. */
-export function hasAdvancedData(p: LogPayload): boolean {
+/**
+ * Whether the "Show more" group holds saved data and should open by default.
+ * Temperature and LH now live in the always-visible signals section, so only
+ * the secondary wellness fields gate the collapsible group.
+ */
+export function hasWellnessData(s: LogFormState): boolean {
   return !!(
-    p.temperature ||
-    (p.lhTest && p.lhTest !== 'notTaken') ||
-    (p.disturbances && p.disturbances.length > 0) ||
-    p.notes
+    s.disturbances.length > 0 ||
+    s.notes ||
+    s.bodySymptoms.length > 0 ||
+    s.mood.length > 0 ||
+    s.energy ||
+    s.sleepQuality ||
+    s.libido ||
+    (s.sexActivity && s.sexActivity !== 'none')
   );
 }
 

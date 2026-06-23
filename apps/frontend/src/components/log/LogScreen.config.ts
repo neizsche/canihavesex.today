@@ -1,8 +1,18 @@
 export const LOG_SCREEN_LABELS = {
   sections: {
-    dailyObservations: 'Daily Observations',
-    bodySignals: 'Body Signals',
-    advanced: 'Advanced',
+    signals: "Today's Signals",
+    showMore: 'More to track',
+    showMoreHint: 'Mood, symptoms, sleep & more',
+    showMoreFields: [
+      { key: 'mood', label: 'Mood' },
+      { key: 'symptoms', label: 'Symptoms' },
+      { key: 'energy', label: 'Energy' },
+      { key: 'sleep', label: 'Sleep' },
+      { key: 'libido', label: 'Libido' },
+      { key: 'sex', label: 'Sex' },
+      { key: 'factors', label: 'Factors' },
+      { key: 'notes', label: 'Notes' },
+    ],
   },
   fields: {
     period: 'Menstruation',
@@ -81,6 +91,45 @@ export const LOG_SCREEN_LABELS = {
   buttons: {
     save: 'Save Entry',
     saving: 'Saving...',
+    add: 'Add',
+  },
+  hints: {
+    temperature:
+      'Take right after waking — before getting up, talking, or drinking. Same time daily.',
+    cervicalMucus: 'Check before the toilet. Egg white (clear, stretchy) = most fertile.',
+    cervicalMucusDisabled: 'Not tracked during your period — bleeding masks it.',
+    lhTest:
+      'Test early afternoon, not first-morning urine. A positive means ovulation is likely in the next day or two.',
+    factors:
+      'These can distort today’s temperature or mucus — flag them so a reading isn’t misread.',
+  },
+  coach: {
+    cta: 'How to log',
+    title: 'How to log correctly',
+    intro: 'A few habits keep your readings accurate.',
+    steps: [
+      {
+        title: 'Three signs, every day',
+        body: 'Cervical fluid predicts ovulation; temperature confirms it. Logging both gives the clearest picture of your cycle.',
+      },
+      {
+        title: 'Temperature',
+        body: 'Take it the moment you wake — before getting up, talking, or drinking. Same time each morning, after at least 3 hours of sleep, using a basal (0.01°) thermometer.',
+      },
+      {
+        title: 'Cervical fluid',
+        body: 'It shifts across your cycle: Dry → Sticky → Creamy → Egg white. Egg white (clear and stretchy) means you are most fertile.',
+      },
+      {
+        title: 'LH test',
+        body: 'Test in the early afternoon — not with first-morning urine — and ease off fluids beforehand. A positive surge means ovulation is likely within a day or two.',
+      },
+      {
+        title: 'Flag disturbances',
+        body: 'Alcohol, illness, fever, or poor sleep can throw off your temperature. Mark them under Factors so off days are not misread.',
+      },
+    ],
+    dismiss: 'Got it',
   },
   status: {
     logged: 'Logged',

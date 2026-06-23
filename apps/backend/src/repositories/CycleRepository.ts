@@ -19,6 +19,22 @@ export class CycleRepository {
         if (!cycles.length) return;
 
         await this.db.transaction(async (txDb) => {
+            // The engine produces the authoritative, complete set of cycles for
+            // this user. When a cycle boundary shifts (e.g. period detected on
+            // a different day), the rebuilt cycle gets a new UUID while the old
+            // active cycle still sits in the DB. A plain ON CONFLICT (id) upsert
+            // would try to INSERT a second active cycle, violating the partial
+            // unique index idx_cycles_user_active (user_id WHERE end_date IS NULL).
+            // Fix: delete any of this user's cycles whose ids are NOT in the
+            // incoming batch before inserting, so stale rows are cleared first.
+            const userId = cycles[0].user_id;
+            const incomingIds = cycles.map((c) => c.id);
+            const idPlaceholders = incomingIds.map((_, i) => `$${i + 2}`).join(', ');
+            await txDb.query(
+                `DELETE FROM cycles WHERE user_id = $1 AND id NOT IN (${idPlaceholders})`,
+                [userId, ...incomingIds]
+            );
+
             const values: any[] = [];
             const placeholders = cycles
                 .map((c, idx) => {

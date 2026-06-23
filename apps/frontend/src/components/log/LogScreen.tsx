@@ -16,6 +16,8 @@ import {
   HeartPulse,
   Heart,
   Lock,
+  GraduationCap,
+  Plus,
 } from 'lucide-react';
 
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
@@ -30,6 +32,7 @@ import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
 import { useCalendarDayStatus, type CalendarStatus } from '@/hooks/queries/useCalendar';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { FieldHeader, PillGroup, ChipGroup } from './LogControls';
+import { LogCoachSheet } from './LogCoachSheet';
 import {
   EMPTY_LOG_STATE,
   LogFormState,
@@ -37,11 +40,13 @@ import {
   payloadToFormState,
   suggestionToFormState,
   formStateToPayload,
-  hasAdvancedData,
   hasAnyInput,
   isLogDirty,
   toggleInArray,
 } from './logState';
+
+// localStorage flag: the one-time "how to log" coach sheet has been seen.
+const COACH_SEEN_KEY = 'chs-log-coach-seen';
 
 const MUCUS_OPTIONS = [
   { id: 'dry', label: LOG_SCREEN_LABELS.options.mucus[0] },
@@ -71,6 +76,21 @@ const STATUS_DOT: Record<CalendarStatus, string> = {
   unsure: '',
 };
 
+// Quiet "tap to add" affordance for the effortful signals (temperature, LH).
+// Keeps them present in the signals section without looking like homework for
+// the many users who only log reliably during their period.
+function AddButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 text-[15px] font-medium text-[#007AFF] dark:text-[#0A84FF] transition-transform active:scale-95"
+    >
+      <Plus className="icon-xs" strokeWidth={2.5} />
+      {LOG_SCREEN_LABELS.buttons.add}
+    </button>
+  );
+}
+
 export function LogScreen() {
   const { showBranding } = useDiscreetMode();
   const [date, setDate] = React.useState<string>(() => {
@@ -93,8 +113,31 @@ export function LogScreen() {
 
   // UI state
   const [isPrefilled, setIsPrefilled] = React.useState(false);
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [showMore, setShowMore] = React.useState(false);
+  const [tempOpen, setTempOpen] = React.useState(false);
+  const [lhOpen, setLhOpen] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
+  const [coachOpen, setCoachOpen] = React.useState(false);
+
+  // Auto-open the "how to log" coach sheet once, on the user's first visit.
+  React.useEffect(() => {
+    try {
+      if (localStorage.getItem(COACH_SEEN_KEY) !== 'true') setCoachOpen(true);
+    } catch {
+      /* localStorage unavailable — skip the one-time coach */
+    }
+  }, []);
+
+  const closeCoach = React.useCallback(() => {
+    setCoachOpen(false);
+    try {
+      localStorage.setItem(COACH_SEEN_KEY, 'true');
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleMore = React.useCallback(() => setShowMore((v) => !v), []);
 
   // Last saved snapshot, for dirty checking.
   const [savedState, setSavedState] = React.useState<LogFormState>(EMPTY_LOG_STATE);
@@ -123,27 +166,57 @@ export function LogScreen() {
       const next = payloadToFormState(query.data.payload);
       dispatch({ type: 'reset', state: next });
       setSavedState(next);
-      setShowAdvanced(hasAdvancedData(query.data.payload));
+      // Always start collapsed on a new/changed date — the coloured field list
+      // shows what's inside, so there's no need to force the section open.
+      setShowMore(false);
+      setTempOpen(!!next.bbt);
+      setLhOpen(!!next.lhTest);
     } else if (!query.data.found) {
       if (query.data.suggestion) {
-        dispatch({ type: 'reset', state: suggestionToFormState(query.data.suggestion) });
+        const sug = suggestionToFormState(query.data.suggestion);
+        dispatch({ type: 'reset', state: sug });
         setSavedState(EMPTY_LOG_STATE);
-        setShowAdvanced(!!query.data.suggestion.temperature);
+        setShowMore(false);
+        setTempOpen(!!sug.bbt);
+        setLhOpen(false);
         setIsPrefilled(true);
       } else {
         dispatch({ type: 'reset', state: EMPTY_LOG_STATE });
         setSavedState(EMPTY_LOG_STATE);
-        setShowAdvanced(false);
+        setShowMore(false);
+        setTempOpen(false);
+        setLhOpen(false);
       }
     }
   }, [query.data, date]);
 
   const isDirty = isLogDirty(form, savedState);
   const anyInput = hasAnyInput(form);
+  // Cervical fluid can't be observed through real menstrual flow, so the field
+  // is disabled then. Spotting is left active — it can be ovulation spotting,
+  // where mucus is still meaningful.
+  const mucusDisabled = form.bleeding && !form.spotting && !!form.flow;
+  // The collapsed "More to track" row colours each field name that holds data,
+  // so the description doubles as an at-a-glance summary without auto-expanding.
+  const moreFieldActive: Record<string, boolean> = {
+    mood: form.mood.length > 0,
+    symptoms: form.bodySymptoms.length > 0,
+    energy: !!form.energy,
+    sleep: !!form.sleepQuality,
+    libido: !!form.libido,
+    sex: !!form.sexActivity && form.sexActivity !== 'none',
+    factors: form.disturbances.length > 0,
+    notes: !!form.notes,
+  };
+  const filledFields = LOG_SCREEN_LABELS.sections.showMoreFields.filter(
+    (f) => moreFieldActive[f.key]
+  );
 
   function clearAll() {
     dispatch({ type: 'reset', state: EMPTY_LOG_STATE });
     setIsPrefilled(false);
+    setTempOpen(false);
+    setLhOpen(false);
 
     if (hasData) {
       saveMutation.mutate(
@@ -234,6 +307,27 @@ export function LogScreen() {
             nextDisabled={saveMutation.isPending || date === todayIso()}
           />
 
+          {/* Learn affordance — a calm tinted pill, deliberately not styled like a
+              field so it reads as "tap to learn", not "tap to fill in". Lives above
+              the form (and outside the read-only dimming) so it's always available. */}
+          <div className="mt-3 flex justify-center">
+            <button
+              onClick={() => setCoachOpen(true)}
+              className="group inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/70 py-1.5 pl-2 pr-3 shadow-sm backdrop-blur-xl transition-all hover:bg-card hover:shadow active:scale-95"
+            >
+              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-blue-500/10 dark:bg-blue-400/10">
+                <GraduationCap
+                  className="h-[13px] w-[13px] text-blue-600 dark:text-blue-400"
+                  strokeWidth={2.5}
+                />
+              </span>
+              <span className="text-[13px] font-medium tracking-tight text-zinc-700 dark:text-zinc-200">
+                {LOG_SCREEN_LABELS.coach.title}
+              </span>
+              <ChevronRight className="h-3.5 w-3.5 text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-zinc-600" />
+            </button>
+          </div>
+
           {isPrefilled && (
             <div className="mx-4 mt-3 mb-1 bg-zinc-100/80 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl p-3.5 flex items-center gap-3.5 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-500 shadow-sm transition-all group">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center shrink-0">
@@ -281,15 +375,12 @@ export function LogScreen() {
               !isEditable && 'pointer-events-none select-none opacity-60'
             )}
           >
-            <div className="mt-4 flex flex-col gap-3">
-              {/* ═══ ZONE 1: Daily Observations ═══ */}
-              <InsetGroup
-                title={LOG_SCREEN_LABELS.sections.dailyObservations}
-                containerClassName="mb-0"
-              >
+            <div className="mt-5 flex flex-col gap-5">
+              {/* ═══ TODAY'S SIGNALS — the four signs that answer the question ═══ */}
+              <InsetGroup containerClassName="mb-0">
                 {/* Period Row */}
                 <div className="flex flex-col">
-                  <div className="px-4 py-3 flex items-center justify-between min-h-[52px]">
+                  <div className="px-4 py-3.5 flex items-center justify-between min-h-[52px]">
                     <FieldHeader
                       icon={Droplets}
                       iconWrapClass="rounded-full bg-rose-500 shadow-sm"
@@ -338,7 +429,7 @@ export function LogScreen() {
                         {FLOW_OPTIONS.map((opt) => (
                           <button
                             key={opt.id}
-                            onClick={() => patch({ flow: opt.id, spotting: false })}
+                            onClick={() => patch({ flow: opt.id, spotting: false, mucus: null })}
                             className={cn(
                               'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm',
                               !form.spotting && form.flow === opt.id
@@ -356,144 +447,160 @@ export function LogScreen() {
 
                 <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
-                {/* Cervical Fluid */}
-                <div className="flex flex-col py-3 px-4 gap-3">
-                  <FieldHeader
-                    icon={Activity}
-                    iconWrapClass="rounded-sm bg-blue-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.cervicalMucus}
-                  />
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {MUCUS_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        onClick={() => patch({ mucus: form.mucus === opt.id ? null : opt.id })}
+                {/* Cervical Fluid — disabled during real flow (bleeding masks it) */}
+                <div className="flex flex-col py-3.5 px-4 gap-3">
+                  <div
+                    className={cn(
+                      'flex flex-col gap-3 transition-opacity duration-300',
+                      mucusDisabled && 'pointer-events-none opacity-40'
+                    )}
+                    aria-disabled={mucusDisabled}
+                  >
+                    <FieldHeader
+                      icon={Activity}
+                      iconWrapClass="rounded-sm bg-blue-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.cervicalMucus}
+                    />
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {MUCUS_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          tabIndex={mucusDisabled ? -1 : undefined}
+                          onClick={() => patch({ mucus: form.mucus === opt.id ? null : opt.id })}
+                          className={cn(
+                            'py-2.5 px-3 rounded-xl text-[15px] font-medium text-center transition-all border shadow-sm',
+                            form.mucus === opt.id
+                              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20'
+                              : 'bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground leading-snug">
+                    {mucusDisabled
+                      ? LOG_SCREEN_LABELS.hints.cervicalMucusDisabled
+                      : LOG_SCREEN_LABELS.hints.cervicalMucus}
+                  </p>
+                </div>
+
+                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                {/* Basal Body Temperature — lightweight tap-to-add */}
+                <div className="px-4 py-3.5 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between min-h-[28px]">
+                    <FieldHeader
+                      icon={Thermometer}
+                      iconWrapClass="rounded-sm bg-orange-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.basalTemp}
+                    />
+                    {tempOpen || form.bbt ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="--"
+                          autoFocus={tempOpen && !form.bbt}
+                          value={form.bbt}
+                          onChange={(e) => patch({ bbt: e.target.value })}
+                          className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
+                        />
+                        <span className="text-muted-foreground text-[17px]">
+                          {LOG_SCREEN_LABELS.units.temperature}
+                        </span>
+                      </div>
+                    ) : (
+                      <AddButton onClick={() => setTempOpen(true)} />
+                    )}
+                  </div>
+                  {(tempOpen || form.bbt) && (
+                    <p className="text-[12px] text-muted-foreground leading-snug">
+                      {LOG_SCREEN_LABELS.hints.temperature}
+                    </p>
+                  )}
+                </div>
+
+                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                {/* LH Test — lightweight tap-to-add */}
+                <div className="px-4 py-3.5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between min-h-[28px]">
+                    <FieldHeader
+                      icon={TestTube}
+                      iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.lhTest}
+                    />
+                    {!(lhOpen || form.lhTest) && <AddButton onClick={() => setLhOpen(true)} />}
+                  </div>
+                  {(lhOpen || form.lhTest) && (
+                    <>
+                      <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                        <button
+                          onClick={() =>
+                            patch({ lhTest: form.lhTest === 'negative' ? null : 'negative' })
+                          }
+                          className={cn(
+                            'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
+                            form.lhTest === 'negative'
+                              ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5'
+                              : 'text-zinc-500 dark:text-zinc-400'
+                          )}
+                        >
+                          {LOG_SCREEN_LABELS.options.lhTest.negative}
+                        </button>
+                        <button
+                          onClick={() =>
+                            patch({ lhTest: form.lhTest === 'positive' ? null : 'positive' })
+                          }
+                          className={cn(
+                            'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
+                            form.lhTest === 'positive'
+                              ? 'bg-white dark:bg-zinc-600 text-rose-500 dark:text-rose-300 shadow-sm ring-1 ring-black/5'
+                              : 'text-zinc-500 dark:text-zinc-400'
+                          )}
+                        >
+                          {LOG_SCREEN_LABELS.options.lhTest.positive}
+                        </button>
+                      </div>
+                      <p className="text-[12px] text-muted-foreground leading-snug">
+                        {LOG_SCREEN_LABELS.hints.lhTest}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </InsetGroup>
+
+              {/* ═══ SHOW MORE — secondary wellness tracking, collapsed by default ═══ */}
+              <InsetGroup containerClassName="mb-0">
+                <button
+                  onClick={toggleMore}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                >
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">
+                      {LOG_SCREEN_LABELS.sections.showMore}
+                    </span>
+                    {!showMore && (
+                      <span
                         className={cn(
-                          'py-2.5 px-3 rounded-xl text-[15px] font-medium text-center transition-all border shadow-sm',
-                          form.mucus === opt.id
-                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20'
-                            : 'bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                          'block truncate text-[12px] leading-snug',
+                          filledFields.length > 0
+                            ? 'font-medium text-blue-600 dark:text-blue-400'
+                            : 'text-muted-foreground'
                         )}
                       >
-                        {opt.label}
-                      </button>
-                    ))}
+                        {filledFields.length > 0
+                          ? filledFields.map((f) => f.label).join(' · ')
+                          : LOG_SCREEN_LABELS.sections.showMoreHint}
+                      </span>
+                    )}
                   </div>
-                </div>
-              </InsetGroup>
-
-              {/* ═══ ZONE 2: Body Signals ═══ */}
-              <InsetGroup title={LOG_SCREEN_LABELS.sections.bodySignals} containerClassName="mb-0">
-                {/* Symptoms */}
-                <div className="py-3 px-4 flex flex-col gap-3">
-                  <FieldHeader
-                    icon={Activity}
-                    iconWrapClass="rounded-sm bg-green-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.symptoms}
-                  />
-                  <ChipGroup
-                    options={LOG_SCREEN_LABELS.bodySignals.symptoms}
-                    selected={form.bodySymptoms}
-                    onToggle={(id) => patch({ bodySymptoms: toggleInArray(form.bodySymptoms, id) })}
-                    activeClass={CHIP_ACTIVE_SYMPTOMS}
-                  />
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Mood */}
-                <div className="py-3 px-4 flex flex-col gap-3">
-                  <FieldHeader
-                    icon={Smile}
-                    iconWrapClass="rounded-sm bg-amber-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.mood}
-                  />
-                  <ChipGroup
-                    options={LOG_SCREEN_LABELS.bodySignals.mood}
-                    selected={form.mood}
-                    onToggle={(id) => patch({ mood: toggleInArray(form.mood, id) })}
-                    activeClass={CHIP_ACTIVE_MOOD}
-                  />
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Energy */}
-                <div className="py-3 px-4 flex flex-col gap-3">
-                  <FieldHeader
-                    icon={Zap}
-                    iconWrapClass="rounded-sm bg-sky-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.energy}
-                  />
-                  <PillGroup
-                    options={LOG_SCREEN_LABELS.bodySignals.energy}
-                    value={form.energy}
-                    onChange={(v) => patch({ energy: v })}
-                  />
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Sleep */}
-                <div className="py-3 px-4 flex flex-col gap-3">
-                  <FieldHeader
-                    icon={Moon}
-                    iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.sleep}
-                  />
-                  <PillGroup
-                    options={LOG_SCREEN_LABELS.bodySignals.sleep}
-                    value={form.sleepQuality}
-                    onChange={(v) => patch({ sleepQuality: v })}
-                  />
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Libido */}
-                <div className="py-3 px-4 flex flex-col gap-3">
-                  <FieldHeader
-                    icon={HeartPulse}
-                    iconWrapClass="rounded-sm bg-pink-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.libido}
-                  />
-                  <PillGroup
-                    options={LOG_SCREEN_LABELS.bodySignals.libido}
-                    value={form.libido}
-                    onChange={(v) => patch({ libido: v })}
-                  />
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Sexual Activity */}
-                <div className="py-3 px-4 flex flex-col gap-3">
-                  <FieldHeader
-                    icon={Heart}
-                    iconWrapClass="rounded-sm bg-purple-500 shadow-sm"
-                    label={LOG_SCREEN_LABELS.fields.sexActivity}
-                  />
-                  <PillGroup
-                    options={LOG_SCREEN_LABELS.bodySignals.sexActivity}
-                    value={form.sexActivity}
-                    onChange={(v) => patch({ sexActivity: v })}
-                  />
-                </div>
-              </InsetGroup>
-
-              {/* ═══ ZONE 3: Advanced (Collapsible) ═══ */}
-              <InsetGroup title={LOG_SCREEN_LABELS.sections.advanced} containerClassName="mb-0">
-                <button
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                >
-                  <span className="text-[15px] text-zinc-500 dark:text-zinc-400 font-medium">
-                    Temperature, LH test & more
-                  </span>
                   <ChevronRight
                     className={cn(
-                      'icon-sm text-zinc-300 transition-transform duration-300',
-                      showAdvanced && 'rotate-90'
+                      'icon-sm shrink-0 text-zinc-300 transition-transform duration-300',
+                      showMore && 'rotate-90'
                     )}
                   />
                 </button>
@@ -501,76 +608,113 @@ export function LogScreen() {
                 <div
                   className={cn(
                     'overflow-hidden transition-all duration-300 ease-out',
-                    showAdvanced ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                    showMore ? 'max-h-[1600px] opacity-100' : 'max-h-0 opacity-0'
                   )}
                 >
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
-                  {/* Basal Body Temperature */}
-                  <div className="px-4 py-3 flex items-center justify-between min-h-[52px]">
+                  {/* Symptoms */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
                     <FieldHeader
-                      icon={Thermometer}
-                      iconWrapClass="rounded-sm bg-orange-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.basalTemp}
+                      icon={Activity}
+                      iconWrapClass="rounded-sm bg-green-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.symptoms}
                     />
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="--"
-                        value={form.bbt}
-                        onChange={(e) => patch({ bbt: e.target.value })}
-                        className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
-                      />
-                      <span className="text-muted-foreground text-[17px]">
-                        {LOG_SCREEN_LABELS.units.temperature}
-                      </span>
-                    </div>
+                    <ChipGroup
+                      options={LOG_SCREEN_LABELS.bodySignals.symptoms}
+                      selected={form.bodySymptoms}
+                      onToggle={(id) =>
+                        patch({ bodySymptoms: toggleInArray(form.bodySymptoms, id) })
+                      }
+                      activeClass={CHIP_ACTIVE_SYMPTOMS}
+                    />
                   </div>
 
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
-                  {/* LH Test */}
-                  <div className="py-3 px-4 flex flex-col gap-3">
+                  {/* Mood */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
                     <FieldHeader
-                      icon={TestTube}
+                      icon={Smile}
+                      iconWrapClass="rounded-sm bg-amber-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.mood}
+                    />
+                    <ChipGroup
+                      options={LOG_SCREEN_LABELS.bodySignals.mood}
+                      selected={form.mood}
+                      onToggle={(id) => patch({ mood: toggleInArray(form.mood, id) })}
+                      activeClass={CHIP_ACTIVE_MOOD}
+                    />
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Energy */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
+                    <FieldHeader
+                      icon={Zap}
+                      iconWrapClass="rounded-sm bg-sky-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.energy}
+                    />
+                    <PillGroup
+                      options={LOG_SCREEN_LABELS.bodySignals.energy}
+                      value={form.energy}
+                      onChange={(v) => patch({ energy: v })}
+                    />
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Sleep */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
+                    <FieldHeader
+                      icon={Moon}
                       iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.lhTest}
+                      label={LOG_SCREEN_LABELS.fields.sleep}
                     />
-                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-                      <button
-                        onClick={() =>
-                          patch({ lhTest: form.lhTest === 'negative' ? null : 'negative' })
-                        }
-                        className={cn(
-                          'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
-                          form.lhTest === 'negative'
-                            ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                        )}
-                      >
-                        {LOG_SCREEN_LABELS.options.lhTest.negative}
-                      </button>
-                      <button
-                        onClick={() =>
-                          patch({ lhTest: form.lhTest === 'positive' ? null : 'positive' })
-                        }
-                        className={cn(
-                          'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
-                          form.lhTest === 'positive'
-                            ? 'bg-white dark:bg-zinc-600 text-rose-500 dark:text-rose-300 shadow-sm ring-1 ring-black/5'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                        )}
-                      >
-                        {LOG_SCREEN_LABELS.options.lhTest.positive}
-                      </button>
-                    </div>
+                    <PillGroup
+                      options={LOG_SCREEN_LABELS.bodySignals.sleep}
+                      value={form.sleepQuality}
+                      onChange={(v) => patch({ sleepQuality: v })}
+                    />
                   </div>
 
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
-                  {/* Factors (Disturbances) */}
-                  <div className="py-3 px-4 flex flex-col gap-3">
+                  {/* Libido */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
+                    <FieldHeader
+                      icon={HeartPulse}
+                      iconWrapClass="rounded-sm bg-pink-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.libido}
+                    />
+                    <PillGroup
+                      options={LOG_SCREEN_LABELS.bodySignals.libido}
+                      value={form.libido}
+                      onChange={(v) => patch({ libido: v })}
+                    />
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Sexual Activity */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
+                    <FieldHeader
+                      icon={Heart}
+                      iconWrapClass="rounded-sm bg-purple-500 shadow-sm"
+                      label={LOG_SCREEN_LABELS.fields.sexActivity}
+                    />
+                    <PillGroup
+                      options={LOG_SCREEN_LABELS.bodySignals.sexActivity}
+                      value={form.sexActivity}
+                      onChange={(v) => patch({ sexActivity: v })}
+                    />
+                  </div>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+
+                  {/* Factors (Disturbances) — affect temperature reliability */}
+                  <div className="py-3.5 px-4 flex flex-col gap-3">
                     <FieldHeader
                       icon={Info}
                       iconWrapClass="rounded-sm bg-zinc-400 dark:bg-zinc-600 shadow-sm"
@@ -584,12 +728,15 @@ export function LogScreen() {
                       }
                       activeClass={CHIP_ACTIVE_FACTORS}
                     />
+                    <p className="text-[12px] text-muted-foreground leading-snug">
+                      {LOG_SCREEN_LABELS.hints.factors}
+                    </p>
                   </div>
 
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
 
                   {/* Notes */}
-                  <div className="py-3 px-4 flex flex-col gap-2">
+                  <div className="py-3.5 px-4 flex flex-col gap-2">
                     <FieldHeader
                       icon={FileText}
                       iconWrapClass="rounded-sm bg-yellow-500/10 shrink-0"
@@ -621,7 +768,9 @@ export function LogScreen() {
               <div className="px-4 pb-8 space-y-3">
                 <Button
                   onClick={save}
-                  disabled={saveMutation.isPending || !isEditable || !isDirty || (!hasData && !anyInput)}
+                  disabled={
+                    saveMutation.isPending || !isEditable || !isDirty || (!hasData && !anyInput)
+                  }
                   className="w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                 >
                   {saveMutation.isPending
@@ -643,6 +792,8 @@ export function LogScreen() {
           </div>
         </div>
       </div>
+
+      <LogCoachSheet isOpen={coachOpen} onClose={closeCoach} />
     </div>
   );
 }

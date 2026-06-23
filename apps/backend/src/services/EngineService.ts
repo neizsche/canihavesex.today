@@ -31,9 +31,14 @@ export class EngineService {
    * Returns today's status, or null when the user has no logs yet. Pass
    * `existingCycles` to reuse a list the caller already fetched.
    */
-  async recompute(userId: string, today: string, existingCycles?: Cycle[]): Promise<DailyStatus | null> {
+  async recompute(
+    userId: string,
+    today: string,
+    existingCycles?: Cycle[],
+    editedDate?: string
+  ): Promise<DailyStatus | null> {
     const cycles = existingCycles ?? (await this.cycleRepo.getCycleHistory(userId));
-    const lookbackDate = lookbackFrom(cycles, today);
+    const lookbackDate = lookbackFrom(cycles, today, editedDate);
 
     const [logs, meta] = await Promise.all([
       this.logRepo.getLogsSince(userId, lookbackDate),
@@ -79,8 +84,16 @@ export class EngineService {
  * cycle (enough history without fetching everything), else the earliest known
  * cycle, else 120 days.
  */
-function lookbackFrom(cycles: Cycle[], today: string): string {
-  if (cycles.length >= 3) return cycles[2].start_date;
-  if (cycles.length > 0) return cycles[cycles.length - 1].start_date;
-  return addDaysIso(today, -120);
+function lookbackFrom(cycles: Cycle[], today: string, editedDate?: string): string {
+  let date = addDaysIso(today, -120);
+  if (cycles.length >= 3) {
+    date = cycles[2].start_date;
+  } else if (cycles.length > 0) {
+    date = cycles[cycles.length - 1].start_date;
+  }
+
+  if (editedDate && editedDate < date) {
+    date = editedDate;
+  }
+  return date;
 }
