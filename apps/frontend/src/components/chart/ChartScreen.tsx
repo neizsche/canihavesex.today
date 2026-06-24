@@ -54,6 +54,7 @@ export function ChartScreen() {
     date: string;
     status: 'period' | 'fertile' | 'safe' | 'unsure';
     ovulationConfirmed: boolean;
+    hasLog?: boolean;
     isToday: boolean;
   }
 
@@ -148,6 +149,13 @@ export function ChartScreen() {
 
   const dayMap = new Map(data.days.map((d: any) => [d.date, d]));
 
+  // Group a calendar day into a band category for continuous range rendering.
+  // Consecutive same-group days merge into one rounded band (see day grid below).
+  const groupOf = (dd?: any): 'period' | 'fertile' | null => {
+    const s = dd?.status?.toLowerCase();
+    return s === 'period' ? 'period' : s === 'fertile' ? 'fertile' : null;
+  };
+
   return (
     <div className="h-full bg-background font-sans flex flex-col">
       <Header />
@@ -230,7 +238,7 @@ export function ChartScreen() {
                       <div className="grid grid-cols-7 gap-y-1">
                         {/* Empty pre-padding */}
                         {Array.from({ length: firstDay }).map((_, i) => (
-                          <div key={`empty-${i}`} className="h-8" />
+                          <div key={`empty-${i}`} className="h-12" />
                         ))}
 
                         {/* Days */}
@@ -243,68 +251,99 @@ export function ChartScreen() {
                           const isToday = dateIso === todayStr;
                           const isRestricted = dateIso < minDateStr;
 
-                          // Modern Minimal Styling
-                          // Use softer, more sophisticated colors from iOS standard
-                          let bgClass = '';
-                          let textClass = 'text-zinc-900 dark:text-white font-medium';
-                          let ringClass = '';
+                          // Continuous range bands: consecutive days of the same
+                          // group (period / fertile) merge into one rounded band so a
+                          // window reads as a span, not scattered dots. We round only
+                          // the open ends of each run within a row.
+                          const group = groupOf(dayData);
+                          const col = (firstDay + i) % 7;
+                          const prevGroup =
+                            col === 0
+                              ? null
+                              : groupOf(
+                                dayMap.get(
+                                  toIsoDate(new Date(currentYear, currentMonth, dayNum - 1))
+                                )
+                              );
+                          const nextGroup =
+                            col === 6
+                              ? null
+                              : groupOf(
+                                dayMap.get(
+                                  toIsoDate(new Date(currentYear, currentMonth, dayNum + 1))
+                                )
+                              );
+                          const connectLeft = !!group && prevGroup === group;
+                          const connectRight = !!group && nextGroup === group;
 
-                          if (dayData && dayData.status) {
-                            const s = dayData.status.toLowerCase(); // Defensive lowercasing
-                            if (s === 'period') {
-                              // Period = Red
-                              if (isFuture || isRestricted) {
-                                bgClass = 'bg-[#ff3b30]/20';
-                                textClass = 'text-[#ff3b30] font-semibold';
-                              } else {
-                                bgClass = 'bg-[#ff3b30] shadow-sm';
-                                textClass = 'text-white font-semibold';
-                              }
-                            } else if (s === 'fertile') {
-                              // Fertile = Purple
-                              if (isFuture || isRestricted) {
-                                bgClass = 'bg-[#af52de]/20';
-                                textClass = 'text-[#af52de] font-semibold';
-                              } else {
-                                bgClass = 'bg-[#af52de] shadow-sm';
-                                textClass = 'text-white font-semibold';
-                              }
-                            } else if (s === 'safe') {
-                              // Safe = Green
-                              if (isFuture || isRestricted) {
-                                bgClass = 'bg-emerald-100/30 dark:bg-emerald-500/5';
-                                textClass = 'text-emerald-700/60 dark:text-emerald-300/60';
-                              } else {
-                                bgClass = 'bg-emerald-100/80 dark:bg-emerald-500/10';
-                                textClass = 'text-emerald-700 dark:text-emerald-300';
-                              }
-                            }
-                          }
+                          const radiusClass = !group
+                            ? ''
+                            : connectLeft && connectRight
+                              ? 'rounded-none'
+                              : connectLeft
+                                ? 'rounded-r-full'
+                                : connectRight
+                                  ? 'rounded-l-full'
+                                  : 'rounded-full';
 
-                          // Today Logic - Minimal Ring or Solid Block
-                          if (isToday) {
-                            if (!bgClass) {
-                              // Today (No Data) = Solid Circle (Theme color or Black)
-                              bgClass = 'bg-zinc-900 dark:bg-zinc-100';
-                              textClass = 'text-white dark:text-zinc-900 font-bold';
+                          // Day-number typography encodes data state — this is the
+                          // only signal for "did I log this day", so no extra marker
+                          // is needed and the grid stays calm:
+                          //   logged    → strong (full colour, semibold)
+                          //   unlogged  → muted (regular weight) — a visible gap
+                          //   predicted → faintest (future days)
+                          let bandClass = '';
+                          const isOvulation = !!dayData?.ovulationConfirmed;
+                          const state: 'logged' | 'unlogged' | 'predicted' = isFuture
+                            ? 'predicted'
+                            : dayData?.hasLog
+                              ? 'logged'
+                              : 'unlogged';
+
+                          // Base hue is set by the cell type; the state then picks
+                          // weight + opacity within that hue.
+                          let textClass: string;
+                          if (group === 'period') {
+                            if (isFuture) {
+                              // Predicted period — faded, dashed outline.
+                              bandClass = cn(
+                                'bg-[#ff3b30]/[0.12] border-y border-dashed border-[#ff3b30]/45',
+                                'dark:bg-[#ff453a]/[0.16] dark:border-[#ff453a]/50',
+                                !connectLeft && 'border-l',
+                                !connectRight && 'border-r'
+                              );
+                              textClass = 'text-[#ff3b30]/85 dark:text-[#ff6961] font-normal';
                             } else {
-                              // Today (With Data) = Ring to act as outline
-                              ringClass =
-                                'ring-2 ring-offset-2 ring-zinc-900 dark:ring-zinc-100 dark:ring-offset-black';
+                              bandClass = 'bg-[#ff3b30] dark:bg-[#ff453a]';
+                              textClass =
+                                state === 'logged'
+                                  ? 'text-white font-semibold'
+                                  : 'text-white/75 font-medium';
                             }
+                          } else if (group === 'fertile') {
+                            bandClass = 'bg-[#af52de]/15 dark:bg-[#bf5af2]/25';
+                            textClass =
+                              state === 'logged'
+                                ? 'text-[#7e3aa8] dark:text-[#e3b8f5] font-semibold'
+                                : state === 'unlogged'
+                                  ? 'text-[#7e3aa8]/70 dark:text-[#e3b8f5]/70 font-medium'
+                                  : 'text-[#7e3aa8]/45 dark:text-[#e3b8f5]/45 font-normal';
+                          } else {
+                            // Safe / unsure — no band, so the number carries the whole signal.
+                            textClass =
+                              state === 'logged'
+                                ? 'text-zinc-900 dark:text-white font-semibold'
+                                : state === 'unlogged'
+                                  ? 'text-zinc-500 dark:text-zinc-400 font-medium'
+                                  : 'text-zinc-300 dark:text-zinc-700 font-normal';
                           }
 
-                          // Restricted State Visual Override
+                          if (isOvulation) {
+                            // Ovulation is a confirmed event — always reads strongest.
+                            textClass = 'text-white font-semibold';
+                          }
                           if (isRestricted) {
-                            // dim the text heavily
-                            if (!bgClass) {
-                              textClass = 'text-zinc-300 dark:text-zinc-700';
-                            } else {
-                              // keeping the colored bg but creating a 'disabled' look is tricky
-                              // let's rely on the opacity we set in the Period/Fertile blocks above (bg-color/20)
-                              // but also grayscale?
-                              // simple approach: just make it look "future-like" (faded) plus strictly no click
-                            }
+                            textClass = 'text-zinc-300 dark:text-zinc-700 font-normal';
                           }
 
                           return (
@@ -315,26 +354,64 @@ export function ChartScreen() {
                                 window.location.hash = `#/log?date=${dateIso}`;
                               }}
                               className={cn(
-                                'flex flex-col items-center justify-start h-10 relative group',
-                                isFuture || isRestricted ? 'cursor-default' : 'cursor-pointer'
+                                'relative h-12 flex items-center justify-center group',
+                                isFuture || isRestricted ? 'cursor-default' : 'cursor-pointer',
+                                isRestricted && 'opacity-40'
                               )}
                             >
-                              <div
+                              {/* Continuous range band (period / fertile window) —
+                                  a chunky rounded track so windows feel full, not slim. */}
+                              {bandClass && (
+                                <div
+                                  className={cn(
+                                    'absolute inset-y-[2px] left-0 right-0',
+                                    radiusClass,
+                                    bandClass
+                                  )}
+                                />
+                              )}
+
+                              {/* Ovulation marker. Always renders as a pill with rounded corners. */}
+                              {isOvulation && (
+                                <div
+                                  className="absolute inset-y-[2px] left-0 right-0 bg-[#af52de] dark:bg-[#bf5af2] rounded-full shadow-sm"
+                                />
+                              )}
+
+                              <span
                                 className={cn(
-                                  'w-[30px] h-[30px] rounded-full flex items-center justify-center text-[13px] transition-all duration-300',
-                                  !isFuture && !isRestricted && 'hover:scale-105',
-                                  isRestricted && 'opacity-40 grayscale-[0.5]',
-                                  bgClass,
+                                  'relative z-10 text-[15px] transition-transform duration-300',
+                                  !isFuture && !isRestricted && 'group-hover:scale-110',
                                   textClass,
-                                  ringClass
+                                  // Today is marked purely by a larger, bolder number
+                                  // (no ring) so it reads as "now" without extra chrome.
+                                  isToday && 'text-[18px] font-bold'
                                 )}
                               >
                                 {dayNum}
-                              </div>
+                              </span>
 
-                              {/* Minimal indicator dot for notes/tests, centered below */}
-                              {dayData?.ovulationConfirmed && (
-                                <div className="absolute -bottom-1 w-[3px] h-[3px] rounded-full bg-blue-500" />
+                              {/* Logged-day tick — small check tucked inside the top
+                                  of the band / ring. White on solid fills (period,
+                                  ovulation) so it stays legible; accent blue otherwise. */}
+                              {state === 'logged' && (
+                                <svg
+                                  viewBox="0 0 12 12"
+                                  className={cn(
+                                    'absolute top-[7px] left-1/2 z-20 h-2 w-2 -translate-x-1/2 opacity-60',
+                                    group === 'period' || isOvulation
+                                      ? 'text-white'
+                                      : 'text-[#007aff] dark:text-[#0a84ff]'
+                                  )}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <path d="M2.4 6.3 L4.9 8.8 L9.6 3.4" />
+                                </svg>
                               )}
                             </div>
                           );
@@ -348,28 +425,28 @@ export function ChartScreen() {
                     {/* Footer Hint */}
                     <div className="px-6 py-4 bg-zinc-50/50 dark:bg-zinc-900/30">
                       <p className="text-center text-[13px] text-zinc-400 dark:text-zinc-500 font-medium">
-                        Tap to view details
+                        Tap a day to log or review your signals
                       </p>
                     </div>
                   </div>
 
                   {/* Smooth Legend (Outside Card) */}
                   <div className="mt-6 px-6">
-                    <div className="flex justify-between max-w-[260px] mx-auto text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                    <div className="flex justify-between max-w-[300px] mx-auto text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                       <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#ff3b30]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#ff3b30] dark:bg-[#ff453a]" />
                         <span>Period</span>
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#af52de]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#af52de]/25 dark:bg-[#bf5af2]/30" />
                         <span>Fertile</span>
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20" />
-                        <span>Safe</span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#af52de] dark:bg-[#bf5af2]" />
+                        <span>Ovulation</span>
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-zinc-900 dark:bg-zinc-100" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-zinc-900 dark:bg-white" />
                         <span>Today</span>
                       </div>
                     </div>

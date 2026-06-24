@@ -95,10 +95,17 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
       const cachedResponse = cacheService.get<any>(cacheKey);
       if (cachedResponse) return cachedResponse;
 
-      const [statuses, cycles] = await Promise.all([
+      const [statuses, cycles, rangeLogs] = await Promise.all([
         statusRepo.getRangeStatus(userId, s, e),
         cycleRepo.getCycleHistory(userId),
+        logRepo.getLogsInRange(userId, s, e),
       ]);
+
+      // Dates the user has actually logged something meaningful on, used to
+      // surface a subtle "logged" marker on the calendar.
+      const loggedDates = new Set(
+        rangeLogs.filter((log) => logHasMeaningfulData(log)).map((log) => log.date)
+      );
 
       // Helper: Find cycle overlapping the middle of the view
       const midDate = addDaysIso(s, Math.floor(daysBetweenIso(s, e) / 2));
@@ -193,6 +200,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
             date: st.date,
             status: st.mappedStatus,
             ovulationConfirmed: isOvulation,
+            hasLog: loggedDates.has(st.date),
             isToday: st.date === todayStr,
           };
         });

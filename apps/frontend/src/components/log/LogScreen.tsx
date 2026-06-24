@@ -118,6 +118,7 @@ export function LogScreen() {
   const [lhOpen, setLhOpen] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [coachOpen, setCoachOpen] = React.useState(false);
+  const [mucusGuideOpen, setMucusGuideOpen] = React.useState(false);
 
   // Auto-open the "how to log" coach sheet once, on the user's first visit.
   React.useEffect(() => {
@@ -484,6 +485,54 @@ export function LogScreen() {
                       ? LOG_SCREEN_LABELS.hints.cervicalMucusDisabled
                       : LOG_SCREEN_LABELS.hints.cervicalMucus}
                   </p>
+
+                  {!mucusDisabled && (
+                    <div className="flex flex-col mt-0.5">
+                      <button
+                        onClick={() => setMucusGuideOpen((v) => !v)}
+                        className="flex items-center gap-1 text-[13px] font-medium text-[#007AFF] dark:text-[#0A84FF] self-start transition-opacity active:opacity-70"
+                      >
+                        {LOG_SCREEN_LABELS.cervicalMucusGuide.title}
+                        <ChevronRight
+                          className={cn(
+                            'h-3.5 w-3.5 transition-transform duration-200',
+                            mucusGuideOpen && 'rotate-90'
+                          )}
+                          strokeWidth={2.5}
+                        />
+                      </button>
+
+                      <div
+                        className={cn(
+                          'overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+                          mucusGuideOpen ? 'max-h-[1200px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'
+                        )}
+                      >
+                        <div className="flex flex-col gap-3.5 text-[13px] text-muted-foreground leading-snug pb-2">
+                          <p>{LOG_SCREEN_LABELS.cervicalMucusGuide.intro}</p>
+                          
+                          <div className="flex flex-col gap-3">
+                            {LOG_SCREEN_LABELS.cervicalMucusGuide.types.map((type) => (
+                              <div key={type.name} className="flex flex-col gap-0.5">
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{type.name}</span>
+                                <span>{type.description}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex flex-col gap-3 pt-1">
+                            <p>{LOG_SCREEN_LABELS.cervicalMucusGuide.lookAlikesIntro}</p>
+                            {LOG_SCREEN_LABELS.cervicalMucusGuide.lookAlikes.map((type) => (
+                              <div key={type.name} className="flex flex-col gap-0.5">
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{type.name}</span>
+                                <span>{type.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
@@ -510,6 +559,16 @@ export function LogScreen() {
                         <span className="text-muted-foreground text-[17px]">
                           {LOG_SCREEN_LABELS.units.temperature}
                         </span>
+                        <button
+                          onClick={() => {
+                            patch({ bbt: '' });
+                            setTempOpen(false);
+                          }}
+                          className="p-1.5 -mr-1.5 ml-1 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
+                          aria-label="Clear temperature"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     ) : (
                       <AddButton onClick={() => setTempOpen(true)} />
@@ -532,7 +591,20 @@ export function LogScreen() {
                       iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
                       label={LOG_SCREEN_LABELS.fields.lhTest}
                     />
-                    {!(lhOpen || form.lhTest) && <AddButton onClick={() => setLhOpen(true)} />}
+                    {!(lhOpen || form.lhTest) ? (
+                      <AddButton onClick={() => setLhOpen(true)} />
+                    ) : (
+                      <button
+                        onClick={() => {
+                          patch({ lhTest: null });
+                          setLhOpen(false);
+                        }}
+                        className="p-1.5 -mr-1.5 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
+                        aria-label="Clear LH test"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                   {(lhOpen || form.lhTest) && (
                     <>

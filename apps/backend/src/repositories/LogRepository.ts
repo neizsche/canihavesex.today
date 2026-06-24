@@ -92,6 +92,17 @@ export class LogRepository {
         return rows.map(mapLog);
     }
 
+    async getLogsInRange(userId: string, start: string, end: string): Promise<Log[]> {
+        const rows = await this.db.query<any>(
+            `SELECT * FROM logs
+             WHERE user_id = $1
+             AND date >= $2 AND date <= $3
+             ORDER BY date ASC`,
+            [userId, start, end]
+        );
+        return rows.map(mapLog);
+    }
+
     async getLogsSince(userId: string, date: string): Promise<Log[]> {
         const rows = await this.db.query<any>(
             `SELECT * FROM logs 

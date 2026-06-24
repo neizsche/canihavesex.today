@@ -143,4 +143,37 @@ export const LOG_SCREEN_LABELS = {
   units: {
     temperature: '°C',
   },
+  cervicalMucusGuide: {
+    title: 'What do these mean?',
+    intro: 'Fluid shifts across your cycle from dry to slippery. The wetter and stretchier it gets, the more fertile you are.',
+    types: [
+      {
+        name: 'Dry',
+        description: 'Nothing there, or a dry feeling. Low fertility.',
+      },
+      {
+        name: 'Sticky',
+        description: 'Pasty, crumbly, or tacky — breaks apart right away. Still low.',
+      },
+      {
+        name: 'Creamy',
+        description: 'Lotion-like, white or cream, smooth. Fertility rising.',
+      },
+      {
+        name: 'Egg-white',
+        description: 'Clear and glossy like raw egg white. It stretches several centimetres between your fingers without breaking, and feels slippery or lubricative at the opening. The slippery feeling alone counts as fertile — even when you can barely see any. This is your peak fertile sign, and it marks your most fertile days.',
+      },
+    ],
+    lookAlikesIntro: 'Two look-alikes can fool the egg-white reading:',
+    lookAlikes: [
+      {
+        name: 'Semen',
+        description: 'Looks similar but is whiter and frothier and breaks down within hours. Skip checking the morning after unprotected sex — residue distorts the reading.',
+      },
+      {
+        name: 'Arousal fluid',
+        description: 'Also clear and slippery, but watery and gone within an hour — not the lasting stretch of egg-white.',
+      },
+    ],
+  },
 } as const;
