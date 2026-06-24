@@ -401,7 +401,7 @@ export function ChartScreen() {
                                     'absolute top-[7px] left-1/2 z-20 h-2 w-2 -translate-x-1/2 opacity-60',
                                     group === 'period' || isOvulation
                                       ? 'text-white'
-                                      : 'text-[#007aff] dark:text-[#0a84ff]'
+                                      : 'text-[#007aff] dark:text-[#5aa9ff]'
                                   )}
                                   fill="none"
                                   stroke="currentColor"

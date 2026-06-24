@@ -427,6 +427,26 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 10,
+    name: 'reanchor_state',
+    up: async (db) => {
+      // Drift re-anchor input (Today screen). When the engine is past predicted
+      // length with no corroborating signals (lostTrack), the user can
+      // acknowledge "still no period" (a cycle-scoped ack) or "pause tracking"
+      // (a sticky break/pregnant flag). This state lives on user_settings — the
+      // stable per-user state and the existing engine-input channel — NOT on
+      // `cycles`, because the engine reassigns cycle UUIDs on re-segmentation and
+      // upsertCycles deletes non-incoming rows, which would wipe a marker stored
+      // there. reanchor_cycle_start scopes the ack to the active cycle's start so
+      // it auto-expires the moment a new period starts (start moves → no match).
+      await db.exec(`
+        ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS reanchor_kind TEXT;
+        ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS reanchor_cycle_start DATE;
+        ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS tracking_paused BOOLEAN NOT NULL DEFAULT false;
+      `);
+    },
+  },
 ];
 
 export async function migrate(db: Db) {

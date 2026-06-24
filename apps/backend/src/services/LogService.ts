@@ -2,10 +2,16 @@ import { Db } from '../db.js';
 import { LogRepository, Log, logHasMeaningfulData } from '../repositories/LogRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
+import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { EngineService } from './EngineService.js';
 import { randomUUID } from 'node:crypto';
 import { addDaysIso, backlogFloorIso } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
+
+// Bleeding levels that mark a real period start (mirrors engine segmentation:
+// `spotting` alone does not start a cycle). Logging one of these resumes a
+// paused tracker — "log a period and we'll pick back up".
+const PERIOD_BLEED = new Set(['light', 'medium', 'heavy']);
 
 export interface LogUpsertData {
     userId: string;
@@ -25,12 +31,14 @@ export class LogService {
     private logRepo: LogRepository;
     private cycleRepo: CycleRepository;
     private statusRepo: DailyStatusRepository;
+    private settingsRepo: SettingsRepository;
     private engine: EngineService;
 
     constructor(private db: Db) {
         this.logRepo = new LogRepository(db);
         this.cycleRepo = new CycleRepository(db);
         this.statusRepo = new DailyStatusRepository(db);
+        this.settingsRepo = new SettingsRepository(db);
         this.engine = new EngineService(db);
     }
 
@@ -73,6 +81,12 @@ export class LogService {
         // Wait for log to be written before we trigger engine, because engine fetches logs
         await writeLogPromise;
 
+        // A logged period resumes a paused tracker and clears any stale drift ack
+        // — the fresh cycle is now the source of truth.
+        if (logData.bleeding && PERIOD_BLEED.has(String(logData.bleeding))) {
+            await this.settingsRepo.setReanchorState(userId, { paused: false, kind: null, cycleStart: null });
+        }
+
         let todayStatus;
 
         // 2. Trigger Engine (write-through) only when fertility-affecting data changed
@@ -105,6 +119,9 @@ export class LogService {
             insights,
             date: status.date,
             dailyLogDone: true,
+            // After a log, drift is typically resolved; the GET /insights/today
+            // refetch (triggered on mutation settle) reconciles the full state.
+            reanchor: { show: false, acked: false },
         };
     }
 

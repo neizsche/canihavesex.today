@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
 import { LogRepository, logHasMeaningfulData } from '../repositories/LogRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
+import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { EngineService } from '../services/EngineService.js';
 import {
   addDaysIso,
@@ -12,6 +13,7 @@ import {
 } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
 import { buildPatterns, type Phase } from '../utils/patterns.js';
+import { computeReanchorFlags } from '../reanchor.js';
 
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -22,6 +24,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
   const statusRepo = new DailyStatusRepository(opts.db);
   const logRepo = new LogRepository(opts.db);
   const cycleRepo = new CycleRepository(opts.db);
+  const settingsRepo = new SettingsRepository(opts.db);
   const engineService = new EngineService(opts.db);
   const getTzOffsetMinutes = (req: any) =>
     parseTimezoneOffsetMinutes(req.headers['x-timezone-offset'] ?? req.headers['x-tz-offset']);
@@ -32,16 +35,32 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     const tzOffsetMinutes = getTzOffsetMinutes(req);
     const today = isoToday(tzOffsetMinutes);
 
-    const cacheKey = `user:${userId}:insights:today:v2`;
+    const cacheKey = `user:${userId}:insights:today:v3`;
     const cachedResponse = cacheService.get<any>(cacheKey);
     if (cachedResponse) return cachedResponse;
 
-    // Read today's cached status (recomputing if stale/missing) + today's log.
-    const [status, dailyLog] = await Promise.all([
+    // Read today's cached status (recomputing if stale/missing), today's log, the
+    // drift re-anchor state, and the user's cycles (for the active cycle start the
+    // ack is scoped to).
+    const [status, dailyLog, reanchorState, cycles] = await Promise.all([
       engineService.getFreshTodayStatus(userId, today),
       logRepo.getLog(userId, today),
+      settingsRepo.getReanchorState(userId),
+      cycleRepo.getCycleHistory(userId),
     ]);
     const dailyLogDone = logHasMeaningfulData(dailyLog);
+
+    // Paused (break/pregnant) short-circuits everything — no prediction shown.
+    if (reanchorState.paused) {
+      const pausedResponse = {
+        status: 'paused',
+        insights: { today: {} },
+        date: today,
+        dailyLogDone,
+      };
+      cacheService.set(cacheKey, pausedResponse);
+      return pausedResponse;
+    }
 
     // No status means the user has no logs yet — engine produced nothing.
     if (!status) {
@@ -59,12 +78,23 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
       status.insights_payload
     );
 
+    // Drift re-anchor: the prompt reuses the existing lostTrack empty shell.
+    const activeCycleStart = cycles.find((c) => !c.end_date)?.start_date ?? null;
+    const reanchorFlags = computeReanchorFlags({
+      lostTrack: !!insights?.today?.lostTrack,
+      paused: false, // paused already short-circuited above
+      ackKind: reanchorState.kind,
+      ackCycleStart: reanchorState.cycleStart,
+      activeCycleStart,
+    });
+
     const response = {
       status: status.fertility_status,
       insights,
       date: status.date,
       lastModified: status.updated_at,
       dailyLogDone,
+      reanchor: { show: reanchorFlags.show, acked: reanchorFlags.acked },
     };
 
     cacheService.set(cacheKey, response);
@@ -95,11 +125,20 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
       const cachedResponse = cacheService.get<any>(cacheKey);
       if (cachedResponse) return cachedResponse;
 
-      const [statuses, cycles, rangeLogs] = await Promise.all([
+      const [statuses, cycles, rangeLogs, reanchorState] = await Promise.all([
         statusRepo.getRangeStatus(userId, s, e),
         cycleRepo.getCycleHistory(userId),
         logRepo.getLogsInRange(userId, s, e),
+        settingsRepo.getReanchorState(userId),
       ]);
+      // Suppress forward predictions when paused or drifting (lost track): the
+      // calendar then shows only logged history — no prediction colors for any
+      // day after the last log date. Logged/confirmed days have is_predicted=false
+      // so they always remain (logged data takes precedence over predictions).
+      const paused = reanchorState.paused;
+      const todayStatus = statuses.find((st) => st.date === today);
+      const lostTrack = !!todayStatus?.insights_payload?.lostTrack;
+      const suppressPredictions = paused || lostTrack;
 
       // Dates the user has actually logged something meaningful on, used to
       // surface a subtle "logged" marker on the calendar.
@@ -123,10 +162,6 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
           const cycleDay = daysBetweenIso(cycle.start_date, today) + 1;
           let daysToPeriod = null;
 
-          // Get today's status for the card
-          const todayStatus = statuses.find((st) => st.date === today);
-          const isLostTrack = todayStatus?.insights_payload?.lostTrack || false;
-
           // Single source of truth: next period = cycle start + the engine's
           // predicted cycle length (ovulationDay + luteal, or its fallback).
           // The Today cycle line reads the same activeCycleLength, so the two
@@ -149,7 +184,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
               day: 'numeric',
             }),
             ovulationDate: cycle.ovulation_confirmed_date || cycle.ovulation_prediction || null,
-            daysToPeriod: daysToPeriod,
+            daysToPeriod: suppressPredictions ? null : daysToPeriod,
             cycleDay: cycleDay,
             fertilityStatus:
               todayStatus?.fertility_status === 'fertile'
@@ -158,8 +193,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
                   ? 'Period'
                   : 'Low',
             phase: phaseName.includes('Phase') ? phaseName : `${phaseName} Phase`,
-            isPredicted: daysToPeriod !== null,
-            lostTrack: isLostTrack,
+            isPredicted: suppressPredictions ? false : daysToPeriod !== null,
+            lostTrack,
           };
         } else {
           // HISTORICAL CYCLE (Past Month View)
@@ -193,6 +228,9 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
           return { ...st, mappedStatus: s };
         })
         .filter((st) => ['period', 'fertile', 'safe'].includes(st.mappedStatus))
+        // Paused or lost track: drop forward predictions (days after the last log
+        // date), keeping only logged history.
+        .filter((st) => !(suppressPredictions && st.is_predicted))
         .map((st) => {
           // Check if this date is a confirmed ovulation date in ANY cycle
           const isOvulation = cycles.some((c) => c.ovulation_confirmed_date === st.date);

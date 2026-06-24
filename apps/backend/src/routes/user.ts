@@ -156,6 +156,42 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         return { ok: true };
     });
 
+    // POST /api/v1/cycle/reanchor — drift correction from the Today screen.
+    // Shown when the engine is past predicted length with no signals (lostTrack).
+    //  - late/skipped: a cycle-scoped acknowledgment that the period is genuinely
+    //    overdue. The status stays unsure/assume-fertile (engine output is
+    //    unchanged in v1); this only stops the daily nag and records the signal.
+    //    Scoped to the active cycle's start so it auto-expires when a new period
+    //    starts.
+    //  - paused: sticky break/pregnant flag. There is no explicit "resume" — a
+    //    logged period auto-clears pause + ack in LogService.
+    // No recompute needed (engine output unchanged) — just invalidate the cache
+    // so the next Today read reflects the new state.
+    app.post('/api/v1/cycle/reanchor', {
+        schema: {
+            body: z.object({
+                kind: z.enum(['late', 'skipped', 'paused']),
+            })
+        }
+    }, async (req, reply) => {
+        const userId = req.userId!;
+        const { kind } = req.body;
+
+        if (kind === 'paused') {
+            await settingsRepo.setReanchorState(userId, { paused: true });
+        } else {
+            const cycles = await cycleRepo.getCycleHistory(userId);
+            const activeCycle = cycles.find((c) => !c.end_date);
+            if (!activeCycle) {
+                return reply.code(409).send({ error: 'no_active_cycle' });
+            }
+            await settingsRepo.setReanchorState(userId, { kind, cycleStart: activeCycle.start_date });
+        }
+
+        cacheService.invalidateUser(userId);
+        return { ok: true };
+    });
+
     const deleteAllData = async (userId: string) => {
         await logRepo.deleteLogsByUserId(userId);
         await statusRepo.deleteStatusByUserId(userId);
