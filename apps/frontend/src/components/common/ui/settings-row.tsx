@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Lock } from 'lucide-react';
 
 interface SettingsActionRowProps {
   icon: React.ReactNode;
@@ -9,6 +9,13 @@ interface SettingsActionRowProps {
   onClick: () => void;
   disabled?: boolean;
   destructive?: boolean;
+  /**
+   * Locked: the action exists but isn't available here (e.g. the shared demo
+   * account can't delete data or the account). Shows a lock instead of the
+   * chevron. Still clickable — onClick should explain why it's locked rather
+   * than perform the action.
+   */
+  locked?: boolean;
   className?: string;
 }
 
@@ -19,6 +26,7 @@ export function SettingsActionRow({
   onClick,
   disabled,
   destructive,
+  locked,
   className,
 }: SettingsActionRowProps) {
   return (
@@ -28,9 +36,11 @@ export function SettingsActionRow({
       disabled={disabled}
       className={cn(
         'w-full min-h-[44px] sm:min-h-[48px] flex items-center justify-between px-4 py-3 transition-all duration-200 disabled:opacity-50',
-        destructive
-          ? 'hover:bg-rose-100 dark:hover:bg-rose-950/30 active:bg-rose-200 dark:active:bg-rose-950/40'
-          : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700',
+        locked
+          ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700'
+          : destructive
+            ? 'hover:bg-rose-100 dark:hover:bg-rose-950/30 active:bg-rose-200 dark:active:bg-rose-950/40'
+            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700',
         className
       )}
     >
@@ -47,7 +57,13 @@ export function SettingsActionRow({
           {label}
         </div>
       </div>
-      <ChevronRight className={cn('icon-sm', destructive ? 'text-rose-400/50' : 'text-zinc-300')} />
+      {locked ? (
+        <Lock className="icon-sm text-zinc-300 dark:text-zinc-600" />
+      ) : (
+        <ChevronRight
+          className={cn('icon-sm', destructive ? 'text-rose-400/50' : 'text-zinc-300')}
+        />
+      )}
     </button>
   );
 }

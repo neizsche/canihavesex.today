@@ -1,13 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiJson } from '@/lib/api';
-import type { LogPayload, LogSuggestion } from '@/components/log/logState';
+import type { LogPayload } from '@/components/log/logState';
 
 export interface LogDayResponse {
   found: boolean;
   hasData?: boolean;
   payload?: LogPayload;
   minDate?: string;
-  suggestion?: LogSuggestion;
 }
 
 interface SaveLogResponse {

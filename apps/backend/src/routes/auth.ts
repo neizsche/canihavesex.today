@@ -5,6 +5,10 @@ import type { UserRepository } from '../repositories/UserRepository.js';
 import type { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { hashPassword, verifyPassword } from '../password.js';
 import { DEMO_EMAIL, isDemoAccountEnabled } from '../demo.js';
+import { LogRepository } from '../repositories/LogRepository.js';
+import { EngineService } from '../services/EngineService.js';
+import { cacheService } from '../services/CacheService.js';
+import { isoToday } from '../utils/dates.js';
 import { isEmailVerificationEnabled } from '../emailVerification.js';
 import type { EmailVerificationService } from '../services/EmailVerificationService.js';
 import {
@@ -27,9 +31,12 @@ export async function authRoutes(
         userRepository: UserRepository;
         settingsRepository: SettingsRepository;
         emailVerification: EmailVerificationService;
+        db: any;
     }
 ) {
-    const { userRepository, settingsRepository, emailVerification } = opts;
+    const { userRepository, settingsRepository, emailVerification, db } = opts;
+    const logRepository = new LogRepository(db);
+    const engineService = new EngineService(db);
 
     const credsSchema = z.object({
         email: z.string().email().transform((s) => s.trim().toLowerCase()),
@@ -62,6 +69,20 @@ export async function authRoutes(
         if (!user) {
             return reply.status(503).send({ error: 'demo_unavailable', message: 'The demo account has not been set up yet.' });
         }
+
+        // Reset today's entry on every demo login so each visitor starts with a
+        // clean "log today" — the only day the demo lets them edit. Whatever the
+        // previous visitor (or the seed) left for today is cleared, then the
+        // engine recomputes so the cached status reflects the empty day.
+        try {
+            const today = isoToday();
+            await logRepository.deleteLogByDate(user.id, today);
+            await engineService.recompute(user.id, today);
+            cacheService.invalidateUser(user.id);
+        } catch (err) {
+            _req.log.error({ err, route: 'auth/demo' }, 'demo today-reset failed');
+        }
+
         setSessionCookie(reply, user.id);
         const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
         return reply.send({ userId: user.id, email: user.email, onboardingCompleted });

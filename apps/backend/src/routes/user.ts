@@ -33,7 +33,10 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             body: z.object({
                 cycle_regularity: z.enum(['regular', 'irregular', 'unsure']),
                 cycle_length_min: z.number().int().min(18).max(45).optional(),
-                cycle_length_max: z.number().int().min(18).max(45).optional()
+                cycle_length_max: z.number().int().min(18).max(45).optional(),
+                // Auto-detected from the client locale (US → fahrenheit). Optional
+                // so older clients that don't send it keep the 'celsius' default.
+                temperature_unit: z.enum(['celsius', 'fahrenheit']).optional()
             })
         }
     }, async (req, reply) => {
@@ -58,6 +61,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         await settingsRepo.completeOnboarding(userId, {
             cycle_regularity,
             avgCycleLength: avgLength,
+            temperature_unit: body.temperature_unit,
         });
 
         const user = await new UserRepository(opts.db).findById(userId);
@@ -89,6 +93,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
             period_length: activeCycle?.period_length ?? latestCompleted?.period_length ?? 5,
             show_branding: settings.show_branding ?? true,
             theme: settings.theme ?? 'dark',
+            temperature_unit: settings.temperature_unit ?? 'celsius',
         };
     });
 
@@ -101,6 +106,7 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 period_length: z.number().min(1).max(10).optional(),
                 show_branding: z.boolean().optional(),
                 theme: z.enum(['light', 'dark']).optional(),
+                temperature_unit: z.enum(['celsius', 'fahrenheit']).optional(),
             })
         }
     }, async (req, reply) => {
@@ -109,13 +115,15 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
 
         let engineTriggerNeeded = false;
 
-        // 1. Settings updates (regularity, avg_cycle_length).
-        const profilePatch: { cycle_regularity?: string; avg_cycle_length?: number } = {};
+        // 1. Settings updates (regularity, avg_cycle_length, temperature_unit).
+        const profilePatch: { cycle_regularity?: string; avg_cycle_length?: number; temperature_unit?: 'celsius' | 'fahrenheit' } = {};
         if (body.cycle_regularity !== undefined) profilePatch.cycle_regularity = body.cycle_regularity;
         if (body.avg_cycle_length !== undefined) {
             profilePatch.avg_cycle_length = body.avg_cycle_length;
             engineTriggerNeeded = true;
         }
+        // Display-only preference — no engine recompute needed (storage stays Celsius).
+        if (body.temperature_unit !== undefined) profilePatch.temperature_unit = body.temperature_unit;
         if (Object.keys(profilePatch).length > 0) {
             await settingsRepo.updateProfile(userId, profilePatch);
         }

@@ -21,6 +21,17 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
 
   const apiBase = React.useMemo(() => getApiBase(), []);
 
+  // Arriving from the landing page ("Try the live demo" → ?demo=1). We keep the
+  // brand-only gate up for the whole demo handshake so the login form never
+  // flashes in before the redirect.
+  const wantsDemo = React.useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('demo'),
+    [],
+  );
+  const [autoDemo, setAutoDemo] = React.useState(wantsDemo);
+
   const [mode, setMode] = React.useState<'signin' | 'signup' | 'verify'>('signin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -50,16 +61,15 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     };
   }, [apiBase]);
 
-  // Auto-start the demo when arriving from the landing page (?demo=1).
+  // Auto-start the demo when arriving from the landing page (?demo=1). Fire
+  // immediately on mount — don't wait for the providers fetch — so the demo
+  // handshake isn't gated behind an extra round-trip.
   const demoTriggered = React.useRef(false);
   React.useEffect(() => {
-    if (demoTriggered.current || busy) return;
-    const wantsDemo = new URLSearchParams(window.location.search).has('demo');
-    if (wantsDemo && providers.demo) {
-      demoTriggered.current = true;
-      startDemo();
-    }
-  }, [providers.demo, busy]);
+    if (!wantsDemo || demoTriggered.current) return;
+    demoTriggered.current = true;
+    void startDemo();
+  }, [wantsDemo]);
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,15 +167,23 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
       const data = await res.json().catch(() => ({}) as any);
       setStatusTone('danger');
       setStatus(data?.message || 'The demo is unavailable right now. Please try again.');
+      // Demo failed — drop the gate so the sign-in form (with the error) shows.
+      setAutoDemo(false);
+      setCheckingSession(false);
     } catch {
       setStatusTone('danger');
       setStatus('Network error. Please try again.');
+      setAutoDemo(false);
+      setCheckingSession(false);
     } finally {
       setBusy(false);
     }
   }
 
   React.useEffect(() => {
+    // The demo flow owns the screen and creates its own session, so skip the
+    // session check entirely — the gate stays up until the demo redirects.
+    if (wantsDemo) return;
     let cancelled = false;
     async function checkSession() {
       try {
@@ -189,7 +207,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [apiBase, returnTo]);
+  }, [apiBase, returnTo, wantsDemo]);
 
   const reduceMotion = useReducedMotion();
 
@@ -226,9 +244,9 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
       ? (mode === 'signin' ? 'Log today. See where you are.' : 'One honest question, answered calmly.')
       : 'Log today. See where you are.';
 
-  // While checking for an existing session, show only the brand mark — no
-  // form — so already-authenticated users redirect without a login flash.
-  if (checkingSession) {
+  // While checking for an existing session — or running the ?demo=1 handshake —
+  // show only the brand mark, no form, so users redirect without a login flash.
+  if (checkingSession || autoDemo) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-background">
         <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center">

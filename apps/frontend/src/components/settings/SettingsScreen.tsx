@@ -47,6 +47,7 @@ interface UserProfile {
   period_length: number;
   show_branding: boolean;
   theme: 'light' | 'dark';
+  temperature_unit: 'celsius' | 'fahrenheit';
 }
 
 type ConfirmAction = 'delete-all' | 'delete-account' | null;
@@ -87,16 +88,19 @@ function BillingSection({ session }: { session?: { userId?: string } | null }) {
   React.useEffect(() => {
     if (!billing || autoOpened.current) return;
     autoOpened.current = true;
-    if (billing.state !== 'active') setOpen(true);
+    if (billing.state !== 'active' && billing.state !== 'demo') setOpen(true);
   }, [billing]);
 
   // Don't render at all if billing is disabled (self-host) or user not logged in.
   if (!session?.userId || isLoading || !billing?.billingEnabled) return null;
 
   const { state, plan, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd } = billing;
+  // The shared demo account is exempt from billing — present it as lifetime so
+  // the card reads cleanly instead of "No active plan / choose a plan".
+  const isDemo = state === 'demo';
   const isActivePaid = state === 'active';
   const isYearly = isActivePaid && plan === 'yearly';
-  const isLifetime = isActivePaid && plan === 'lifetime';
+  const isLifetime = (isActivePaid && plan === 'lifetime') || isDemo;
 
   // Collapsed-row summary: status at a glance, calm and plain-spoken.
   const summary = (() => {
@@ -127,7 +131,7 @@ function BillingSection({ session }: { session?: { userId?: string } | null }) {
           onToggle={() => setOpen((prev) => !prev)}
         >
           {/* Subscribe — trialing, expired, or never subscribed. */}
-          {!isActivePaid && (
+          {!isActivePaid && !isDemo && (
             <>
               <p className="text-[13px] leading-relaxed text-muted-foreground">
                 {state === 'trialing' && trialEndsAt
@@ -280,11 +284,14 @@ export function SettingsScreen() {
   const [regenConfirmOpen, setRegenConfirmOpen] = React.useState(false);
   const [shortcutOpen, setShortcutOpen] = React.useState(false);
   const [installOpen, setInstallOpen] = React.useState(false);
+  // Open when the user taps a demo-locked action — explains why it's unavailable.
+  const [demoLockOpen, setDemoLockOpen] = React.useState(false);
 
   // Profile data state - Populated from server on load
   const [cycleLength, setCycleLength] = React.useState(28);
   const [periodLength, setPeriodLength] = React.useState(5);
   const [regularity, setRegularity] = React.useState<'regular' | 'irregular' | 'unsure'>('regular');
+  const [temperatureUnit, setTemperatureUnit] = React.useState<'celsius' | 'fahrenheit'>('celsius');
   const [profileSaved, setProfileSaved] = React.useState(false);
   const [profileLoaded, setProfileLoaded] = React.useState(false);
   const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -293,6 +300,10 @@ export function SettingsScreen() {
   const pendingPatchRef = React.useRef<Record<string, any>>({});
 
   const { data: session } = useSession();
+  const { data: billing } = useBillingStatus();
+  // The shared public demo account can't delete its data or itself — those
+  // would wipe the demo for everyone. Lock those rows (server-enforced too).
+  const isDemo = billing?.state === 'demo';
   const { showBranding: brandingVisible } = useDiscreetMode();
   const { theme, setTheme } = useTheme();
   const { canPrompt, isInstalled, isIOS, isAndroid, promptInstall } = useInstallPrompt();
@@ -325,6 +336,8 @@ export function SettingsScreen() {
         setRegularity(p.cycle_regularity as 'regular' | 'irregular' | 'unsure');
       // Server preference wins so the theme syncs across devices.
       if (p.theme === 'light' || p.theme === 'dark') setTheme(p.theme);
+      if (p.temperature_unit === 'celsius' || p.temperature_unit === 'fahrenheit')
+        setTemperatureUnit(p.temperature_unit);
       setProfileLoaded(true);
     }
   }, [profileQuery.data, profileLoaded, setTheme]);
@@ -750,6 +763,34 @@ export function SettingsScreen() {
                     saveProfile({ show_branding: !checked });
                   }}
                 />
+                {/* Temperature unit — display/input only; storage stays Celsius. */}
+                <div className="px-4 py-3 sm:py-4 space-y-1.5 text-left">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground pl-2">
+                    {SETTINGS_SCREEN_LABELS.appearance.temperatureUnit}
+                  </div>
+                  <div className="flex items-center p-1 bg-zinc-100/80 dark:bg-zinc-800/80 rounded-xl">
+                    {(['celsius', 'fahrenheit'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          setTemperatureUnit(option);
+                          // Writes into the shared ['user-profile'] cache, so the
+                          // log screen's useTemperatureUnit updates instantly.
+                          saveProfile({ temperature_unit: option });
+                        }}
+                        className={cn(
+                          'flex-1 py-2 text-[12px] font-medium rounded-lg transition-all duration-200',
+                          temperatureUnit === option
+                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        )}
+                      >
+                        {option === 'celsius' ? 'Celsius (°C)' : 'Fahrenheit (°F)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </InsetGroup>
 
@@ -779,16 +820,22 @@ export function SettingsScreen() {
                       icon={<Trash2 className="icon-sm text-white" />}
                       iconBgColor="bg-amber-500"
                       label={SETTINGS_SCREEN_LABELS.account.deleteAllData}
-                      onClick={() => setConfirmAction('delete-all')}
+                      onClick={() =>
+                        isDemo ? setDemoLockOpen(true) : setConfirmAction('delete-all')
+                      }
                       disabled={busy}
+                      locked={isDemo}
                     />
                     <SettingsActionRow
                       icon={<Trash2 className="icon-sm text-white" />}
                       iconBgColor="bg-red-600"
                       label={SETTINGS_SCREEN_LABELS.account.deleteAccount}
-                      onClick={() => setConfirmAction('delete-account')}
+                      onClick={() =>
+                        isDemo ? setDemoLockOpen(true) : setConfirmAction('delete-account')
+                      }
                       disabled={busy}
                       destructive
+                      locked={isDemo}
                     />
                   </>
                 ) : (
@@ -804,7 +851,19 @@ export function SettingsScreen() {
               </div>
             </InsetGroup>
 
-            {/* Shortcuts */}
+            {/* Shortcuts — locked in the demo (the shared account can't mint API
+                keys); a tap explains why instead of expanding. */}
+            {isDemo ? (
+              <InsetGroup>
+                <SettingsActionRow
+                  icon={<KeyRound className="icon-sm text-white" />}
+                  iconBgColor="bg-emerald-500"
+                  label="Apple Shortcuts"
+                  onClick={() => setDemoLockOpen(true)}
+                  locked
+                />
+              </InsetGroup>
+            ) : (
             <InsetGroup>
               <SettingsExpandableRow
                 icon={<KeyRound className="icon-sm text-white" />}
@@ -900,6 +959,7 @@ export function SettingsScreen() {
                 </div>
               </SettingsExpandableRow>
             </InsetGroup>
+            )}
 
             {/* Support */}
             <InsetGroup>
@@ -935,6 +995,14 @@ export function SettingsScreen() {
                 isDestructive: true,
               },
             ]}
+          />
+
+          <ActionSheet
+            isOpen={demoLockOpen}
+            onClose={() => setDemoLockOpen(false)}
+            title="Not available in the demo"
+            description="You're exploring the shared demo account, so this is read-only. Create your own account to delete data, manage your account, or connect Apple Shortcuts."
+            actions={[]}
           />
 
           <ActionSheet

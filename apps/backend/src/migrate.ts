@@ -447,6 +447,20 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 11,
+    name: 'temperature_unit',
+    up: async (db) => {
+      // Display/input unit preference for basal body temperature. Canonical
+      // storage (logs.temperature) and the engine stay Celsius forever — this
+      // only controls how the value is shown and entered in the UI. Defaults to
+      // 'celsius'; the client auto-detects 'fahrenheit' for US locales at
+      // onboarding and the user can override it in Settings.
+      await db.exec(`
+        ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS temperature_unit TEXT NOT NULL DEFAULT 'celsius';
+      `);
+    },
+  },
 ];
 
 export async function migrate(db: Db) {

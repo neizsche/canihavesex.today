@@ -129,6 +129,10 @@ export class LogRepository {
         await this.db.query(`DELETE FROM logs WHERE user_id = $1`, [userId]);
     }
 
+    async deleteLogByDate(userId: string, date: string): Promise<void> {
+        await this.db.query(`DELETE FROM logs WHERE user_id = $1 AND date = $2`, [userId, date]);
+    }
+
 }
 
 function mapLog(row: any): Log {

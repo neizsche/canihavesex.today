@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Activity, ChevronRight, Pause, TrendingUp } from 'lucide-react';
+import { ChevronRight, Pause, TrendingUp } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
@@ -297,36 +297,16 @@ export function TodayScreen() {
 
             {/* ── Actions ── */}
             <div className="px-6 pb-8 pt-2 flex flex-col gap-px">
-              {[
-                {
-                  label: 'Log Symptoms',
-                  icon: Activity,
-                  color: 'text-rose-500',
-                  to: '/log' as const,
-                },
-                {
-                  label: 'View Trends',
-                  icon: TrendingUp,
-                  color: 'text-[#007AFF]',
-                  to: '/chart' as const,
-                },
-              ].map(({ label, icon: Icon, color, to }, i, arr) => (
-                <button
-                  key={label}
-                  onClick={() => navigate(to)}
-                  className={cn(
-                    'flex items-center gap-3.5 px-5 py-4 bg-white dark:bg-[#1C1C1E] text-left active:scale-[0.99] transition-transform',
-                    i === 0 && 'rounded-t-[14px]',
-                    i === arr.length - 1 && 'rounded-b-[14px]'
-                  )}
-                >
-                  <Icon className={cn('h-[18px] w-[18px]', color)} strokeWidth={2.5} />
-                  <span className="flex-1 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
-                    {label}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-700" />
-                </button>
-              ))}
+              <button
+                onClick={() => navigate('/chart')}
+                className="flex items-center gap-3.5 px-5 py-4 bg-white dark:bg-[#1C1C1E] text-left active:scale-[0.99] transition-transform rounded-[14px]"
+              >
+                <TrendingUp className="h-[18px] w-[18px] text-[#007AFF]" strokeWidth={2.5} />
+                <span className="flex-1 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  View Trends
+                </span>
+                <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-700" />
+              </button>
             </div>
           </>
         )}

@@ -6,6 +6,7 @@ import { OnboardingSetup } from './OnboardingSetup';
 import { AnimatedEducationScreen } from './AnimatedEducationScreen';
 import { BrandTitle } from '@/components/common/BrandTitle';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { detectTemperatureUnit } from '@/components/log/temperatureUnits';
 
 type OnboardingStep = 'consent' | 'education' | 'setup' | 'cycle_basics' | 'signals_overview';
 
@@ -61,6 +62,10 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
     setBusy(true);
     setError(null);
+    // Seed the BBT display unit from the device locale (US → °F, else °C). It's
+    // a silent default — no onboarding step — and overridable later in Settings.
+    const temperatureUnit = detectTemperatureUnit();
+
     try {
       const response = await apiJson<any>(
         '/api/v1/user/preferences',
@@ -73,6 +78,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             // bounds so the existing min/max API resolves to exactly it.
             cycle_length_min: data.cycle_length,
             cycle_length_max: data.cycle_length,
+            temperature_unit: temperatureUnit,
           }),
         },
         // Retry transient failures (network blips / 5xx) with a 15s per-attempt cap.
@@ -89,6 +95,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           ...prev,
           cycle_regularity: data.cycle_regularity,
           avg_cycle_length: data.cycle_length,
+          temperature_unit: temperatureUnit,
         };
       });
 

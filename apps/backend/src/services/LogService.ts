@@ -5,7 +5,7 @@ import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js'
 import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { EngineService } from './EngineService.js';
 import { randomUUID } from 'node:crypto';
-import { addDaysIso, backlogFloorIso } from '../utils/dates.js';
+import { backlogFloorIso } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
 
 // Bleeding levels that mark a real period start (mirrors engine segmentation:
@@ -150,20 +150,6 @@ export class LogService {
             };
         }
 
-        let suggestion = undefined;
-        if (date === today) {
-            const yesterday = addDaysIso(date, -1);
-            const prevLog = await this.logRepo.getLog(userId, yesterday);
-            if (prevLog) {
-                suggestion = {
-                    sourceDate: yesterday,
-                    bleeding: prevLog.bleeding,
-                    temperature: prevLog.temperature,
-                    mucusType: prevLog.mucus
-                };
-            }
-        }
-
-        return { found: false, hasData: false, minDate, suggestion };
+        return { found: false, hasData: false, minDate };
     }
 }

@@ -27,6 +27,8 @@ import { BillingEventRepository } from './repositories/BillingEventRepository.js
 import { EmailVerificationService } from './services/EmailVerificationService.js';
 import { EntitlementService } from './services/EntitlementService.js';
 import { isBillingEnabled, isSelfHost } from './entitlement.js';
+import { DEMO_EMAIL, isDemoAccountEnabled } from './demo.js';
+import { isoToday } from './utils/dates.js';
 import { createDodoProviderFromEnv } from './billing/DodoProvider.js';
 import { sendVerificationEmail, sendPurchaseConfirmationEmail } from './email.js';
 import { isEmailVerificationEnabled } from './emailVerification.js';
@@ -376,8 +378,45 @@ export async function createApp() {
     });
   }
 
+  // Demo write-guard (authoritative). The shared public demo account is
+  // explore-only: it may log/edit TODAY (reset on each login) but nothing else.
+  // Every other /api/v1 mutation — deleting data/account, minting API keys,
+  // changing cycle config or theme, re-anchoring — is blocked so one visitor
+  // can't alter the shared account for the next. The client also locks these,
+  // but this is the source of truth. Skipped entirely when the demo is off.
+  if (isDemoAccountEnabled()) {
+    // The demo user's id is stable across reseeds; resolve once and cache.
+    let demoUserId: string | null = null;
+    const resolveDemoUserId = async () => {
+      if (demoUserId) return demoUserId;
+      const u = await userRepository.findByEmail(DEMO_EMAIL);
+      if (u) demoUserId = u.id;
+      return demoUserId;
+    };
+
+    app.addHook('preHandler', async (req, reply) => {
+      if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+      if (!req.userId) return;
+      const path = req.url.split('?')[0] ?? req.url;
+      if (!path.startsWith('/api/v1/')) return;
+
+      if (req.userId !== (await resolveDemoUserId())) return;
+
+      // Only allowance: writing today's log via PUT /api/v1/logs/:date.
+      if (req.method === 'PUT' && path.startsWith('/api/v1/logs/')) {
+        const date = path.slice('/api/v1/logs/'.length);
+        if (date === isoToday()) return;
+      }
+
+      return reply.status(403).send({
+        error: 'demo_readonly',
+        message: 'The demo account is read-only. Create your own account to make changes.',
+      });
+    });
+  }
+
   // Register Routes
-  app.register(authRoutes, { userRepository, settingsRepository, emailVerification });
+  app.register(authRoutes, { userRepository, settingsRepository, emailVerification, db });
 
   // V5 Routes (Consolidated & Segregated)
   app.register(logsRoutes, { db });

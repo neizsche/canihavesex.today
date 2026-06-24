@@ -39,7 +39,7 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
             body: z.object({
                 date: z.string(),
                 bleeding: z.string().nullable().optional(),
-                temperature: z.number().nullable().optional(),
+                temperature: z.number().min(34).max(42).nullable().optional(),
                 mucusType: z.string().nullable().optional(),
                 lhTest: z.string().nullable().optional(),
                 disturbances: z.array(z.string()).optional(),
@@ -61,6 +61,8 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
                 message: `Entries can only be added or edited within the last ${BACKLOG_WINDOW_DAYS} days.`
             });
         }
+        // Note: the demo account is restricted to logging *today* by the central
+        // demo write-guard in index.ts — no per-route check needed here.
 
         const result = await logService.upsertLogAndTriggerEngine({
             ...req.body,

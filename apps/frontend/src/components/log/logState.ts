@@ -1,4 +1,10 @@
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
+import {
+  type TemperatureUnit,
+  celsiusToDisplay,
+  displayToCelsius,
+  clampDisplayInput,
+} from './temperatureUnits';
 
 /**
  * Pure state model for the daily log form.
@@ -52,9 +58,6 @@ export interface LogPayload {
   symptoms?: string[];
   notes?: string;
 }
-
-/** Subset of a payload used to prefill a not-yet-logged day. */
-export type LogSuggestion = Pick<LogPayload, 'bleeding' | 'temperature' | 'mucusType'>;
 
 // ── Reducer ────────────────────────────────────────────────────────────────
 
@@ -120,10 +123,16 @@ function bleedingFields(bleeding?: string): Pick<LogFormState, 'bleeding' | 'flo
   return { bleeding: false, flow: null, spotting: false };
 }
 
-export function payloadToFormState(p: LogPayload): LogFormState {
+// The `bbt` form field holds the value in the user's *display* unit; conversion
+// to/from canonical Celsius happens only at these seams. `unit` defaults to
+// 'celsius' so unit-agnostic call sites (and existing tests) keep working.
+export function payloadToFormState(
+  p: LogPayload,
+  unit: TemperatureUnit = 'celsius'
+): LogFormState {
   return {
     ...bleedingFields(p.bleeding),
-    bbt: p.temperature ? String(p.temperature) : '',
+    bbt: celsiusToDisplay(p.temperature, unit),
     mucus: p.mucusType || null,
     lhTest: p.lhTest && p.lhTest !== 'notTaken' ? p.lhTest : null,
     disturbances: p.disturbances || [],
@@ -132,20 +141,24 @@ export function payloadToFormState(p: LogPayload): LogFormState {
   };
 }
 
-export function suggestionToFormState(s: LogSuggestion): LogFormState {
-  return {
-    ...EMPTY_LOG_STATE,
-    ...bleedingFields(s.bleeding),
-    bbt: s.temperature ? String(s.temperature) : '',
-    mucus: s.mucusType || null,
-  };
+/**
+ * Clamp the raw input string for display on blur: snaps an out-of-range entry
+ * to the nearest bound so the corrected value is visible before save. Empty or
+ * unparseable input stays empty (treated as "no reading").
+ */
+export function clampBbtInput(value: string, unit: TemperatureUnit = 'celsius'): string {
+  return clampDisplayInput(value, unit);
 }
 
-export function formStateToPayload(date: string, s: LogFormState): LogPayload {
+export function formStateToPayload(
+  date: string,
+  s: LogFormState,
+  unit: TemperatureUnit = 'celsius'
+): LogPayload {
   return {
     date,
     bleeding: s.spotting ? 'spotting' : s.bleeding ? s.flow || 'medium' : 'none',
-    temperature: s.bbt ? parseFloat(s.bbt) : null,
+    temperature: displayToCelsius(s.bbt, unit),
     mucusType: s.mucus,
     lhTest: s.lhTest || 'notTaken',
     disturbances: s.disturbances,

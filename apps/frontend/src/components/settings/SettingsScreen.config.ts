@@ -3,6 +3,7 @@ export const SETTINGS_SCREEN_LABELS = {
   appearance: {
     darkMode: 'Dark Mode',
     darkModeHint: 'Use a dark theme throughout the app',
+    temperatureUnit: 'Temperature Unit',
   },
   install: {
     title: 'Install App',

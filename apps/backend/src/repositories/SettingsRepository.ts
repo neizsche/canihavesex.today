@@ -2,6 +2,7 @@ import type { Db } from '../db.js';
 import type { EngineMeta } from '../engine.js';
 
 export type Theme = 'light' | 'dark';
+export type TemperatureUnit = 'celsius' | 'fahrenheit';
 export type CycleRegularity = 'regular' | 'irregular' | 'unsure';
 export type ReanchorKind = 'late' | 'skipped';
 
@@ -21,6 +22,7 @@ export interface ReanchorState {
 export interface UserSettings {
   user_id: string;
   theme: Theme;
+  temperature_unit: TemperatureUnit;
   cycle_regularity: CycleRegularity | null;
   show_branding: boolean;
   education_seen: Record<string, boolean>;
@@ -83,24 +85,28 @@ export class SettingsRepository {
    */
   async completeOnboarding(
     userId: string,
-    data: { cycle_regularity: string; avgCycleLength: number }
+    data: { cycle_regularity: string; avgCycleLength: number; temperature_unit?: TemperatureUnit }
   ): Promise<void> {
+    // temperature_unit is auto-detected from the client locale; when omitted the
+    // column keeps its 'celsius' default (and is left untouched on re-run).
+    const unit = data.temperature_unit ?? 'celsius';
     await this.db.query(
       `INSERT INTO user_settings
-         (user_id, cycle_regularity, avg_cycle_length, onboarding_completed_at)
-       VALUES ($1, $2, $3, NOW())
+         (user_id, cycle_regularity, avg_cycle_length, temperature_unit, onboarding_completed_at)
+       VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (user_id) DO UPDATE SET
          cycle_regularity = EXCLUDED.cycle_regularity,
          avg_cycle_length = EXCLUDED.avg_cycle_length,
+         temperature_unit = EXCLUDED.temperature_unit,
          onboarding_completed_at = EXCLUDED.onboarding_completed_at`,
-      [userId, data.cycle_regularity, data.avgCycleLength]
+      [userId, data.cycle_regularity, data.avgCycleLength, unit]
     );
   }
 
   /** Partial profile update from the settings screen. updated_at is set by trigger. */
   async updateProfile(
     userId: string,
-    data: { cycle_regularity?: string; avg_cycle_length?: number }
+    data: { cycle_regularity?: string; avg_cycle_length?: number; temperature_unit?: TemperatureUnit }
   ): Promise<void> {
     const setClauses: string[] = [];
     const values: any[] = [];
@@ -113,6 +119,10 @@ export class SettingsRepository {
     if (data.avg_cycle_length !== undefined) {
       setClauses.push(`avg_cycle_length = $${idx++}`);
       values.push(data.avg_cycle_length);
+    }
+    if (data.temperature_unit !== undefined) {
+      setClauses.push(`temperature_unit = $${idx++}`);
+      values.push(data.temperature_unit);
     }
 
     if (setClauses.length === 0) return;
@@ -209,6 +219,7 @@ function mapSettings(userId: string, row: any): UserSettings {
     return {
       user_id: userId,
       theme: 'dark',
+      temperature_unit: 'celsius',
       cycle_regularity: null,
       show_branding: true,
       education_seen: {},
@@ -223,6 +234,7 @@ function mapSettings(userId: string, row: any): UserSettings {
   return {
     user_id: row.user_id,
     theme: row.theme === 'light' ? 'light' : 'dark',
+    temperature_unit: row.temperature_unit === 'fahrenheit' ? 'fahrenheit' : 'celsius',
     cycle_regularity: row.cycle_regularity ?? null,
     show_branding: row.show_branding ?? true,
     education_seen:

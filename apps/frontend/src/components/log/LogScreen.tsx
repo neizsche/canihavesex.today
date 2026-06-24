@@ -8,7 +8,6 @@ import {
   TestTube,
   Info,
   FileText,
-  Sparkles,
   X,
   Smile,
   Zap,
@@ -29,6 +28,7 @@ import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
+import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
 import { useCalendarDayStatus, type CalendarStatus } from '@/hooks/queries/useCalendar';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { FieldHeader, PillGroup, ChipGroup } from './LogControls';
@@ -38,12 +38,14 @@ import {
   LogFormState,
   logFormReducer,
   payloadToFormState,
-  suggestionToFormState,
   formStateToPayload,
   hasAnyInput,
   isLogDirty,
   toggleInArray,
+  clampBbtInput,
 } from './logState';
+import { bbtFieldConfig } from './temperatureUnits';
+import { useTemperatureUnit } from '@/hooks/queries/useTemperatureUnit';
 
 // localStorage flag: the one-time "how to log" coach sheet has been seen.
 const COACH_SEEN_KEY = 'chs-log-coach-seen';
@@ -112,7 +114,7 @@ export function LogScreen() {
   );
 
   // UI state
-  const [isPrefilled, setIsPrefilled] = React.useState(false);
+
   const [showMore, setShowMore] = React.useState(false);
   const [tempOpen, setTempOpen] = React.useState(false);
   const [lhOpen, setLhOpen] = React.useState(false);
@@ -145,6 +147,12 @@ export function LogScreen() {
 
   const query = useLog(date);
   const saveMutation = useSaveLog();
+  const { data: billing } = useBillingStatus();
+
+  // BBT display/input unit (storage stays Celsius). Drives the field's label,
+  // bounds, and the conversion at the form-state seams below.
+  const tempUnit = useTemperatureUnit();
+  const bbtField = bbtFieldConfig(tempUnit);
 
   // Colour the date with its calendar status (red/purple/green) so editing a
   // past day carries over the visual cue from the calendar cell that opened it.
@@ -160,11 +168,10 @@ export function LogScreen() {
       return;
     }
 
-    setIsPrefilled(false);
     if (!query.data) return;
 
     if (query.data.found && query.data.payload) {
-      const next = payloadToFormState(query.data.payload);
+      const next = payloadToFormState(query.data.payload, tempUnit);
       dispatch({ type: 'reset', state: next });
       setSavedState(next);
       // Always start collapsed on a new/changed date — the coloured field list
@@ -172,24 +179,14 @@ export function LogScreen() {
       setShowMore(false);
       setTempOpen(!!next.bbt);
       setLhOpen(!!next.lhTest);
-    } else if (!query.data.found) {
-      if (query.data.suggestion) {
-        const sug = suggestionToFormState(query.data.suggestion);
-        dispatch({ type: 'reset', state: sug });
-        setSavedState(EMPTY_LOG_STATE);
-        setShowMore(false);
-        setTempOpen(!!sug.bbt);
-        setLhOpen(false);
-        setIsPrefilled(true);
-      } else {
-        dispatch({ type: 'reset', state: EMPTY_LOG_STATE });
-        setSavedState(EMPTY_LOG_STATE);
-        setShowMore(false);
-        setTempOpen(false);
-        setLhOpen(false);
-      }
+    } else {
+      dispatch({ type: 'reset', state: EMPTY_LOG_STATE });
+      setSavedState(EMPTY_LOG_STATE);
+      setShowMore(false);
+      setTempOpen(false);
+      setLhOpen(false);
     }
-  }, [query.data, date]);
+  }, [query.data, date, tempUnit]);
 
   const isDirty = isLogDirty(form, savedState);
   const anyInput = hasAnyInput(form);
@@ -215,13 +212,12 @@ export function LogScreen() {
 
   function clearAll() {
     dispatch({ type: 'reset', state: EMPTY_LOG_STATE });
-    setIsPrefilled(false);
     setTempOpen(false);
     setLhOpen(false);
 
     if (hasData) {
       saveMutation.mutate(
-        { date, payload: formStateToPayload(date, EMPTY_LOG_STATE) },
+        { date, payload: formStateToPayload(date, EMPTY_LOG_STATE, tempUnit) },
         {
           onSuccess: () => setSavedState(EMPTY_LOG_STATE),
           onError: () => alert('Could not clear entry. Please try again.'),
@@ -232,11 +228,10 @@ export function LogScreen() {
 
   function save() {
     saveMutation.mutate(
-      { date, payload: formStateToPayload(date, form) },
+      { date, payload: formStateToPayload(date, form, tempUnit) },
       {
         onSuccess: () => {
           setSavedState(form);
-          setIsPrefilled(false);
           setSuccess(true);
           setTimeout(() => {
             setSuccess(false);
@@ -272,9 +267,13 @@ export function LogScreen() {
 
   const minDate = query.data?.minDate || '2020-01-01';
   const isAtMinDate = date <= minDate;
+  // The shared demo account is explore-only for the past: today stays editable
+  // (so the live demo still feels real), but earlier days are locked so visitors
+  // can't rewrite the seeded history. Server-enforced too.
+  const demoPastLocked = billing?.state === 'demo' && date < todayIso();
   // Edit lock: minDate is the back-log window floor (server-enforced). Days
   // before it are read-only — older entries can be viewed but not changed.
-  const isEditable = date >= minDate;
+  const isEditable = date >= minDate && !demoPastLocked;
 
   return (
     <div className="h-full bg-background font-sans flex flex-col">
@@ -329,28 +328,7 @@ export function LogScreen() {
             </button>
           </div>
 
-          {isPrefilled && (
-            <div className="mx-4 mt-3 mb-1 bg-zinc-100/80 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl p-3.5 flex items-center gap-3.5 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-500 shadow-sm transition-all group">
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center shrink-0">
-                <Sparkles className="icon-sm text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="flex flex-col gap-0.5 flex-1 p-0.5">
-                <span className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-                  Prefilled from yesterday
-                </span>
-                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-snug">
-                  Magic filling saves you time. Review or clear to start fresh.
-                </span>
-              </div>
-              <button
-                onClick={clearAll}
-                className="p-2 rounded-full hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-all active:scale-90"
-                aria-label="Clear prefilled data"
-              >
-                <X className="icon-xs" />
-              </button>
-            </div>
-          )}
+
 
           {!isEditable && (
             <div className="mx-4 mt-3 mb-1 bg-zinc-100/80 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl p-3.5 flex items-center gap-3.5 backdrop-blur-xl shadow-sm">
@@ -362,7 +340,9 @@ export function LogScreen() {
                   Read-only entry
                 </span>
                 <span className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-snug">
-                  This day is too far in the past to edit.
+                  {demoPastLocked
+                    ? "Past days can't be edited in the demo. Try logging today."
+                    : 'This day is too far in the past to edit.'}
                 </span>
               </div>
             </div>
@@ -550,14 +530,21 @@ export function LogScreen() {
                         <input
                           type="number"
                           inputMode="decimal"
-                          placeholder="--"
+                          min={bbtField.min}
+                          max={bbtField.max}
+                          step={bbtField.step}
+                          placeholder={bbtField.placeholder}
                           autoFocus={tempOpen && !form.bbt}
                           value={form.bbt}
                           onChange={(e) => patch({ bbt: e.target.value })}
+                          onBlur={(e) => {
+                            const clamped = clampBbtInput(e.target.value, tempUnit);
+                            if (clamped !== form.bbt) patch({ bbt: clamped });
+                          }}
                           className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
                         />
                         <span className="text-muted-foreground text-[17px]">
-                          {LOG_SCREEN_LABELS.units.temperature}
+                          {bbtField.label}
                         </span>
                         <button
                           onClick={() => {

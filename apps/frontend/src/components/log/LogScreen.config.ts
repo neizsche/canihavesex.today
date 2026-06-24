@@ -140,9 +140,6 @@ export const LOG_SCREEN_LABELS = {
     title: 'Unlock History',
     description: 'Editing past logs is a premium feature.',
   },
-  units: {
-    temperature: '°C',
-  },
   cervicalMucusGuide: {
     title: 'What do these mean?',
     intro: 'Fluid shifts across your cycle from dry to slippery. The wetter and stretchier it gets, the more fertile you are.',
