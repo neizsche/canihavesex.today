@@ -1,4 +1,11 @@
-export function buildInsightCards(fertilityStatus: string, phase: string, m: any) {
+import { addDaysIso } from './dates.js';
+
+function formatShortDate(iso: string) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+export function buildInsightCards(fertilityStatus: string, phase: string, m: any, todayIso?: string) {
     if (!m || typeof m !== 'object') return {};
 
     const cycleDay = m.cycleDay ?? null;
@@ -85,6 +92,15 @@ export function buildInsightCards(fertilityStatus: string, phase: string, m: any
                 daysToNextPeriod,
                 fertileStartDay,
                 fertileEndDay,
+                nextPeriodDateStr: todayIso && daysToNextPeriod != null 
+                    ? formatShortDate(addDaysIso(todayIso, daysToNextPeriod)) 
+                    : null,
+                fertileStartDateStr: todayIso && fertileStartDay != null && cycleDay != null
+                    ? formatShortDate(addDaysIso(todayIso, fertileStartDay - cycleDay))
+                    : null,
+                fertileEndDateStr: todayIso && fertileEndDay != null && cycleDay != null
+                    ? formatShortDate(addDaysIso(todayIso, fertileEndDay - cycleDay))
+                    : null,
             },
             notifications: pool.slice(0, 2),
             sourceText: sourceMap[m.primarySignal] || sourceMap.CALENDAR,

@@ -1,24 +1,6 @@
 // Shared cycle/stats types and helpers used by the chart views. These are
 // derived from real API data — kept here as the single source of truth.
 
-export interface QuickStatsData {
-  // Historical / At-a-Glance fields
-  statusText: string;
-  subText: string;
-  isHistorical: boolean;
-  periodStartDate?: string;
-  ovulationDate?: string;
-
-  // New fields for refined logic
-  isPredicted?: boolean;
-  phase?: string; // e.g. 'Follicular', 'Luteal'
-
-  // Current fields (optional if historical)
-  daysToPeriod?: number;
-  cycleDay?: number;
-  fertilityStatus?: 'High' | 'Medium' | 'Low';
-}
-
 type Intensity = 'light' | 'medium' | 'heavy';
 
 export interface CycleData {

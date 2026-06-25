@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { ChevronRight, Pause, TrendingUp } from 'lucide-react';
+import { ChevronRight, Pause, CalendarDays } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
+import { InsetGroup } from '@/components/common/ui/inset-group';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useNavigation } from '@/hooks/useNavigation';
 import { useInsights } from '@/hooks/queries/useInsights';
@@ -62,6 +63,17 @@ const SIGNAL_KEYS = [
   { key: 'calendar', label: 'Calendar' },
 ] as const;
 
+function formatRelativeTime(dateString?: string): string {
+  if (!dateString) return 'Updated Just now';
+  const diffInMinutes = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 60000);
+  if (diffInMinutes < 1) return 'Updated Just now';
+  if (diffInMinutes < 60) return `Updated ${diffInMinutes} min${diffInMinutes === 1 ? '' : 's'} ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `Updated ${diffInHours} hr${diffInHours === 1 ? '' : 's'} ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `Updated ${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
+}
+
 export function TodayScreen() {
   const { navigate } = useNavigation();
   const { showBranding: brandingVisible } = useDiscreetMode();
@@ -98,6 +110,8 @@ export function TodayScreen() {
 
   const sourceText: string = todayData?.sourceText || '';
   const basisShort = BASIS_SHORT[sourceText] || 'Calendar';
+
+  const lastUpdatedText = formatRelativeTime(apiData?.lastModified);
 
   // First load with nothing cached yet: show a neutral state rather than the Log
   // CTA, which would otherwise flash before the initial fetch resolves.
@@ -230,83 +244,113 @@ export function TodayScreen() {
               </p>
             </div>
 
-            {cycle?.day && cycle?.length && (
-              <CycleLine
-                day={cycle.day}
-                length={cycle.length}
-                daysToNextPeriod={cycle.daysToNextPeriod ?? null}
-                fertileStartDay={cycle.fertileStartDay ?? null}
-                fertileEndDay={cycle.fertileEndDay ?? null}
-              />
-            )}
-
-            {/* ── Stats Strip ── */}
-            <div className="flex border-t border-b border-zinc-200 dark:border-zinc-800/80">
-              <div className="flex-1 text-center py-4 border-r border-zinc-200 dark:border-zinc-800/80">
-                <div className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                  {confidenceLabel || '—'}
-                </div>
-                <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.08em] mt-0.5">
-                  Confidence
-                </div>
-              </div>
-              <div className="flex-1 text-center py-4">
-                <div className="text-[17px] font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                  {basisShort}
-                </div>
-                <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.08em] mt-0.5">
-                  Basis
-                </div>
-              </div>
-            </div>
-
-            {/* ── Confidence context ── */}
-            {confidenceMessage && (
-              <div className="text-center py-3 px-6">
-                <p className="text-[12px] font-medium text-zinc-400 dark:text-zinc-600">
-                  {confidenceMessage}
-                </p>
-              </div>
-            )}
-
-            {/* ── Signals ── */}
-            <div className="flex gap-2 justify-center py-3 px-6 flex-wrap">
-              {SIGNAL_KEYS.map(({ key, label }) => {
-                const active = Boolean(signals[key]);
-                return (
-                  <span
-                    key={key}
-                    className={cn(
-                      'text-[12px] font-semibold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 transition-colors',
-                      active
-                        ? cn(status.chipBg, status.chipText)
-                        : 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'w-1.5 h-1.5 rounded-full',
-                        active ? status.dot : 'bg-zinc-300 dark:bg-zinc-600'
-                      )}
+            <div className="flex flex-col gap-5 pb-[var(--inset-gap)]">
+              {/* View Calendar CTA */}
+              <div className="-mb-2 mt-1 flex justify-center">
+                <button
+                  onClick={() => navigate('/chart')}
+                  className="group inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/70 py-1.5 pl-2 pr-3 shadow-sm backdrop-blur-xl transition-all hover:bg-card hover:shadow active:scale-95"
+                >
+                  <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-blue-500/10 dark:bg-blue-400/10">
+                    <CalendarDays
+                      className="h-[13px] w-[13px] text-blue-600 dark:text-blue-400"
+                      strokeWidth={2.5}
                     />
-                    {label}
                   </span>
-                );
-              })}
-            </div>
+                  <span className="text-[13px] font-medium tracking-tight text-zinc-700 dark:text-zinc-200">
+                    View Full Calendar
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-zinc-600" />
+                </button>
+              </div>
 
-            {/* ── Actions ── */}
-            <div className="px-6 pb-8 pt-2 flex flex-col gap-px">
-              <button
-                onClick={() => navigate('/chart')}
-                className="flex items-center gap-3.5 px-5 py-4 bg-white dark:bg-[#1C1C1E] text-left active:scale-[0.99] transition-transform rounded-[14px]"
-              >
-                <TrendingUp className="h-[18px] w-[18px] text-[#007AFF]" strokeWidth={2.5} />
-                <span className="flex-1 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
-                  View Trends
-                </span>
-                <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-700" />
-              </button>
+              {cycle?.day && cycle?.length && (
+                <CycleLine
+                  day={cycle.day}
+                  length={cycle.length}
+                  fertileStartDay={cycle.fertileStartDay ?? null}
+                  fertileEndDay={cycle.fertileEndDay ?? null}
+                  nextPeriodDateStr={cycle.nextPeriodDateStr ?? null}
+                  fertileStartDateStr={cycle.fertileStartDateStr ?? null}
+                  fertileEndDateStr={cycle.fertileEndDateStr ?? null}
+                  lastUpdatedText={lastUpdatedText}
+                />
+              )}
+
+              {/* ── Insights Card ── */}
+              <InsetGroup containerClassName="mb-0">
+              {/* Stats row */}
+              <div className="flex">
+                <div className="flex-1 py-4 pl-4">
+                  <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.06em] mb-1">
+                    Confidence
+                  </div>
+                  <div className="text-[17px] font-bold text-zinc-800 dark:text-zinc-100 tracking-tight leading-tight">
+                    {confidenceLabel || '—'}
+                  </div>
+                </div>
+                <div className="w-px self-stretch my-3 bg-zinc-100 dark:bg-zinc-800/80" />
+                <div className="flex-1 pl-4 py-4 pr-4">
+                  <div className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.06em] mb-1">
+                    Basis
+                  </div>
+                  <div className="text-[17px] font-bold text-zinc-800 dark:text-zinc-100 tracking-tight leading-tight">
+                    {basisShort}
+                  </div>
+                </div>
+              </div>
+
+              {/* Signals */}
+              <div className="mb-4 mx-4 border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                <div className="flex items-center justify-between">
+                  {SIGNAL_KEYS.map(({ key, label }, i) => {
+                    const active = Boolean(signals[key]);
+                    return (
+                      <React.Fragment key={key}>
+                        <div className="flex items-center gap-1.5">
+                          {active && (
+                            <svg
+                              viewBox="0 0 12 12"
+                              className="h-2.5 w-2.5 text-[#007AFF] dark:text-[#0A84FF] mt-0.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M2.4 6.3 L4.9 8.8 L9.6 3.4" />
+                            </svg>
+                          )}
+                          <span
+                            className={cn(
+                              'text-[13px] font-semibold transition-colors',
+                              active
+                                ? 'text-zinc-800 dark:text-zinc-100'
+                                : 'text-zinc-400 dark:text-zinc-500'
+                            )}
+                          >
+                            {label}
+                          </span>
+                        </div>
+                        {i < SIGNAL_KEYS.length - 1 && (
+                          <span className="w-px h-3 bg-zinc-100 dark:bg-zinc-800/60" />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Confidence context */}
+              {confidenceMessage && (
+                <div className="pb-3.5 px-4 -mt-1">
+                  <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                    {confidenceMessage}
+                  </p>
+                </div>
+              )}
+            </InsetGroup>
             </div>
           </>
         )}

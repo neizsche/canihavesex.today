@@ -18,7 +18,9 @@ const brandHref = showNav === false ? '/app#/today' : '/';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title ? `${title} | ${SITE_TITLE}` : SITE_TITLE}</title>
+    <meta property="og:site_name" content={BRAND.PREFIX + BRAND.HIGHLIGHT + BRAND.SUFFIX} />
     <meta name="description" content={APP_DESCRIPTION} />
+    <meta property="og:description" content={APP_DESCRIPTION} />
     <meta name="keywords" content={APP_KEYWORDS} />
     <meta name="theme-color" content="#0b0b0f" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />

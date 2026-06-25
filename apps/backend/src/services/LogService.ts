@@ -113,7 +113,7 @@ export class LogService {
 
     private buildTodayResponse(status: any) {
         if (!status) return null;
-        const insights = buildInsightCards(status.fertility_status, status.phase, status.insights_payload);
+        const insights = buildInsightCards(status.fertility_status, status.phase, status.insights_payload, status.date);
         return {
             status: status.fertility_status,
             insights,

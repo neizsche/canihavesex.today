@@ -74,7 +74,8 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     const insights = buildInsightCards(
       status.fertility_status,
       status.phase,
-      status.insights_payload
+      status.insights_payload,
+      today
     );
 
     // Drift re-anchor: the prompt reuses the existing lostTrack empty shell.
