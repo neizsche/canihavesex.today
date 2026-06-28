@@ -1,23 +1,5 @@
 import * as React from 'react';
-import {
-  Thermometer,
-  Droplets,
-  Activity,
-  ChevronRight,
-  CheckCircle2,
-  TestTube,
-  Info,
-  FileText,
-  X,
-  Smile,
-  Zap,
-  Moon,
-  HeartPulse,
-  Heart,
-  Lock,
-  GraduationCap,
-  Plus,
-} from 'lucide-react';
+import { CheckCircle2, Lock } from 'lucide-react';
 
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -25,14 +7,14 @@ import { todayIso, addDays } from '@/lib/date';
 import { Button } from '@/components/common/ui/button';
 import { Header } from '@/components/common/Header';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
-import { InsetGroup } from '@/components/common/ui/inset-group';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
 import { useCalendarDayStatus, type CalendarStatus } from '@/hooks/queries/useCalendar';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
-import { FieldHeader, PillGroup, ChipGroup } from './LogControls';
 import { LogCoachSheet } from './LogCoachSheet';
+import { LogCoachButton, LogPrimarySignals } from './LogPrimarySignals';
+import { LogWellnessSection } from './LogWellnessSection';
 import {
   EMPTY_LOG_STATE,
   LogFormState,
@@ -41,34 +23,12 @@ import {
   formStateToPayload,
   hasAnyInput,
   isLogDirty,
-  toggleInArray,
-  clampBbtInput,
 } from './logState';
 import { bbtFieldConfig } from './temperatureUnits';
 import { useTemperatureUnit } from '@/hooks/queries/useTemperatureUnit';
 
 // localStorage flag: the one-time "how to log" coach sheet has been seen.
 const COACH_SEEN_KEY = 'chs-log-coach-seen';
-
-const MUCUS_OPTIONS = [
-  { id: 'dry', label: LOG_SCREEN_LABELS.options.mucus[0] },
-  { id: 'sticky', label: LOG_SCREEN_LABELS.options.mucus[1] },
-  { id: 'creamy', label: LOG_SCREEN_LABELS.options.mucus[2] },
-  { id: 'eggwhite', label: LOG_SCREEN_LABELS.options.mucus[3] },
-];
-
-const FLOW_OPTIONS = [
-  { id: 'light', label: LOG_SCREEN_LABELS.options.flow.light },
-  { id: 'medium', label: LOG_SCREEN_LABELS.options.flow.medium },
-  { id: 'heavy', label: LOG_SCREEN_LABELS.options.flow.heavy },
-];
-
-const CHIP_ACTIVE_SYMPTOMS =
-  'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-const CHIP_ACTIVE_FACTORS =
-  'bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200';
-const CHIP_ACTIVE_MOOD =
-  'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300';
 
 // Calendar status → dot colour, matching the calendar grid in ChartScreen.
 const STATUS_DOT: Record<CalendarStatus, string> = {
@@ -77,21 +37,6 @@ const STATUS_DOT: Record<CalendarStatus, string> = {
   safe: 'bg-emerald-500',
   unsure: '',
 };
-
-// Quiet "tap to add" affordance for the effortful signals (temperature, LH).
-// Keeps them present in the signals section without looking like homework for
-// the many users who only log reliably during their period.
-function AddButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1 text-[15px] font-medium text-[#007AFF] dark:text-[#0A84FF] transition-transform active:scale-95"
-    >
-      <Plus className="icon-xs" strokeWidth={2.5} />
-      {LOG_SCREEN_LABELS.buttons.add}
-    </button>
-  );
-}
 
 export function LogScreen() {
   const { showBranding } = useDiscreetMode();
@@ -209,6 +154,8 @@ export function LogScreen() {
   const filledFields = LOG_SCREEN_LABELS.sections.showMoreFields.filter(
     (f) => moreFieldActive[f.key]
   );
+  const filledFieldsSummary =
+    filledFields.length > 0 ? filledFields.map((f) => f.label).join(' · ') : null;
 
   function clearAll() {
     dispatch({ type: 'reset', state: EMPTY_LOG_STATE });
@@ -307,28 +254,7 @@ export function LogScreen() {
             nextDisabled={saveMutation.isPending || date === todayIso()}
           />
 
-          {/* Learn affordance — a calm tinted pill, deliberately not styled like a
-              field so it reads as "tap to learn", not "tap to fill in". Lives above
-              the form (and outside the read-only dimming) so it's always available. */}
-          <div className="mt-3 flex justify-center">
-            <button
-              onClick={() => setCoachOpen(true)}
-              className="group inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/70 py-1.5 pl-2 pr-3 shadow-sm backdrop-blur-xl transition-all hover:bg-card hover:shadow active:scale-95"
-            >
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-blue-500/10 dark:bg-blue-400/10">
-                <GraduationCap
-                  className="h-[13px] w-[13px] text-blue-600 dark:text-blue-400"
-                  strokeWidth={2.5}
-                />
-              </span>
-              <span className="text-[13px] font-medium tracking-tight text-zinc-700 dark:text-zinc-200">
-                {LOG_SCREEN_LABELS.coach.title}
-              </span>
-              <ChevronRight className="h-3.5 w-3.5 text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-zinc-600" />
-            </button>
-          </div>
-
-
+          <LogCoachButton onClick={() => setCoachOpen(true)} />
 
           {!isEditable && (
             <div className="mx-4 mt-3 mb-1 bg-zinc-100/80 dark:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl p-3.5 flex items-center gap-3.5 backdrop-blur-xl shadow-sm">
@@ -357,471 +283,27 @@ export function LogScreen() {
             )}
           >
             <div className="mt-5 flex flex-col gap-5">
-              {/* ═══ TODAY'S SIGNALS — the four signs that answer the question ═══ */}
-              <InsetGroup containerClassName="mb-0">
-                {/* Period Row */}
-                <div className="flex flex-col">
-                  <div className="px-4 py-3.5 flex items-center justify-between min-h-[52px]">
-                    <FieldHeader
-                      icon={Droplets}
-                      iconWrapClass="rounded-full bg-rose-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.period}
-                    />
+              <LogPrimarySignals
+                form={form}
+                patch={patch}
+                mucusDisabled={mucusDisabled}
+                mucusGuideOpen={mucusGuideOpen}
+                onToggleMucusGuide={() => setMucusGuideOpen((v) => !v)}
+                tempOpen={tempOpen}
+                setTempOpen={setTempOpen}
+                lhOpen={lhOpen}
+                setLhOpen={setLhOpen}
+                bbtField={bbtField}
+                tempUnit={tempUnit}
+              />
 
-                    <button
-                      onClick={() => {
-                        const next = !form.bleeding;
-                        patch({ bleeding: next, spotting: next, flow: null });
-                      }}
-                      className={cn(
-                        'w-[51px] h-[31px] rounded-full relative transition-colors duration-200 ease-in-out cursor-pointer',
-                        form.bleeding ? 'bg-rose-500' : 'bg-zinc-200 dark:bg-zinc-700'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'absolute top-[2px] left-[2px] w-[27px] h-[27px] bg-white rounded-full shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]',
-                          form.bleeding ? 'translate-x-[20px]' : 'translate-x-0'
-                        )}
-                      />
-                    </button>
-                  </div>
-
-                  <div
-                    className={cn(
-                      'overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-                      form.bleeding ? 'max-h-52 opacity-100' : 'max-h-0 opacity-0'
-                    )}
-                  >
-                    <div className="px-4 pb-4 pt-0 space-y-4">
-                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-0" />
-                      <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-                        <button
-                          onClick={() => patch({ spotting: true, flow: null })}
-                          className={cn(
-                            'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm',
-                            form.spotting
-                              ? 'bg-rose-500 text-white shadow-md ring-1 ring-rose-600/20'
-                              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 shadow-none bg-transparent'
-                          )}
-                        >
-                          Spotting
-                        </button>
-                        {FLOW_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.id}
-                            onClick={() => patch({ flow: opt.id, spotting: false, mucus: null })}
-                            className={cn(
-                              'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm',
-                              !form.spotting && form.flow === opt.id
-                                ? 'bg-rose-500 text-white shadow-md ring-1 ring-rose-600/20'
-                                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 shadow-none bg-transparent'
-                            )}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Cervical Fluid — disabled during real flow (bleeding masks it) */}
-                <div className="flex flex-col py-3.5 px-4 gap-3">
-                  <div
-                    className={cn(
-                      'flex flex-col gap-3 transition-opacity duration-300',
-                      mucusDisabled && 'pointer-events-none opacity-40'
-                    )}
-                    aria-disabled={mucusDisabled}
-                  >
-                    <FieldHeader
-                      icon={Activity}
-                      iconWrapClass="rounded-sm bg-blue-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.cervicalMucus}
-                    />
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {MUCUS_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.id}
-                          tabIndex={mucusDisabled ? -1 : undefined}
-                          onClick={() => patch({ mucus: form.mucus === opt.id ? null : opt.id })}
-                          className={cn(
-                            'py-2.5 px-3 rounded-xl text-[15px] font-medium text-center transition-all border shadow-sm',
-                            form.mucus === opt.id
-                              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20'
-                              : 'bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                          )}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground leading-snug">
-                    {mucusDisabled
-                      ? LOG_SCREEN_LABELS.hints.cervicalMucusDisabled
-                      : LOG_SCREEN_LABELS.hints.cervicalMucus}
-                  </p>
-
-                  {!mucusDisabled && (
-                    <div className="flex flex-col mt-0.5">
-                      <button
-                        onClick={() => setMucusGuideOpen((v) => !v)}
-                        className="flex items-center gap-1 text-[13px] font-medium text-[#007AFF] dark:text-[#0A84FF] self-start transition-opacity active:opacity-70"
-                      >
-                        {LOG_SCREEN_LABELS.cervicalMucusGuide.title}
-                        <ChevronRight
-                          className={cn(
-                            'h-3.5 w-3.5 transition-transform duration-200',
-                            mucusGuideOpen && 'rotate-90'
-                          )}
-                          strokeWidth={2.5}
-                        />
-                      </button>
-
-                      <div
-                        className={cn(
-                          'overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-                          mucusGuideOpen ? 'max-h-[1200px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'
-                        )}
-                      >
-                        <div className="flex flex-col gap-3.5 text-[13px] text-muted-foreground leading-snug pb-2">
-                          <p>{LOG_SCREEN_LABELS.cervicalMucusGuide.intro}</p>
-                          
-                          <div className="flex flex-col gap-3">
-                            {LOG_SCREEN_LABELS.cervicalMucusGuide.types.map((type) => (
-                              <div key={type.name} className="flex flex-col gap-0.5">
-                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{type.name}</span>
-                                <span>{type.description}</span>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="flex flex-col gap-3 pt-1">
-                            <p>{LOG_SCREEN_LABELS.cervicalMucusGuide.lookAlikesIntro}</p>
-                            {LOG_SCREEN_LABELS.cervicalMucusGuide.lookAlikes.map((type) => (
-                              <div key={type.name} className="flex flex-col gap-0.5">
-                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{type.name}</span>
-                                <span>{type.description}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* Basal Body Temperature — lightweight tap-to-add */}
-                <div className="px-4 py-3.5 flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between min-h-[28px]">
-                    <FieldHeader
-                      icon={Thermometer}
-                      iconWrapClass="rounded-sm bg-orange-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.basalTemp}
-                    />
-                    {tempOpen || form.bbt ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min={bbtField.min}
-                          max={bbtField.max}
-                          step={bbtField.step}
-                          placeholder={bbtField.placeholder}
-                          autoFocus={tempOpen && !form.bbt}
-                          value={form.bbt}
-                          onChange={(e) => patch({ bbt: e.target.value })}
-                          onBlur={(e) => {
-                            const clamped = clampBbtInput(e.target.value, tempUnit);
-                            if (clamped !== form.bbt) patch({ bbt: clamped });
-                          }}
-                          className="w-20 text-right text-[17px] font-normal bg-transparent border-none focus:ring-0 p-0 text-zinc-900 dark:text-white placeholder:text-zinc-300 focus:text-blue-500"
-                        />
-                        <span className="text-muted-foreground text-[17px]">
-                          {bbtField.label}
-                        </span>
-                        <button
-                          onClick={() => {
-                            patch({ bbt: '' });
-                            setTempOpen(false);
-                          }}
-                          className="p-1.5 -mr-1.5 ml-1 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
-                          aria-label="Clear temperature"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <AddButton onClick={() => setTempOpen(true)} />
-                    )}
-                  </div>
-                  {(tempOpen || form.bbt) && (
-                    <p className="text-[12px] text-muted-foreground leading-snug">
-                      {LOG_SCREEN_LABELS.hints.temperature}
-                    </p>
-                  )}
-                </div>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                {/* LH Test — lightweight tap-to-add */}
-                <div className="px-4 py-3.5 flex flex-col gap-3">
-                  <div className="flex items-center justify-between min-h-[28px]">
-                    <FieldHeader
-                      icon={TestTube}
-                      iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.lhTest}
-                    />
-                    {!(lhOpen || form.lhTest) ? (
-                      <AddButton onClick={() => setLhOpen(true)} />
-                    ) : (
-                      <button
-                        onClick={() => {
-                          patch({ lhTest: null });
-                          setLhOpen(false);
-                        }}
-                        className="p-1.5 -mr-1.5 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
-                        aria-label="Clear LH test"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  {(lhOpen || form.lhTest) && (
-                    <>
-                      <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-                        <button
-                          onClick={() =>
-                            patch({ lhTest: form.lhTest === 'negative' ? null : 'negative' })
-                          }
-                          className={cn(
-                            'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
-                            form.lhTest === 'negative'
-                              ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5'
-                              : 'text-zinc-500 dark:text-zinc-400'
-                          )}
-                        >
-                          {LOG_SCREEN_LABELS.options.lhTest.negative}
-                        </button>
-                        <button
-                          onClick={() =>
-                            patch({ lhTest: form.lhTest === 'positive' ? null : 'positive' })
-                          }
-                          className={cn(
-                            'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
-                            form.lhTest === 'positive'
-                              ? 'bg-white dark:bg-zinc-600 text-rose-500 dark:text-rose-300 shadow-sm ring-1 ring-black/5'
-                              : 'text-zinc-500 dark:text-zinc-400'
-                          )}
-                        >
-                          {LOG_SCREEN_LABELS.options.lhTest.positive}
-                        </button>
-                      </div>
-                      <p className="text-[12px] text-muted-foreground leading-snug">
-                        {LOG_SCREEN_LABELS.hints.lhTest}
-                      </p>
-                    </>
-                  )}
-                </div>
-              </InsetGroup>
-
-              {/* ═══ SHOW MORE — secondary wellness tracking, collapsed by default ═══ */}
-              <InsetGroup containerClassName="mb-0">
-                <button
-                  onClick={toggleMore}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                >
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">
-                      {LOG_SCREEN_LABELS.sections.showMore}
-                    </span>
-                    {!showMore && (
-                      <span
-                        className={cn(
-                          'block truncate text-[12px] leading-snug',
-                          filledFields.length > 0
-                            ? 'font-medium text-blue-600 dark:text-blue-400'
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {filledFields.length > 0
-                          ? filledFields.map((f) => f.label).join(' · ')
-                          : LOG_SCREEN_LABELS.sections.showMoreHint}
-                      </span>
-                    )}
-                  </div>
-                  <ChevronRight
-                    className={cn(
-                      'icon-sm shrink-0 text-zinc-300 transition-transform duration-300',
-                      showMore && 'rotate-90'
-                    )}
-                  />
-                </button>
-
-                <div
-                  className={cn(
-                    'overflow-hidden transition-all duration-300 ease-out',
-                    showMore ? 'max-h-[1600px] opacity-100' : 'max-h-0 opacity-0'
-                  )}
-                >
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Symptoms */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={Activity}
-                      iconWrapClass="rounded-sm bg-green-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.symptoms}
-                    />
-                    <ChipGroup
-                      options={LOG_SCREEN_LABELS.bodySignals.symptoms}
-                      selected={form.bodySymptoms}
-                      onToggle={(id) =>
-                        patch({ bodySymptoms: toggleInArray(form.bodySymptoms, id) })
-                      }
-                      activeClass={CHIP_ACTIVE_SYMPTOMS}
-                    />
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Mood */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={Smile}
-                      iconWrapClass="rounded-sm bg-amber-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.mood}
-                    />
-                    <ChipGroup
-                      options={LOG_SCREEN_LABELS.bodySignals.mood}
-                      selected={form.mood}
-                      onToggle={(id) => patch({ mood: toggleInArray(form.mood, id) })}
-                      activeClass={CHIP_ACTIVE_MOOD}
-                    />
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Energy */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={Zap}
-                      iconWrapClass="rounded-sm bg-sky-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.energy}
-                    />
-                    <PillGroup
-                      options={LOG_SCREEN_LABELS.bodySignals.energy}
-                      value={form.energy}
-                      onChange={(v) => patch({ energy: v })}
-                    />
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Sleep */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={Moon}
-                      iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.sleep}
-                    />
-                    <PillGroup
-                      options={LOG_SCREEN_LABELS.bodySignals.sleep}
-                      value={form.sleepQuality}
-                      onChange={(v) => patch({ sleepQuality: v })}
-                    />
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Libido */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={HeartPulse}
-                      iconWrapClass="rounded-sm bg-pink-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.libido}
-                    />
-                    <PillGroup
-                      options={LOG_SCREEN_LABELS.bodySignals.libido}
-                      value={form.libido}
-                      onChange={(v) => patch({ libido: v })}
-                    />
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Sexual Activity */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={Heart}
-                      iconWrapClass="rounded-sm bg-purple-500 shadow-sm"
-                      label={LOG_SCREEN_LABELS.fields.sexActivity}
-                    />
-                    <PillGroup
-                      options={LOG_SCREEN_LABELS.bodySignals.sexActivity}
-                      value={form.sexActivity}
-                      onChange={(v) => patch({ sexActivity: v })}
-                    />
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Factors (Disturbances) — affect temperature reliability */}
-                  <div className="py-3.5 px-4 flex flex-col gap-3">
-                    <FieldHeader
-                      icon={Info}
-                      iconWrapClass="rounded-sm bg-zinc-400 dark:bg-zinc-600 shadow-sm"
-                      label={LOG_SCREEN_LABELS.symptoms.disturbances.title}
-                    />
-                    <ChipGroup
-                      options={LOG_SCREEN_LABELS.symptoms.disturbances.options}
-                      selected={form.disturbances}
-                      onToggle={(id) =>
-                        patch({ disturbances: toggleInArray(form.disturbances, id) })
-                      }
-                      activeClass={CHIP_ACTIVE_FACTORS}
-                    />
-                    <p className="text-[12px] text-muted-foreground leading-snug">
-                      {LOG_SCREEN_LABELS.hints.factors}
-                    </p>
-                  </div>
-
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
-
-                  {/* Notes */}
-                  <div className="py-3.5 px-4 flex flex-col gap-2">
-                    <FieldHeader
-                      icon={FileText}
-                      iconWrapClass="rounded-sm bg-yellow-500/10 shrink-0"
-                      iconClass="icon-sm text-yellow-500"
-                      label={LOG_SCREEN_LABELS.fields.notes}
-                    />
-                    <textarea
-                      value={form.notes}
-                      onChange={(e) => patch({ notes: e.target.value })}
-                      maxLength={100}
-                      placeholder="Add a note..."
-                      className="w-full min-h-[60px] text-[15px] font-normal bg-zinc-50/50 dark:bg-zinc-900/30 rounded-xl border-none focus:ring-0 focus:outline-none p-3 text-zinc-900 dark:text-white placeholder:text-zinc-300 resize-none"
-                    />
-                    <div className="flex justify-end">
-                      <span
-                        className={cn(
-                          'text-[11px] font-medium tracking-tight',
-                          form.notes.length >= 100 ? 'text-red-500' : 'text-muted-foreground'
-                        )}
-                      >
-                        {form.notes.length}/100
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </InsetGroup>
+              <LogWellnessSection
+                form={form}
+                showMore={showMore}
+                toggleMore={toggleMore}
+                filledFieldsSummary={filledFieldsSummary}
+                patch={patch}
+              />
 
               {/* Action Buttons */}
               <div className="px-4 pb-8 space-y-3">

@@ -6,6 +6,7 @@ interface SettingsActionRowProps {
   icon: React.ReactNode;
   iconBgColor: string;
   label: string;
+  detail?: string;
   onClick: () => void;
   disabled?: boolean;
   destructive?: boolean;
@@ -23,6 +24,7 @@ export function SettingsActionRow({
   icon,
   iconBgColor,
   label,
+  detail,
   onClick,
   disabled,
   destructive,
@@ -57,13 +59,20 @@ export function SettingsActionRow({
           {label}
         </div>
       </div>
-      {locked ? (
-        <Lock className="icon-sm text-zinc-300 dark:text-zinc-600" />
-      ) : (
-        <ChevronRight
-          className={cn('icon-sm', destructive ? 'text-rose-400/50' : 'text-zinc-300')}
-        />
-      )}
+      <div className="flex items-center gap-2">
+        {detail && !locked && (
+          <span className="max-w-[150px] truncate text-[13px] text-zinc-500 dark:text-zinc-400">
+            {detail}
+          </span>
+        )}
+        {locked ? (
+          <Lock className="icon-sm text-zinc-300 dark:text-zinc-600" />
+        ) : (
+          <ChevronRight
+            className={cn('icon-sm', destructive ? 'text-rose-400/50' : 'text-zinc-300')}
+          />
+        )}
+      </div>
     </button>
   );
 }

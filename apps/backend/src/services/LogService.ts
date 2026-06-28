@@ -23,7 +23,6 @@ export interface LogUpsertData {
     disturbances?: string[];
     symptoms?: string[];
     notes?: string | null;
-    authType?: 'cookie' | 'api_key';
     today?: string; // current date for engine context
 }
 
@@ -43,13 +42,9 @@ export class LogService {
     }
 
     async upsertLogAndTriggerEngine(data: LogUpsertData) {
-        const { userId, date, authType } = data;
+        const { userId, date } = data;
         const today = data.today || date;
 
-        const isApiKey = authType === 'api_key';
-        const existing = isApiKey ? await this.logRepo.getLog(userId, date) : null;
-
-        // Merge logic if API key, otherwise take from body
         // Normalize UI sentinel values to DB-safe values
         const sanitizedLhTest = (data.lhTest === 'notTaken' || data.lhTest === '') ? null : data.lhTest;
         const sanitizedBleeding = data.bleeding === 'none' ? null : data.bleeding;
@@ -58,13 +53,13 @@ export class LogService {
             id: randomUUID(),
             user_id: userId,
             date: date,
-            bleeding: (isApiKey ? (sanitizedBleeding ?? existing?.bleeding ?? null) : (sanitizedBleeding ?? null)) as any,
-            temperature: isApiKey ? (data.temperature ?? existing?.temperature ?? null) : (data.temperature ?? null),
-            mucus: (isApiKey ? (data.mucusType ?? existing?.mucus ?? null) : (data.mucusType ?? null)) as any,
-            lh_test: (isApiKey ? (sanitizedLhTest ?? existing?.lh_test ?? null) : (sanitizedLhTest ?? null)) as any,
-            disturbances: isApiKey ? (data.disturbances ?? existing?.disturbances ?? []) : (data.disturbances || []),
-            symptoms: isApiKey ? (data.symptoms ?? existing?.symptoms ?? []) : (data.symptoms || []),
-            notes: isApiKey ? (data.notes ?? existing?.notes ?? null) : (data.notes ?? null),
+            bleeding: (sanitizedBleeding ?? null) as any,
+            temperature: data.temperature ?? null,
+            mucus: (data.mucusType ?? null) as any,
+            lh_test: (sanitizedLhTest ?? null) as any,
+            disturbances: data.disturbances || [],
+            symptoms: data.symptoms || [],
+            notes: data.notes ?? null,
         };
 
         // 1. Prepare parallel promises

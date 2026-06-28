@@ -37,7 +37,6 @@ const USER_SCOPED_TABLES = [
   'cycles',
   'user_settings',
   'user_identities',
-  'user_api_keys',
   'subscriptions',
 ];
 

@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
+import sentry from '@sentry/astro';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,10 +29,24 @@ const env = loadEnv(mode, envDir, '');
 const frontendPort = Number(env.FRONTEND_PORT || 3000);
 const frontendPreviewPort = Number(env.FRONTEND_PREVIEW_PORT || frontendPort);
 
+const isSelfHost = env.SELF_HOST === 'true';
+const sentryDsn = env.SENTRY_DSN;
+
+const integrations = [react(), sitemap()];
+
+if (sentryDsn && !isSelfHost) {
+  integrations.push(
+    sentry({
+      dsn: sentryDsn,
+      tracesSampleRate: 0.1,
+    })
+  );
+}
+
 export default defineConfig({
   site: 'https://canihavesex.today',
   output: 'static',
-  integrations: [react(), sitemap()],
+  integrations,
   devToolbar: {
     enabled: false,
   },

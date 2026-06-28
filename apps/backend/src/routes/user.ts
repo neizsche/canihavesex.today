@@ -5,9 +5,7 @@ import { LogRepository } from '../repositories/LogRepository.js';
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js';
 import { SettingsRepository } from '../repositories/SettingsRepository.js';
-import { ApiKeyRepository } from '../repositories/ApiKeyRepository.js';
 import { EngineService } from '../services/EngineService.js';
-import { generateApiKey } from '../apiKeys.js';
 import { cacheService } from '../services/CacheService.js';
 import { isoToday } from '../utils/dates.js';
 
@@ -20,7 +18,6 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
     const cycleRepo = new CycleRepository(opts.db);
     const statusRepo = new DailyStatusRepository(opts.db);
     const settingsRepo = new SettingsRepository(opts.db);
-    const apiKeyRepo = new ApiKeyRepository(opts.db);
     const engineService = new EngineService(opts.db);
 
     // PATCH /api/v1/user/preferences — completes onboarding.
@@ -235,75 +232,5 @@ export async function userRoutes(fastify: FastifyInstance, opts: { db: any }) {
         reply.clearCookie('uid', { path: '/' });
 
         return { ok: true, message: 'Account deleted' };
-    });
-
-    // GET /api/v1/keys (List API keys)
-    app.get('/api/v1/keys', async (req, reply) => {
-        const userId = req.userId!;
-        const keys = await apiKeyRepo.listByUserId(userId);
-        return {
-            keys: keys.map((key) => ({
-                id: key.id,
-                name: key.name,
-                keyPrefix: key.key_prefix,
-                createdAt: key.created_at,
-                lastUsedAt: key.last_used_at,
-                revokedAt: key.revoked_at
-            }))
-        };
-    });
-
-    // POST /api/v1/keys (Create API key)
-    app.post('/api/v1/keys', {
-        schema: {
-            body: z.object({
-                name: z.string().nullable().optional(),
-                regenerate: z.boolean().optional()
-            }).optional().default({})
-        }
-    }, async (req, reply) => {
-        const userId = req.userId!;
-        const body = req.body;
-        const nameRaw = typeof body.name === 'string' ? body.name.trim() : '';
-        const name = nameRaw || `Apple Shortcut ${new Date().toISOString().slice(0, 10)}`;
-
-        if (body.regenerate) {
-            await apiKeyRepo.revokeAllByUserId(userId);
-        }
-
-        const { token, hash, prefix } = generateApiKey();
-        const id = randomUUID();
-        const createdAt = new Date().toISOString();
-
-        await apiKeyRepo.create({
-            id,
-            user_id: userId,
-            name,
-            key_hash: hash,
-            key_prefix: prefix,
-            created_at: createdAt
-        });
-
-        return {
-            key: token,
-            keyId: id,
-            keyPrefix: prefix,
-            name,
-            createdAt
-        };
-    });
-
-    // DELETE /api/v1/keys/:id (Revoke API key)
-    app.delete('/api/v1/keys/:id', {
-        schema: {
-            params: z.object({
-                id: z.string()
-            })
-        }
-    }, async (req, reply) => {
-        const userId = req.userId!;
-        const keyId = req.params.id;
-        await apiKeyRepo.revokeById(userId, keyId);
-        return { ok: true };
     });
 }

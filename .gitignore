@@ -30,3 +30,11 @@ dist/
 .idea/
 .vscode/
 .agent/
+
+# local AI assistant scaffolding
+AI_CONTEXT.md
+AGENTS.md
+**/AGENTS.md
+.agents/
+.ai/
+.claude/

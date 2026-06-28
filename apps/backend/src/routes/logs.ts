@@ -68,7 +68,6 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
             ...req.body,
             userId,
             date: req.params.date,
-            authType: req.authType,
             today
         });
         cacheService.invalidateUser(userId);

@@ -33,6 +33,9 @@ const migrations: Migration[] = [
         $$ language 'plpgsql';
       `);
 
+      // Drop user_api_keys table if it exists
+      await db.exec('DROP TABLE IF EXISTS user_api_keys CASCADE;');
+
       // --- Tables -----------------------------------------------------------
       await db.exec(`
         CREATE TABLE IF NOT EXISTS users (
@@ -52,16 +55,6 @@ const migrations: Migration[] = [
           UNIQUE(provider, provider_user_id)
         );
 
-        CREATE TABLE IF NOT EXISTS user_api_keys (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          name TEXT,
-          key_hash TEXT NOT NULL UNIQUE,
-          key_prefix TEXT NOT NULL,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          last_used_at TIMESTAMPTZ,
-          revoked_at TIMESTAMPTZ
-        );
 
         -- Per-user settings. Merges the former user_preferences (UI/onboarding)
         -- and user_metadata (engine baselines) tables: they were both 1:1 with
@@ -142,8 +135,6 @@ const migrations: Migration[] = [
         -- At most one active cycle (end_date IS NULL) per user.
         CREATE UNIQUE INDEX IF NOT EXISTS idx_cycles_user_active ON cycles (user_id) WHERE end_date IS NULL;
         CREATE INDEX IF NOT EXISTS idx_daily_status_user_date ON daily_status (user_id, date DESC);
-        CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_id ON user_api_keys (user_id);
-        CREATE INDEX IF NOT EXISTS idx_user_api_keys_hash ON user_api_keys (key_hash);
       `);
 
       // --- updated_at triggers ---------------------------------------------

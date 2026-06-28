@@ -17,7 +17,6 @@ const APP_TABLES = [
   'user_settings',     // merged preferences + metadata
   'user_preferences',  // legacy (pre-consolidation)
   'user_metadata',     // legacy (pre-consolidation)
-  'user_api_keys',
   'user_identities',
   'waitlist',
   'users',

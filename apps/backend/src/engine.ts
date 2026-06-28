@@ -1,3 +1,14 @@
+/**
+ * @module Fertility Engine
+ * @description The core deterministic algorithm that calculates daily fertility status.
+ * This is a pure function layer with no external side-effects.
+ * 
+ * CRITICAL AI INSTRUCTION: Do NOT change the rules in this file without explicit 
+ * permission and a full understanding of docs/design/fertility-engine-v6.md.
+ * 
+ * Rule of Thumb: When a signal is missing or unclear, assume the user is fertile.
+ */
+
 import { randomUUID } from 'node:crypto';
 import { Log } from './repositories/LogRepository.js';
 import { DailyStatus } from './repositories/DailyStatusRepository.js';
@@ -142,6 +153,13 @@ function roundToStep(value: number, step: number): number {
 // =============================================================================
 // Main entry — signature unchanged (consumed by EngineService).
 // =============================================================================
+/**
+ * Executes the core fertility engine against a user's logs to generate daily statuses and cycle objects.
+ * 
+ * @param {string} userId - The ID of the user.
+ * @param {EngineContext} context - Contains logs, metadata (average cycle length, regularity), existing cycles, and timezone info.
+ * @returns {{ statuses: DailyStatus[], cycles: Cycle[] }} The derived daily statuses and identified cycles.
+ */
 export function runFusionEngine(userId: string, context: EngineContext): {
     statuses: DailyStatus[];
     cycles: Cycle[];

@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from 'fastify';
+import * as Sentry from '@sentry/node';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
@@ -20,7 +21,6 @@ import { createRateLimitMiddleware } from './rateLimiter.js';
 import { loadEnv } from './env.js';
 import { UserRepository } from './repositories/UserRepository.js';
 import { SettingsRepository } from './repositories/SettingsRepository.js';
-import { ApiKeyRepository } from './repositories/ApiKeyRepository.js';
 import { EmailVerificationRepository } from './repositories/EmailVerificationRepository.js';
 import { SubscriptionRepository } from './repositories/SubscriptionRepository.js';
 import { BillingEventRepository } from './repositories/BillingEventRepository.js';
@@ -32,7 +32,6 @@ import { isoToday } from './utils/dates.js';
 import { createDodoProviderFromEnv } from './billing/DodoProvider.js';
 import { sendVerificationEmail, sendPurchaseConfirmationEmail } from './email.js';
 import { isEmailVerificationEnabled } from './emailVerification.js';
-import { extractApiKey, hashApiKey } from './apiKeys.js';
 import authPlugin from './plugins/auth.js';
 
 import { authRoutes } from './routes/auth.js';
@@ -154,6 +153,16 @@ export async function createApp() {
     const error = err as any;
     const statusCode = error.statusCode || 500;
 
+    if (statusCode >= 500 && process.env.SENTRY_DSN && process.env.SELF_HOST !== 'true') {
+      Sentry.captureException(err, {
+        user: { id: userId },
+        extra: {
+          method: req.method,
+          url: req.url,
+        },
+      });
+    }
+
     return reply.status(statusCode).send({
       error:
         statusCode === 400
@@ -222,7 +231,6 @@ export async function createApp() {
 
   const userRepository = new UserRepository(db);
   const settingsRepository = new SettingsRepository(db);
-  const apiKeyRepository = new ApiKeyRepository(db);
   const subscriptionRepository = new SubscriptionRepository(db);
   const billingEventRepository = new BillingEventRepository(db);
   const entitlementService = new EntitlementService(userRepository, subscriptionRepository);
@@ -253,7 +261,6 @@ export async function createApp() {
   // 2. Register Auth Plugin
   await app.register(authPlugin, {
     userRepository,
-    apiKeyRepository,
   });
 
   // Health check endpoint (kept in index as it's a system route)

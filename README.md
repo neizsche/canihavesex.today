@@ -72,34 +72,21 @@ are set — the sign-in screen adapts to whatever is configured. See `.env.examp
 
 ## Project layout
 
-- `apps/backend` — Fastify API + the fertility engine (`src/engine.ts`)
-- `apps/frontend` — Astro/React UI (Today / Log / Chart / Settings)
+For a full directory map and navigation order, see [docs/repository-map.md](./docs/repository-map.md).
+
+- **Frontend (`apps/frontend`)**: Astro/React UI.
+- **Backend (`apps/backend`)**: Fastify API + the fertility engine (`src/engine.ts`).
+
+For system architecture and data flow, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## How this app works
 
-You log what your body tells you each day — bleeding, basal body temperature,
-cervical fluid, and LH tests. Behind the scenes, one open-source engine
-(`apps/backend/src/engine.ts`) turns those signals into a single daily answer.
-The frontend only displays what the engine decides.
+You log what your body tells you each day — bleeding, basal body temperature, cervical fluid, and LH tests. Behind the scenes, one open-source engine (`apps/backend/src/engine.ts`) turns those signals into a single daily answer.
 
-In plain terms, the engine:
+One rule guides every call: **when the signal is unclear, it assumes you're fertile.** It never implies it's safe to skip protection. 
 
-1. **Finds your cycles** from the period days you log, and works out where you
-   are in the current one.
-2. **Reads your fertility signals.** A rise in temperature *confirms* ovulation
-   has happened; a positive LH test or fertile-quality fluid *signals* it's
-   coming. The more you log, the more confident the estimate.
-3. **Falls back to the calendar** when you haven't logged those signals —
-   estimating your fertile window from the length of your past cycles.
-4. **Marks your fertile window** around the estimated ovulation day.
-5. **Gives each day a status** — `period`, `fertile`, `not fertile`, or `unsure`
-   — always with a confidence level, and the signals behind it, so you can see
-   *why*.
-
-One rule guides every call: **when the signal is unclear, it assumes you're
-fertile.** It never implies it's safe to skip protection. The engine is open and
-inspectable on purpose — see [docs/design/fertility-engine-v6.md](./docs/design/fertility-engine-v6.md)
-for the full specification.
+*For detailed technical rules, terminology, and product philosophy, see [AI_CONTEXT.md](./AI_CONTEXT.md).*
+*For the full engine specification, see [docs/design/fertility-engine-v6.md](./docs/design/fertility-engine-v6.md).*
 
 ## Disclaimer
 

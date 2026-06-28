@@ -141,6 +141,18 @@ export function payloadToFormState(
   };
 }
 
+export function suggestionToFormState(
+  p: LogPayload,
+  unit: TemperatureUnit = 'celsius'
+): LogFormState {
+  return {
+    ...EMPTY_LOG_STATE,
+    ...bleedingFields(p.bleeding),
+    bbt: celsiusToDisplay(p.temperature, unit),
+    mucus: p.mucusType || null,
+  };
+}
+
 /**
  * Clamp the raw input string for display on blur: snaps an out-of-range entry
  * to the nearest bound so the corrected value is visible before save. Empty or
