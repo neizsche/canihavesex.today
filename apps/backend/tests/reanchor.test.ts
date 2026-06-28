@@ -1,9 +1,10 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeReanchorFlags, type ReanchorFlagsInput } from './reanchor.js';
+import { computeReanchorFlags, type ReanchorFlagsInput } from '../src/reanchor.js';
 
 const CYCLE_START = '2026-06-01';
 
+// Helper to construct test input
 function input(overrides: Partial<ReanchorFlagsInput> = {}): ReanchorFlagsInput {
   return {
     lostTrack: false,

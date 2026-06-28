@@ -6,7 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test": "node --import tsx --test src/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
     "simulate:normal": "tsx src/scripts/simulateUser.ts",
     "seed:demo": "tsx src/scripts/seedDemo.ts",
     "reset:db": "RESET_DB_CONFIRM=yes tsx src/scripts/resetDb.ts",

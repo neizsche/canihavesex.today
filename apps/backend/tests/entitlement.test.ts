@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateEntitlement, type EntitlementInput, type SubscriptionView } from './entitlement.js';
+import { evaluateEntitlement, type EntitlementInput, type SubscriptionView } from '../src/entitlement.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const TRIAL = 14 * DAY;

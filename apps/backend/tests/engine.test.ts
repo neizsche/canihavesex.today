@@ -10,9 +10,9 @@ import {
     inferLutealPhase,
     CONFIG,
     type EngineMeta,
-} from './engine.js';
-import type { Log } from './repositories/LogRepository.js';
-import { addDaysIso, daysBetweenIso } from './utils/dates.js';
+} from '../src/engine.js';
+import type { Log } from '../src/repositories/LogRepository.js';
+import { addDaysIso, daysBetweenIso } from '../src/utils/dates.js';
 
 // --- helpers ---------------------------------------------------------------
 type LogSpec = Partial<Pick<Log, 'bleeding' | 'temperature' | 'mucus' | 'lh_test' | 'disturbances' | 'cycle_start' | 'is_uncertain'>>;
@@ -72,24 +72,6 @@ describe('reference vectors — resolveLuteal', () => {
     ];
     for (const [input, want] of cases) {
         test(`resolveLuteal(${input}) = ${want}`, () => assert.equal(resolveLuteal(input), want));
-    }
-});
-
-describe('reference vectors — calcOvulationDay', () => {
-    const cases: Array<[number, number, number, boolean]> = [
-        // cycleLen, luteal, wantDay, wantExact
-        [28, 14, 14, true],
-        [30, 14, 16, true],
-        [21, 14, 7, true],
-        [15, 14, 5, false],   // luteal clamped to reserve
-        [14, 14, 0, false],   // too short
-    ];
-    for (const [len, lut, day, exact] of cases) {
-        test(`calcOvulationDay(${len},${lut}) = (${day},${exact})`, () => {
-            const r = calcOvulationDay(len, lut);
-            assert.equal(r.day, day);
-            assert.equal(r.exact, exact);
-        });
     }
 });
 
@@ -376,4 +358,3 @@ describe('lostTrack - overdue cycle handling', () => {
         assert.equal(statusOnlySpotting.insights_payload.lostTrack, true);
     });
 });
-

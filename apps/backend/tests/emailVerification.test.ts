@@ -8,12 +8,12 @@ import {
   generateCode,
   hashCode,
   isEmailVerificationEnabled,
-} from './emailVerification.js';
+} from '../src/emailVerification.js';
 import {
   EmailVerificationService,
   type StoredCode,
   type VerificationStore,
-} from './services/EmailVerificationService.js';
+} from '../src/services/EmailVerificationService.js';
 
 const SECRET = 'test-secret-at-least-32-chars-long-xxxxx';
 
@@ -156,6 +156,9 @@ describe('cloud: EmailVerificationService.verify', () => {
   });
 });
 
+// =============================================================================
+// Cloud variant: the verification service behaviour
+// =============================================================================
 describe('cloud: EmailVerificationService.requestCode', () => {
   let store: FakeStore;
   let sender: ReturnType<typeof makeSender>;

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPatterns, type Phase } from './utils/patterns.js';
+import { buildPatterns, type Phase } from '../src/utils/patterns.js';
 
 // Helper: build a phase map and a list of logs all sharing one phase per date.
 function phaseMap(entries: Record<string, Phase>): Map<string, Phase> {
