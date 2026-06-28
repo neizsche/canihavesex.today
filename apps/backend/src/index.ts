@@ -26,8 +26,8 @@ import { SubscriptionRepository } from './repositories/SubscriptionRepository.js
 import { BillingEventRepository } from './repositories/BillingEventRepository.js';
 import { EmailVerificationService } from './services/EmailVerificationService.js';
 import { EntitlementService } from './services/EntitlementService.js';
-import { isBillingEnabled, isSelfHost } from './entitlement.js';
-import { DEMO_EMAIL, isDemoAccountEnabled } from './demo.js';
+import { isBillingEnabled } from './entitlement.js';
+import { isSelfHost, shouldBypassHttpsRedirect, DEMO_EMAIL, isDemoAccountEnabled } from './config.js';
 import { isoToday } from './utils/dates.js';
 import { createDodoProviderFromEnv } from './billing/DodoProvider.js';
 import { sendVerificationEmail, sendPurchaseConfirmationEmail } from './email.js';
@@ -88,14 +88,17 @@ export async function createApp() {
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-    // Enforce HTTPS in production
-    if (process.env.NODE_ENV === 'production') {
-      const xfProto = (req.headers['x-forwarded-proto'] as string | undefined)
-        ?.split(',')[0]
-        ?.trim();
-      const proto = xfProto || (req as any).protocol;
-      if (proto && proto !== 'https') {
-        return reply.redirect(`https://${req.headers.host}${req.url}`);
+    // Enforce HTTPS in production (exempting /health for local/container healthchecks, and when self-hosted or explicitly disabled)
+    if (process.env.NODE_ENV === 'production' && !shouldBypassHttpsRedirect()) {
+      const path = req.url.split('?')[0] ?? req.url;
+      if (path !== '/health') {
+        const xfProto = (req.headers['x-forwarded-proto'] as string | undefined)
+          ?.split(',')[0]
+          ?.trim();
+        const proto = xfProto || (req as any).protocol;
+        if (proto && proto !== 'https') {
+          return reply.redirect(`https://${req.headers.host}${req.url}`);
+        }
       }
     }
 
@@ -153,7 +156,7 @@ export async function createApp() {
     const error = err as any;
     const statusCode = error.statusCode || 500;
 
-    if (statusCode >= 500 && process.env.SENTRY_DSN && process.env.SELF_HOST !== 'true') {
+    if (statusCode >= 500 && process.env.SENTRY_DSN && !isSelfHost()) {
       Sentry.captureException(err, {
         user: { id: userId },
         extra: {

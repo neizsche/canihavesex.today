@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # Required for Workload Identity Federation
+      packages: write # Required to push to GHCR
 
     steps:
       - name: Checkout code
@@ -36,12 +37,38 @@ jobs:
       - name: Authenticate Docker to Artifact Registry
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
-      - name: Build and push Docker image
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up GHCR Image Name
         run: |
-          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}"
-          docker build -t "${IMAGE}:${{ github.sha }}" -t "${IMAGE}:latest" .
-          docker push "${IMAGE}:${{ github.sha }}"
-          docker push "${IMAGE}:latest"
+          # Convert owner name to lowercase for GHCR compatibility
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "GHCR_IMAGE=ghcr.io/${OWNER_LOWER}/canihavesex" >> $GITHUB_ENV
+
+      - name: Build and push Docker images
+        run: |
+          GCP_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}"
+          
+          # Build the image once and tag it for both GCP and GHCR
+          docker build \
+            -t "${GCP_IMAGE}:${{ github.sha }}" \
+            -t "${GCP_IMAGE}:latest" \
+            -t "${{ env.GHCR_IMAGE }}:${{ github.sha }}" \
+            -t "${{ env.GHCR_IMAGE }}:latest" \
+            .
+          
+          # Push to GCP Artifact Registry
+          docker push "${GCP_IMAGE}:${{ github.sha }}"
+          docker push "${GCP_IMAGE}:latest"
+          
+          # Push to GitHub Container Registry
+          docker push "${{ env.GHCR_IMAGE }}:${{ github.sha }}"
+          docker push "${{ env.GHCR_IMAGE }}:latest"
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2

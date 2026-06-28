@@ -10,7 +10,7 @@ import { DailyStatusRepository } from '../repositories/DailyStatusRepository.js'
 import { runFusionEngine } from '../engine.js';
 import { hashPassword } from '../password.js';
 import { ensureUserForEmail } from '../auth.js';
-import { DEMO_EMAIL } from '../demo.js';
+import { DEMO_EMAIL } from '../config.js';
 import { addDaysIso, isoToday } from '../utils/dates.js';
 import { loadEnv } from '../env.js';
 import { randomUUID } from 'node:crypto';

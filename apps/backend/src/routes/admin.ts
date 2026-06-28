@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { timingSafeEqual } from 'node:crypto';
 import { seedDemoAccount } from '../scripts/seedDemo.js';
-import { isDemoAccountEnabled } from '../demo.js';
+import { isDemoAccountEnabled } from '../config.js';
 
 /**
  * Operational endpoints meant for a scheduler/cron, not the browser. They are

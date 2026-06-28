@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CreditCard, HelpCircle, Infinity as InfinityIcon } from 'lucide-react';
+import { CreditCard, HelpCircle, Infinity as InfinityIcon, Check, ChevronRight } from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { SettingsActionRow, SettingsExpandableRow } from '@/components/common/ui/settings-row';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
@@ -113,7 +113,7 @@ export function BillingSection({
           )}
 
           {isYearly && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {cancelAtPeriodEnd && (
                 <p className="text-[13px] leading-relaxed text-muted-foreground">
                   Your plan cancels on {formatDate(currentPeriodEnd)}. You keep full access until
@@ -121,37 +121,71 @@ export function BillingSection({
                 </p>
               )}
 
-              <div className="overflow-hidden rounded-2xl border border-[#007aff]/25 bg-gradient-to-b from-[#007aff]/[0.06] to-[#007aff]/[0.02] dark:border-[#0a84ff]/25 dark:from-[#0a84ff]/[0.12] dark:to-[#0a84ff]/[0.04]">
-                <div className="flex items-center gap-3 px-4 pt-4">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#007aff]/10 dark:bg-[#0a84ff]/20">
-                    <InfinityIcon
-                      className="h-[18px] w-[18px] text-[#007aff] dark:text-[#0a84ff]"
-                      strokeWidth={2.25}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
-                      {PLANS.lifetime.name}
-                    </div>
-                    <div className="text-[12px] text-muted-foreground">Pay once. Never renews.</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[17px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                      {PLANS.lifetime.price}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {PLANS.lifetime.cadence}
-                    </div>
-                  </div>
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500 px-1">
+                  Options
                 </div>
-                <div className="p-4 pt-3">
+                <div className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/20 divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
+                  {/* Yearly Row (Active) */}
+                  <div className="flex items-center justify-between px-4 py-3.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        {PLANS.yearly.name}
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20">
+                          Active
+                        </span>
+                      </div>
+                      <div className="text-[12px] text-muted-foreground mt-0.5">
+                        {cancelAtPeriodEnd
+                          ? `Expires ${formatDate(currentPeriodEnd)}`
+                          : currentPeriodEnd
+                            ? `Renews ${formatDate(currentPeriodEnd)}`
+                            : 'Active subscription'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                          {PLANS.yearly.price}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {PLANS.yearly.cadence}
+                        </div>
+                      </div>
+                      <Check className="h-4 w-4 text-[#007aff] dark:text-[#0a84ff]" strokeWidth={3} />
+                    </div>
+                  </div>
+
+                  {/* Lifetime Row (Upgrade Option) */}
                   <button
                     type="button"
                     disabled={checkoutBusy !== null}
                     onClick={() => startCheckout('lifetime')}
-                    className="w-full rounded-full bg-[#007aff] py-3 text-[15px] font-semibold text-white transition-all duration-150 active:scale-[0.99] disabled:opacity-60 dark:bg-[#0a84ff]"
+                    className="w-full flex items-center justify-between px-4 py-3.5 text-left transition-colors duration-150 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 active:bg-zinc-200/50 dark:active:bg-zinc-700/30 disabled:opacity-50"
                   >
-                    {checkoutBusy === 'lifetime' ? 'Redirecting…' : 'Upgrade to Lifetime'}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+                        {PLANS.lifetime.name}
+                      </div>
+                      <div className="text-[12px] text-muted-foreground mt-0.5">
+                        Pay once. Never renews.
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                          {PLANS.lifetime.price}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {PLANS.lifetime.cadence}
+                        </div>
+                      </div>
+                      {checkoutBusy === 'lifetime' ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#007aff] border-t-transparent dark:border-[#0a84ff]" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-600" />
+                      )}
+                    </div>
                   </button>
                 </div>
               </div>

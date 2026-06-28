@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import type { UserRepository } from './repositories/UserRepository.js';
 import type { SettingsRepository } from './repositories/SettingsRepository.js';
+import { isPasswordAuthDefaultEnabled, isCookieSecureRequired } from './config.js';
 
 export type OauthProvider = 'google' | 'apple';
 
@@ -109,11 +110,12 @@ export function googleConfigured(): boolean {
     return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-/** Whether email/password authentication is enabled. Defaults to false in production. */
+/** Whether email/password authentication is enabled. Defaults to false in production unless self-hosted. */
 export function isPasswordAuthEnabled(): boolean {
     const envVal = process.env.ENABLE_PASSWORD_AUTH;
     if (envVal === 'false') return false;
     if (envVal === 'true') return true;
+    if (isPasswordAuthDefaultEnabled()) return true;
     return process.env.NODE_ENV !== 'production';
 }
 
@@ -121,7 +123,8 @@ export function sessionCookieOptions() {
     // COOKIE_SAMESITE=none enables cross-domain cookies (split frontend/backend);
     // default 'lax' is correct for the same-origin single-image deployment.
     const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
-    const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
+    const secure = isCookieSecureRequired() || sameSite === 'none';
+
     return { path: '/', httpOnly: true, sameSite, secure } as const;
 }
 

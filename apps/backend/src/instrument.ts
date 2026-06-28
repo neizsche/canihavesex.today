@@ -1,13 +1,14 @@
 import { loadEnv } from './env.js';
 import * as Sentry from '@sentry/node';
 
+import { isSelfHost } from './config.js';
+
 // Load environment variables so Sentry can read SENTRY_DSN and SELF_HOST
 loadEnv();
 
 const dsn = process.env.SENTRY_DSN;
-const isSelfHost = process.env.SELF_HOST === 'true';
 
-if (dsn && !isSelfHost) {
+if (dsn && !isSelfHost()) {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV || 'development',

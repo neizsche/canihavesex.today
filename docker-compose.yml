@@ -3,42 +3,26 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-canihavesex}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-canihavesex}
+      POSTGRES_USER: canihavesex
+      POSTGRES_PASSWORD: canihavesex_secure_password_change_me
+      POSTGRES_DB: canihavesex
     volumes:
       - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-canihavesex}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   app:
-    build: .
-    # To use a published image instead of building locally, comment out `build: .`
-    # above and uncomment the line below:
-    # image: ghcr.io/OWNER/canihavesex:latest
+    image: ghcr.io/neizsche/canihavesex:latest
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-canihavesex}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-canihavesex}
+      DATABASE_URL: postgres://canihavesex:canihavesex_secure_password_change_me@db:5432/canihavesex
       DB_SSL: "false"
       NODE_ENV: production
       PORT: "1299"
-      # This is the free, self-hosted edition. SELF_HOST hard-disables billing,
-      # payments and purchase emails — they stay off even if BILLING_ENABLED or
-      # the DODO_*/RESEND_* keys are added.
       SELF_HOST: "true"
-      # Generate with: openssl rand -hex 32
-      COOKIE_SECRET: ${COOKIE_SECRET:?set COOKIE_SECRET in .env (openssl rand -hex 32)}
-      # Optional Google OAuth. Leave unset for email + password only.
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      COOKIE_SECRET: default_cookie_secret_please_change_in_production_32_chars
     ports:
-      - "${APP_PORT:-3000}:1299"
+      - "3112:1299"
 
 volumes:
   db_data:

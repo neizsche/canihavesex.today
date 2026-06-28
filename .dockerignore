@@ -10,7 +10,14 @@ dist
 *.log
 .DS_Store
 **/.DS_Store
-118101.xyz
 supabase/.temp
 .agent
 .claude
+
+# AI and agent configuration
+.ai
+.agents
+
+# Documentation
+docs
+*.md

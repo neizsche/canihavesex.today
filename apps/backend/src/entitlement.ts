@@ -3,18 +3,10 @@
 // functions (no DB, no env reads inside evaluateEntitlement) so the trial /
 // subscription rules are unit-tested in isolation; see entitlement.test.ts.
 
+import { isSelfHost } from './config.js';
+
 export type Plan = 'yearly' | 'lifetime';
 export type SubStatus = 'active' | 'canceled' | 'past_due';
-
-/**
- * Self-host mode. When set, the deployment is the free, self-hosted edition:
- * billing, payments and purchase emails are HARD-disabled no matter what other
- * env (BILLING_ENABLED, DODO_*, RESEND_*) is configured. This is the explicit
- * "I'm running my own copy" switch — see isBillingEnabled().
- */
-export function isSelfHost(): boolean {
-  return process.env.SELF_HOST === 'true';
-}
 
 /**
  * Whether the cloud paywall is active. Requires BILLING_ENABLED=true AND that

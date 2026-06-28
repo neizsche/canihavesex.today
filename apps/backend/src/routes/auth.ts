@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { UserRepository } from '../repositories/UserRepository.js';
 import type { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { hashPassword, verifyPassword } from '../password.js';
-import { DEMO_EMAIL, isDemoAccountEnabled } from '../demo.js';
+import { DEMO_EMAIL, isDemoAccountEnabled } from '../config.js';
 import { LogRepository } from '../repositories/LogRepository.js';
 import { EngineService } from '../services/EngineService.js';
 import { cacheService } from '../services/CacheService.js';
@@ -23,6 +23,7 @@ import {
     safeReturnTo,
     setSessionCookie,
     verifyGoogleIdToken,
+    sessionCookieOptions,
 } from '../auth.js';
 
 export async function authRoutes(
@@ -219,14 +220,12 @@ export async function authRoutes(
         if (!clientId) return reply.status(500).send({ error: 'GOOGLE_CLIENT_ID not configured' });
 
         const state = randomUUID();
-        // Support cross-domain cookies when frontend and backend are on different domains
-        const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
-        const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
+        const cookieOpts = sessionCookieOptions();
         const oauthCookieBase = {
             path: '/',
             httpOnly: true,
-            sameSite,
-            secure,
+            sameSite: cookieOpts.sameSite,
+            secure: cookieOpts.secure,
         };
         reply.setCookie('oauth_state', state, oauthCookieBase);
         reply.setCookie('oauth_return_to', returnTo, oauthCookieBase);
@@ -304,20 +303,7 @@ export async function authRoutes(
             reply.clearCookie('oauth_state', { path: '/' });
             reply.clearCookie('oauth_return_to', { path: '/' });
 
-            // Support cross-domain cookies when frontend and backend are on different domains
-            // Set COOKIE_SAMESITE=none for cross-domain, or leave unset/default to 'lax' for same-domain
-            const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
-            const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
-
-            reply.setCookie('uid', userId, {
-                path: '/',
-                httpOnly: true,
-                sameSite,
-                signed: true,
-                secure,
-                // fastify/cookie uses seconds (Set-Cookie Max-Age)
-                maxAge: 30 * 24 * 60 * 60, // 30 days
-            });
+            setSessionCookie(reply, userId);
             return reply.redirect(`${appBase()}${returnTo}`);
         } catch (e) {
             req.log.warn({ route: 'oauth/google/callback', err: e }, 'id_token verification failed');
@@ -328,13 +314,12 @@ export async function authRoutes(
     app.post('/api/signout', async (_req, reply) => {
         // Be extra defensive: some browsers can be finicky about deleting cookies if attributes differ.
         // Overwrite with an expired cookie (maxAge=0 + expires) and also attempt clearCookie with/without signing.
-        const sameSite = process.env.COOKIE_SAMESITE === 'none' ? 'none' as const : 'lax' as const;
-        const secure = process.env.NODE_ENV === 'production' || sameSite === 'none';
+        const cookieOpts = sessionCookieOptions();
         const base = {
             path: '/',
             httpOnly: true,
-            sameSite,
-            secure,
+            sameSite: cookieOpts.sameSite,
+            secure: cookieOpts.secure,
         };
 
         // Overwrite (signed)

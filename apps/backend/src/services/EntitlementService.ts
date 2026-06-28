@@ -1,6 +1,6 @@
 import type { UserRepository } from '../repositories/UserRepository.js';
 import type { SubscriptionRepository } from '../repositories/SubscriptionRepository.js';
-import { DEMO_EMAIL } from '../demo.js';
+import { DEMO_EMAIL } from '../config.js';
 import { evaluateEntitlement, trialMs, type Entitlement } from '../entitlement.js';
 
 /**
