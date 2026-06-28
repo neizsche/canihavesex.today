@@ -32,12 +32,12 @@ export function OnboardingScopeConsent({
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-[34px] font-extrabold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-[30px] font-extrabold leading-tight tracking-[-0.04em] text-zinc-900 dark:text-zinc-100">
             Daily fertility <br />
             made simple.
           </h2>
 
-          <p className="px-4 text-[19px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="px-4 text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
             Track your cycle, understand your body, and get clear fertility estimates every day.
           </p>
         </div>
@@ -47,7 +47,7 @@ export function OnboardingScopeConsent({
       <div className="onboarding-footer space-y-4">
         <button
           onClick={onContinue}
-          className="h-14 w-full rounded-2xl bg-[#007aff] text-[17px] font-bold text-white shadow-xl shadow-blue-500/25 transition-all hover:bg-[#0051d5] active:scale-[0.98]"
+          className="h-14 w-full rounded-2xl bg-[#007aff] text-[17px] font-semibold text-white shadow-xl shadow-blue-500/25 transition-all hover:bg-[#0051d5] active:scale-[0.98]"
         >
           Get Started
         </button>

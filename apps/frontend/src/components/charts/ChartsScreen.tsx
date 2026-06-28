@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
+import { Loader2 } from 'lucide-react';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { SegmentedTabs } from '@/components/common/ui/segmented-tabs';
@@ -21,7 +22,7 @@ const CHART_TABS: { value: ChartTab; label: string }[] = [
   { value: 'export', label: 'Data' },
 ];
 
-export function ChartScreen({ today: todayOverride }: { today?: Date } = {}) {
+export function ChartsScreen({ today: todayOverride }: { today?: Date } = {}) {
   const { showBranding } = useDiscreetMode();
   // "Today" is normally the wall-clock date, but can be injected — the engine
   // testing dashboard simulates a specific day so the calendar reflects it.
@@ -64,7 +65,7 @@ export function ChartScreen({ today: todayOverride }: { today?: Date } = {}) {
   }, [activeTab, todayOverride]);
 
   // Data Fetching
-  const { loading, data, statsData } = useChartData({ currentYear, currentMonth });
+  const { loading, data, statsData, statsQuery } = useChartData({ currentYear, currentMonth });
 
   // Calculate Min Date Limit Logic
   const minDateStr = data.minDate || '2020-01-01';
@@ -83,7 +84,10 @@ export function ChartScreen({ today: todayOverride }: { today?: Date } = {}) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-sm text-muted-foreground">Loading chart...</div>
+        <Loader2
+          className="h-7 w-7 animate-spin text-[#007aff] dark:text-[#0a84ff]"
+          strokeWidth={2.5}
+        />
       </div>
     );
   }
@@ -161,7 +165,7 @@ export function ChartScreen({ today: todayOverride }: { today?: Date } = {}) {
                 />
               )}
 
-              {activeTab === 'export' && <ExportView data={statsData} />}
+              {activeTab === 'export' && <ExportView />}
             </div>
           </div>
         </div>

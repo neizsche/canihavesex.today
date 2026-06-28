@@ -26,7 +26,7 @@ export function CycleScreen({ onBack }: { onBack: () => void }) {
   return (
     <SettingsSubScreen title="Cycle" onBack={onBack}>
       <div className="px-4 space-y-4">
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-[15px] leading-relaxed text-muted-foreground">
           These shape your fertility predictions. Update them whenever your cycle changes.
         </p>
 
@@ -60,7 +60,7 @@ export function CycleScreen({ onBack }: { onBack: () => void }) {
 
         {/* Segmented control for regularity */}
         <div className="space-y-1.5 pt-2">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground pl-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground pl-2">
             Cycle Regularity
           </div>
           <div className="flex items-center p-1 bg-zinc-100/80 dark:bg-zinc-800/80 rounded-xl">

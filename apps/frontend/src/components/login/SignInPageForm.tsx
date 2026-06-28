@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { AnimatePresence, motion, type Variants } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 type StatusTone = 'muted' | 'danger';
 
@@ -15,7 +15,7 @@ export function SignInPageForm({
   inputClass,
   heading,
   subheading,
-  itemVariants,
+  getItemStyle,
   onEmailChange,
   onPasswordChange,
   onCodeChange,
@@ -42,7 +42,7 @@ export function SignInPageForm({
   inputClass: string;
   heading: string;
   subheading: string;
-  itemVariants: Variants;
+  getItemStyle: (index: number) => React.CSSProperties;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onCodeChange: (value: string) => void;
@@ -55,14 +55,17 @@ export function SignInPageForm({
 }) {
   return (
     <>
-      <motion.div variants={itemVariants} className="text-center space-y-2">
-        <h1 className="text-[30px] font-bold tracking-tight text-foreground leading-tight">
+      <div
+        className="text-center space-y-2 opacity-0 animate-slide-up-fade"
+        style={getItemStyle(1)}
+      >
+        <h1 className="text-[30px] font-extrabold tracking-[-0.04em] text-foreground leading-tight">
           {heading}
         </h1>
-        <p className="text-[16px] text-muted-foreground leading-relaxed">{subheading}</p>
-      </motion.div>
+        <p className="text-[15px] text-muted-foreground leading-relaxed">{subheading}</p>
+      </div>
 
-      <motion.div variants={itemVariants} className="space-y-5">
+      <div className="space-y-5 opacity-0 animate-slide-up-fade" style={getItemStyle(2)}>
         {mode === 'verify' ? (
           <>
             <form onSubmit={onVerifySubmit} className="space-y-3">
@@ -172,24 +175,20 @@ export function SignInPageForm({
           </div>
         )}
 
-        <AnimatePresence>
-          {status && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className={
-                statusTone === 'danger'
-                  ? 'text-[14px] text-[var(--destructive)] text-center font-medium'
-                  : 'text-[14px] text-muted-foreground text-center'
-              }
-              role="status"
-            >
-              {status}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {status && (
+          <div
+            className={cn(
+              'animate-in fade-in slide-in-from-top-2 duration-200',
+              statusTone === 'danger'
+                ? 'text-[14px] text-[var(--destructive)] text-center font-medium'
+                : 'text-[14px] text-muted-foreground text-center'
+            )}
+            role="status"
+          >
+            {status}
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -126,10 +126,7 @@ function bleedingFields(bleeding?: string): Pick<LogFormState, 'bleeding' | 'flo
 // The `bbt` form field holds the value in the user's *display* unit; conversion
 // to/from canonical Celsius happens only at these seams. `unit` defaults to
 // 'celsius' so unit-agnostic call sites (and existing tests) keep working.
-export function payloadToFormState(
-  p: LogPayload,
-  unit: TemperatureUnit = 'celsius'
-): LogFormState {
+export function payloadToFormState(p: LogPayload, unit: TemperatureUnit = 'celsius'): LogFormState {
   return {
     ...bleedingFields(p.bleeding),
     bbt: celsiusToDisplay(p.temperature, unit),

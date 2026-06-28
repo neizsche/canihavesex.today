@@ -15,7 +15,7 @@ export function BillingUnconfirmed({ onBack }: { onBack: () => void }) {
         <h1 className="text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           Payment not confirmed
         </h1>
-        <p className="mx-auto max-w-xs text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mx-auto max-w-xs text-[15px] leading-relaxed text-muted-foreground">
           If you were charged, your plan will activate shortly — try refreshing in a moment.
           Otherwise you can choose a plan again.
         </p>
@@ -23,7 +23,7 @@ export function BillingUnconfirmed({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="rounded-full bg-[#007aff] px-6 py-2.5 text-[14px] font-semibold text-white transition-all duration-150 active:scale-[0.99] dark:bg-[#0a84ff]"
+        className="rounded-full bg-[#007aff] px-6 py-2.5 text-[17px] font-semibold text-white transition-all duration-150 active:scale-[0.99] dark:bg-[#0a84ff]"
       >
         Back to plans
       </button>

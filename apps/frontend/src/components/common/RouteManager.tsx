@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { TodayScreen } from '@/components/today/TodayScreen';
 import { LogScreen } from '@/components/log/LogScreen';
-import { ChartScreen } from '@/components/chart/ChartScreen';
+import { ChartsScreen } from '@/components/charts/ChartsScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
 import { Paywall } from '@/components/billing/Paywall';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
@@ -64,7 +64,7 @@ export function RouteManager({ route }: { route: RouteKey }) {
     case 'log':
       return <LogScreen />;
     case 'chart':
-      return <ChartScreen />;
+      return <ChartsScreen />;
     case 'settings':
       return <SettingsScreen />;
     // 'onboarding' is owned by SessionGate (rendered before the app chrome),

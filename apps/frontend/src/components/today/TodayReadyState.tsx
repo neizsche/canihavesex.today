@@ -106,7 +106,7 @@ export function TodayReadyState({
         <InsetGroup containerClassName="mb-0">
           <div className="flex">
             <div className="flex-1 py-4 pl-4">
-              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.06em] mb-1">
+              <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.08em] mb-1">
                 Confidence
               </div>
               <div className="text-[17px] font-bold text-zinc-800 dark:text-zinc-100 tracking-tight leading-tight">
@@ -115,7 +115,7 @@ export function TodayReadyState({
             </div>
             <div className="w-px self-stretch my-3 bg-zinc-100 dark:bg-zinc-800/80" />
             <div className="flex-1 pl-4 py-4 pr-4">
-              <div className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.06em] mb-1">
+              <div className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.08em] mb-1">
                 Basis
               </div>
               <div className="text-[17px] font-bold text-zinc-800 dark:text-zinc-100 tracking-tight leading-tight">

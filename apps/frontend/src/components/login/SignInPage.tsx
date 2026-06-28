@@ -1,8 +1,7 @@
 import * as React from 'react';
-import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { HERO } from '@/lib/siteConfig';
-import { ShieldCheck } from 'lucide-react';
-import { BrandTitle } from './BrandTitle';
+import { ShieldCheck, Loader2 } from 'lucide-react';
+import { BrandTitle } from '@/components/common/BrandTitle';
 import { SignInPageForm } from './SignInPageForm';
 import { useSignIn } from './useSignIn';
 
@@ -32,24 +31,10 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     startGoogleOauth,
   } = useSignIn({ returnTo });
 
-  const reduceMotion = useReducedMotion();
-
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.06, delayChildren: 0.08 },
-    },
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: reduceMotion ? 0 : 12 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
-    },
-  };
+  const getItemStyle = (index: number) => ({
+    animationDelay: `${0.08 + index * 0.06}s`,
+    animationFillMode: 'both' as const,
+  });
 
   const inputClass =
     'w-full h-14 px-4 rounded-xl bg-card text-[16px] text-foreground placeholder:text-muted-foreground ' +
@@ -77,9 +62,13 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
   // show only the brand mark, no form, so users redirect without a login flash.
   if (checkingSession || autoDemo) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background">
-        <div className="flex-shrink-0 pt-8 pb-4 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-6">
           <BrandTitle />
+          <Loader2
+            className="h-7 w-7 animate-spin text-[#007aff] dark:text-[#0a84ff]"
+            strokeWidth={2.5}
+          />
         </div>
       </div>
     );
@@ -89,14 +78,12 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     <div className="fixed inset-0 z-50 flex flex-col bg-background animate-in fade-in duration-300">
       <div className="flex-1 overflow-y-auto">
         <div className="min-h-full flex flex-col items-center justify-center px-6 py-8">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="w-full max-w-[400px] space-y-8"
-          >
+          <div className="w-full max-w-[400px] space-y-8">
             {/* Brand mark — same logo as Today/Help, centered directly above the form */}
-            <motion.div variants={itemVariants} className="flex justify-center">
+            <div
+              className="flex justify-center opacity-0 animate-slide-up-fade"
+              style={getItemStyle(0)}
+            >
               <img
                 src="/logo.png"
                 alt="App Logo"
@@ -106,7 +93,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
                 fetchPriority="high"
                 className="w-[72px] h-[72px] object-contain mix-blend-multiply dark:mix-blend-normal"
               />
-            </motion.div>
+            </div>
 
             <SignInPageForm
               mode={mode}
@@ -120,7 +107,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
               inputClass={inputClass}
               heading={heading}
               subheading={subheading}
-              itemVariants={itemVariants}
+              getItemStyle={getItemStyle}
               onEmailChange={setEmail}
               onPasswordChange={setPassword}
               onCodeChange={(value) => setCode(value.replace(/\D/g, '').slice(0, 6))}
@@ -136,26 +123,20 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
                 setMode(mode === 'signin' ? 'signup' : 'signin');
                 setStatus('');
               }}
-              onStartGoogleOauth={() => {
-                setBusy(true);
-                setStatus('');
-                startGoogleOauth();
-              }}
+              onStartGoogleOauth={startGoogleOauth}
             />
-          </motion.div>
+          </div>
         </div>
       </div>
 
       {/* Privacy line — calm, single line, never a sales pitch */}
-      <motion.div
-        variants={itemVariants}
-        initial="hidden"
-        animate="visible"
-        className="flex-shrink-0 pb-8 px-6 flex items-center justify-center gap-2 text-muted-foreground"
+      <div
+        className="flex-shrink-0 pb-8 px-6 flex items-center justify-center gap-2 text-muted-foreground opacity-0 animate-slide-up-fade"
+        style={getItemStyle(3)}
       >
         <ShieldCheck className="w-4 h-4" strokeWidth={2.25} />
         <span className="text-[13px]">{HERO.PRIVACY_NOTE}</span>
-      </motion.div>
+      </div>
     </div>
   );
 }

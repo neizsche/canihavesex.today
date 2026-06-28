@@ -110,10 +110,7 @@ const FAHRENHEIT_REGIONS = new Set(['US', 'LR', 'KY', 'PW', 'FM', 'MH', 'BS', 'B
  */
 export function detectTemperatureUnit(): TemperatureUnit {
   try {
-    const tags = [
-      ...(navigator.languages ?? []),
-      navigator.language,
-    ].filter(Boolean) as string[];
+    const tags = [...(navigator.languages ?? []), navigator.language].filter(Boolean) as string[];
     for (const tag of tags) {
       const region = new Intl.Locale(tag).maximize().region;
       if (region && FAHRENHEIT_REGIONS.has(region)) return 'fahrenheit';

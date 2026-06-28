@@ -78,7 +78,7 @@ export function AnimatedEducationScreen({
                 </div>
               </div>
             </div>
-            <h2 className="text-[34px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100 short-text-lg">
+            <h2 className="text-[30px] font-extrabold tracking-[-0.04em] leading-tight text-zinc-900 dark:text-zinc-100 short-text-lg">
               {title}
             </h2>
           </div>
@@ -109,7 +109,7 @@ export function AnimatedEducationScreen({
                     <h3 className="text-[19px] font-bold text-zinc-900 dark:text-zinc-100">
                       {item.title}
                     </h3>
-                    <p className="text-[16px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                       {item.desc}
                     </p>
                   </div>

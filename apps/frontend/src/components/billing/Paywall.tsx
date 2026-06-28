@@ -10,7 +10,9 @@ async function signOut() {
 
     // Purge the persisted query cache so the next user on this device
     // doesn't see stale session data from the previous account.
-    try { window.localStorage.removeItem('chs-query-cache'); } catch {}
+    try {
+      window.localStorage.removeItem('chs-query-cache');
+    } catch {}
 
     window.location.href = '/';
   } catch {
@@ -46,7 +48,7 @@ export function Paywall({ state }: { state: BillingState }) {
               Your trial has ended
             </h2>
           )}
-          <p className="mx-auto max-w-xs text-[14px] leading-relaxed text-muted-foreground">
+          <p className="mx-auto max-w-xs text-[15px] leading-relaxed text-muted-foreground">
             Keep logging and seeing today's status. No ads, no tracking — your data stays yours.
           </p>
         </div>

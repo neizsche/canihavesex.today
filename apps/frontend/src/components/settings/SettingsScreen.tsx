@@ -186,7 +186,7 @@ export function SettingsScreen() {
         >
           <div className="max-w-md mx-auto space-y-6 sm:space-y-7">
             <div className="px-4 flex flex-col gap-1">
-              <h1 className="text-[34px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
+              <h1 className="text-[30px] font-extrabold tracking-[-0.04em] text-zinc-900 dark:text-zinc-100 leading-tight">
                 {SETTINGS_SCREEN_LABELS.header}
               </h1>
             </div>

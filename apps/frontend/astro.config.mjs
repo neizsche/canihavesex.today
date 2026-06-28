@@ -11,13 +11,15 @@ import { loadEnv } from 'vite';
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Hosting platform detection (GCP Cloud Run and production domains only)
-const allowedHosts = isProduction ? [
-  'canihavesex.today',
-  'www.canihavesex.today',
-  'app.canihavesex.today',
-  'localhost',
-  '.run.app', // GCP Cloud Run
-] : true;
+const allowedHosts = isProduction
+  ? [
+      'canihavesex.today',
+      'www.canihavesex.today',
+      'app.canihavesex.today',
+      'localhost',
+      '.run.app', // GCP Cloud Run
+    ]
+  : true;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -109,13 +111,13 @@ export default defineConfig({
             {
               src: 'android-chrome-192x192.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
             },
             {
               src: 'android-chrome-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any maskable',
             },
           ],
         },

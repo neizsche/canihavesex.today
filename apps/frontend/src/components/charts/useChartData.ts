@@ -56,5 +56,6 @@ export function useChartData({ currentYear, currentMonth }: UseChartDataOptions)
     loading,
     data,
     statsData,
+    statsQuery,
   };
 }

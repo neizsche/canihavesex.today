@@ -79,7 +79,7 @@ export function PlanPicker({ defaultPlan = 'yearly' }: { defaultPlan?: PaidPlan 
         type="button"
         disabled={!!checkoutBusy}
         onClick={() => startCheckout(selected)}
-        className="mt-1.5 w-full rounded-full bg-[#007aff] py-3 text-[15px] font-semibold text-white transition-all duration-150 active:scale-[0.99] disabled:opacity-60 dark:bg-[#0a84ff]"
+        className="mt-1.5 w-full rounded-full bg-[#007aff] py-3 text-[17px] font-semibold text-white transition-all duration-150 active:scale-[0.99] disabled:opacity-60 dark:bg-[#0a84ff]"
       >
         {checkoutBusy ? 'Redirecting…' : 'Subscribe'}
       </button>

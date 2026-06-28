@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { useSession } from '@/hooks/queries/useSession';
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
-import { SignInPage } from './SignInPage';
+import { SignInPage } from '@/components/login/SignInPage';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
+import { Loader2 } from 'lucide-react';
 
 interface SessionGateProps {
   children: React.ReactNode;
@@ -43,7 +44,10 @@ export function SessionGate({ children }: SessionGateProps) {
   if (session.isLoading) {
     return (
       <div className="flex min-h-[50dvh] items-center justify-center">
-        <div className="text-sm text-muted-foreground animate-pulse">Loading session…</div>
+        <Loader2
+          className="h-7 w-7 animate-spin text-[#007aff] dark:text-[#0a84ff]"
+          strokeWidth={2.5}
+        />
       </div>
     );
   }

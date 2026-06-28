@@ -43,7 +43,7 @@ export function TodayLogPromptState({
 
       <button
         onClick={onLogToday}
-        className="mt-8 px-9 py-3.5 rounded-full bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 text-[15px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 active:scale-[0.98] transition-transform"
+        className="mt-8 px-9 py-3.5 rounded-full bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-zinc-800 text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 active:scale-[0.98] transition-transform"
       >
         Log Today
         <ChevronRight className="h-4 w-4 text-zinc-400 dark:text-zinc-600" />

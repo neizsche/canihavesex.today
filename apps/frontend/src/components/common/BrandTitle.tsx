@@ -4,10 +4,9 @@ import { cn } from '@/lib/utils';
 
 interface BrandTitleProps {
   className?: string; // Allow overriding text size/color
-  showLogo?: boolean; // Optional: if we want to include the icon
 }
 
-export function BrandTitle({ className, showLogo = false }: BrandTitleProps) {
+export function BrandTitle({ className }: BrandTitleProps) {
   return (
     <div
       className={cn(

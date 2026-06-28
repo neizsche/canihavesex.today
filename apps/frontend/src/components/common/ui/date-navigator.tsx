@@ -43,6 +43,11 @@ export function DateNavigator({
             {dotClass && <span className={cn('w-2 h-2 rounded-full', dotClass)} />}
             {label}
           </div>
+          {sublabel && (
+            <span className="text-[12px] font-semibold text-muted-foreground mt-0.5">
+              {sublabel}
+            </span>
+          )}
         </div>
 
         <Button

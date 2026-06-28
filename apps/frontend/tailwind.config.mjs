@@ -7,7 +7,6 @@ export default {
       fontFamily: {
         sans: [
           'Inter',
-          'Outfit',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
@@ -15,17 +14,9 @@ export default {
           'Roboto',
           'Helvetica',
           'Arial',
+          'sans-serif',
         ],
-        serif: [
-          'ui-serif',
-          'Georgia',
-          'Cambria',
-          "Times New Roman",
-          "Times",
-          "serif"
-        ],
-        brand: ['Outfit', 'sans-serif'],
-        cursive: ['"Dancing Script"', 'cursive'],
+        serif: ['ui-serif', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
       },
       colors: {
         background: 'var(--background)',

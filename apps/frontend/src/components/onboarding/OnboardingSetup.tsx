@@ -28,10 +28,10 @@ export function OnboardingSetup({
         <div className="mx-auto max-w-md space-y-6">
           {/* Header Area */}
           <div className="space-y-2 px-4">
-            <h1 className="text-[34px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
+            <h1 className="text-[30px] font-extrabold tracking-[-0.04em] text-zinc-900 dark:text-zinc-100 leading-tight">
               About Your Cycle
             </h1>
-            <p className="text-[17px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
               Quick details for better predictions.
             </p>
           </div>

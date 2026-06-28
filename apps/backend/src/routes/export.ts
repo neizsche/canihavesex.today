@@ -8,16 +8,8 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
     const app = fastify.withTypeProvider<ZodTypeProvider>();
     const logRepo = new LogRepository(opts.db);
 
-    app.get('/api/v1/user/export', {
-        schema: {
-            querystring: z.object({
-                includeNotes: z.string().optional()
-            })
-        }
-    }, async (req, reply) => {
+    app.get('/api/v1/user/export', async (req, reply) => {
         const userId = req.userId!;
-        const includeNotes = req.query.includeNotes === 'true';
-
         const logs = await logRepo.getAllLogs(userId);
 
         // Sort logs by date descending
@@ -31,11 +23,7 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
         csv += 'Unlock deeper insights and PDF reports with Premium\n\n';
 
         // Headers
-        csv += 'Date,Bleeding,Temperature,Mucus,LH Test,Disturbances,Symptoms';
-        if (includeNotes) {
-            csv += ',Notes';
-        }
-        csv += '\n';
+        csv += 'Date,Bleeding,Temperature,Mucus,LH Test,Disturbances,Symptoms,Notes\n';
 
         // CSV Rows
         const escapeFormula = (val: string) => {
@@ -52,14 +40,9 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
             // Arrays need specific handling (e.g. pipe joined or space joined)
             const disturbances = escapeFormula((log.disturbances || []).join('; ')).replace(/"/g, '""');
             const symptoms = escapeFormula((log.symptoms || []).join('; ')).replace(/"/g, '""');
+            const cleanNotes = escapeFormula(log.notes || '').replace(/"/g, '""');
 
-            let row = `${date},${bleeding},${temperature},${mucus},${lhTest},"${disturbances}","${symptoms}"`;
-
-            if (includeNotes) {
-                // Escape quotes in notes
-                const cleanNotes = escapeFormula(log.notes || '').replace(/"/g, '""');
-                row += `,"${cleanNotes}"`;
-            }
+            const row = `${date},${bleeding},${temperature},${mucus},${lhTest},"${disturbances}","${symptoms}","${cleanNotes}"`;
 
             csv += row + '\n';
         }

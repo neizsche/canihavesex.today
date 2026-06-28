@@ -21,9 +21,8 @@ export async function verifyGoogleIdToken(idToken: string, clientId: string): Pr
 export function publicBackendBase(req: any): string {
     const configured = process.env.PUBLIC_BACKEND_BASE;
     if (configured) return configured.replace(/\/$/, '');
-    const proto = (req.headers['x-forwarded-proto'] as string | undefined) ?? 'http';
-    const host = (req.headers['x-forwarded-host'] as string | undefined) ?? (req.headers.host as string | undefined) ?? 'localhost:1299';
-    return `${proto}://${host}`.replace(/\/$/, '');
+    // In same-origin / proxied setups, the backend is accessed via the app's base URL.
+    return appBase();
 }
 
 export function appBase(): string {

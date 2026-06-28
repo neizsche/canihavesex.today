@@ -161,6 +161,8 @@ export function useSignIn({ returnTo }: UseSignInOptions) {
   }
 
   function startGoogleOauth() {
+    setBusy(true);
+    setStatus('');
     const url = `${apiBase}/api/auth/oauth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
     location.href = url;
   }

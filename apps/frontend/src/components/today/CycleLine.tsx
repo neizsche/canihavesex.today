@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Heart } from 'lucide-react';
 
 import { InsetGroup } from '@/components/common/ui/inset-group';
 
@@ -32,7 +31,7 @@ export function CycleLine({
   // Calculate percentages (0 to 100) based on 1-indexed days
   const lengthSpan = Math.max(1, length - 1);
   const progressPercent = Math.min(100, Math.max(0, ((day - 1) / lengthSpan) * 100));
-  
+
   const fStartPercent = hasFertile ? Math.max(0, ((fertileStartDay - 1) / lengthSpan) * 100) : 0;
   const fEndPercent = hasFertile ? Math.min(100, ((fertileEndDay - 1) / lengthSpan) * 100) : 0;
   const fWidth = hasFertile ? Math.max(0, fEndPercent - fStartPercent) : 0;
@@ -63,15 +62,13 @@ export function CycleLine({
             />
           )}
 
-          {/* Current Day Slider Thumb */}
-          <div
-            className="absolute top-1/2 -mt-2.5 w-5 h-5 bg-white dark:bg-zinc-200 border border-zinc-200 dark:border-zinc-300 shadow-[0_2px_8px_rgba(0,0,0,0.12)] rounded-full flex items-center justify-center transition-all duration-300 z-10"
-            style={{ left: `calc(${progressPercent}% - 10px)` }}
-          >
-            {isTodayFertile && (
-              <div className="w-1.5 h-1.5 rounded-full bg-[#af52de] dark:bg-[#bf5af2]" />
-            )}
-          </div>
+          {/* Current Day Slider Thumb (Logo) */}
+          <img
+            src="/logo.png"
+            alt="Current Day"
+            className="absolute top-1/2 -mt-4 w-8 h-8 object-contain transition-all duration-300 z-10"
+            style={{ left: `calc(${progressPercent}% - 16px)` }}
+          />
         </div>
 
         {/* Details Zone */}
@@ -81,12 +78,12 @@ export function CycleLine({
               Fertile Window
             </div>
             <div className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-              {hasFertile && fertileStartDateStr && fertileEndDateStr 
-                ? `${fertileStartDateStr} - ${fertileEndDateStr}` 
+              {hasFertile && fertileStartDateStr && fertileEndDateStr
+                ? `${fertileStartDateStr} - ${fertileEndDateStr}`
                 : '—'}
             </div>
           </div>
-          
+
           <div className="text-right">
             <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.06em] mb-1">
               Next Period
