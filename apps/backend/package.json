@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@fastify/cookie": "^10.0.0",
-    "@fastify/cors": "^10.0.0",
+    "@fastify/cors": "^11.2.0",
     "@fastify/formbody": "^8.0.1",
     "@fastify/static": "^9.1.3",
     "@sentry/node": "^10.62.0",
