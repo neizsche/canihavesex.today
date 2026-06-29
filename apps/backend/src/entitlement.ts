@@ -1,7 +1,7 @@
-// Cloud-only billing entitlement logic. Self-hosters never set BILLING_ENABLED,
-// so none of this runs for them — the app stays fully unlocked. Kept as pure
-// functions (no DB, no env reads inside evaluateEntitlement) so the trial /
-// subscription rules are unit-tested in isolation; see entitlement.test.ts.
+// Cloud-only billing entitlement logic. Self-hosters never set ENABLE_CLOUD_BILLING,
+// so isBillingEnabled is strictly false and this module returns un-gated
+// access. If cloud billing is on, the user must have an active subscription or
+// be within their trial period.
 
 import { isSelfHost } from './config.js';
 
@@ -9,22 +9,22 @@ export type Plan = 'yearly' | 'lifetime';
 export type SubStatus = 'active' | 'canceled' | 'past_due';
 
 /**
- * Whether the cloud paywall is active. Requires BILLING_ENABLED=true AND that
- * the deployment is not flagged self-host. Self-host wins: a self-hoster who
- * also sets BILLING_ENABLED still gets no gating, no provider, no billing
- * emails. Off by default → no gating.
+ * Whether the cloud paywall is active. Requires ENABLE_CLOUD_BILLING=true AND that
+ * the instance is not self-hosted. (The free self-hosted edition that
+ * also sets ENABLE_CLOUD_BILLING still gets no gating, no provider, no billing
+ * emails, etc.)
  */
 export function isBillingEnabled(): boolean {
-  return process.env.BILLING_ENABLED === 'true' && !isSelfHost();
+  return process.env.ENABLE_CLOUD_BILLING === 'true' && !isSelfHost();
 }
 
 /**
- * Free-trial length from signup, in days (env override, default 14).
- * Set BILLING_TRIAL_DAYS=0 for no trial — new users are blocked until they pay.
- * An unset/invalid/negative value falls back to the 14-day default.
+ * Gets the number of days a new user gets for free before they must pay.
+ * Set CLOUD_BILLING_TRIAL_DAYS=0 for no trial — new users are blocked until they pay.
+ * Defaults to 14 days if not set.
  */
 export function trialDays(): number {
-  const n = Number(process.env.BILLING_TRIAL_DAYS);
+  const n = Number(process.env.CLOUD_BILLING_TRIAL_DAYS);
   return Number.isFinite(n) && n >= 0 ? n : 14;
 }
 
@@ -52,11 +52,11 @@ export interface EntitlementInput {
 }
 
 export type EntitlementState =
-  | 'demo'      // exempt shared demo account
-  | 'active'    // paid (yearly within period, or lifetime)
-  | 'trialing'  // inside the free trial window
-  | 'expired'   // trial ended and a previous subscription has lapsed
-  | 'none';     // trial ended, never subscribed
+  | 'demo' // exempt shared demo account
+  | 'active' // paid (yearly within period, or lifetime)
+  | 'trialing' // inside the free trial window
+  | 'expired' // trial ended and a previous subscription has lapsed
+  | 'none'; // trial ended, never subscribed
 
 export interface Entitlement {
   entitled: boolean;
@@ -86,7 +86,13 @@ export function evaluateEntitlement(input: EntitlementInput): Entitlement {
 
   if (subscription && subscription.status === 'active') {
     if (subscription.plan === 'lifetime') {
-      return { entitled: true, state: 'active', plan: 'lifetime', trialEndsAt, currentPeriodEnd: null };
+      return {
+        entitled: true,
+        state: 'active',
+        plan: 'lifetime',
+        trialEndsAt,
+        currentPeriodEnd: null,
+      };
     }
     // yearly: entitled only while still inside the paid period.
     if (subscription.currentPeriodEnd !== null && subscription.currentPeriodEnd > now) {

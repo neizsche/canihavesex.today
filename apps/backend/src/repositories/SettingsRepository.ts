@@ -40,10 +40,9 @@ export class SettingsRepository {
   constructor(private db: Db) {}
 
   async getSettings(userId: string): Promise<UserSettings> {
-    const rows = await this.db.query<any>(
-      'SELECT * FROM user_settings WHERE user_id = $1',
-      [userId]
-    );
+    const rows = await this.db.query<any>('SELECT * FROM user_settings WHERE user_id = $1', [
+      userId,
+    ]);
     return mapSettings(userId, rows[0]);
   }
 
@@ -52,10 +51,7 @@ export class SettingsRepository {
     const rows = await this.db.query<{
       avg_cycle_length: number;
       cycle_regularity: CycleRegularity | null;
-    }>(
-      'SELECT avg_cycle_length, cycle_regularity FROM user_settings WHERE user_id = $1',
-      [userId]
-    );
+    }>('SELECT avg_cycle_length, cycle_regularity FROM user_settings WHERE user_id = $1', [userId]);
     const row = rows[0];
     return {
       avg_cycle_length: row?.avg_cycle_length ?? DEFAULT_AVG_CYCLE_LENGTH,
@@ -106,7 +102,11 @@ export class SettingsRepository {
   /** Partial profile update from the settings screen. updated_at is set by trigger. */
   async updateProfile(
     userId: string,
-    data: { cycle_regularity?: string; avg_cycle_length?: number; temperature_unit?: TemperatureUnit }
+    data: {
+      cycle_regularity?: string;
+      avg_cycle_length?: number;
+      temperature_unit?: TemperatureUnit;
+    }
   ): Promise<void> {
     const setClauses: string[] = [];
     const values: any[] = [];
@@ -135,17 +135,14 @@ export class SettingsRepository {
   }
 
   async updateShowBranding(userId: string, showBranding: boolean): Promise<void> {
-    await this.db.query(
-      'UPDATE user_settings SET show_branding = $1 WHERE user_id = $2',
-      [showBranding, userId]
-    );
+    await this.db.query('UPDATE user_settings SET show_branding = $1 WHERE user_id = $2', [
+      showBranding,
+      userId,
+    ]);
   }
 
   async updateTheme(userId: string, theme: Theme): Promise<void> {
-    await this.db.query(
-      'UPDATE user_settings SET theme = $1 WHERE user_id = $2',
-      [theme, userId]
-    );
+    await this.db.query('UPDATE user_settings SET theme = $1 WHERE user_id = $2', [theme, userId]);
   }
 
   /** Drift re-anchor state for the Today screen. */
@@ -238,10 +235,13 @@ function mapSettings(userId: string, row: any): UserSettings {
     cycle_regularity: row.cycle_regularity ?? null,
     show_branding: row.show_branding ?? true,
     education_seen:
-      row.education_seen && typeof row.education_seen === 'object' && !Array.isArray(row.education_seen)
+      row.education_seen &&
+      typeof row.education_seen === 'object' &&
+      !Array.isArray(row.education_seen)
         ? row.education_seen
         : {},
-    avg_cycle_length: row.avg_cycle_length != null ? Number(row.avg_cycle_length) : DEFAULT_AVG_CYCLE_LENGTH,
+    avg_cycle_length:
+      row.avg_cycle_length != null ? Number(row.avg_cycle_length) : DEFAULT_AVG_CYCLE_LENGTH,
     onboarding_completed_at: toIso(row.onboarding_completed_at),
     reanchor_kind: row.reanchor_kind ?? null,
     reanchor_cycle_start: toIsoDate(row.reanchor_cycle_start),

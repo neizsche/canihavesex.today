@@ -46,13 +46,12 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   });
 
   const updateData = (partial: Partial<OnboardingData>) => {
-    // Functional update: onboarding steps can fire several onUpdate calls in a
-    // single render; a stale-closure spread would drop all but the last.
+    // Use functional state updates to prevent state loss from concurrent render updates.
     setData((prev) => ({ ...prev, ...partial }));
   };
 
   async function handleComplete() {
-    // Guard against double-submit (the button can be tapped twice before busy renders).
+    // Prevent concurrent submissions.
     if (busy) return;
 
     if (!data.cycle_regularity) {
@@ -62,8 +61,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
     setBusy(true);
     setError(null);
-    // Seed the BBT display unit from the device locale (US → °F, else °C). It's
-    // a silent default — no onboarding step — and overridable later in Settings.
+    // Initialize temperature unit based on device locale.
     const temperatureUnit = detectTemperatureUnit();
 
     try {
@@ -74,21 +72,20 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             cycle_regularity: data.cycle_regularity,
-            // The engine only stores the average; send the single value as both
-            // bounds so the existing min/max API resolves to exactly it.
+            // Set both bounds to the same value to represent a single average cycle length.
             cycle_length_min: data.cycle_length,
             cycle_length_max: data.cycle_length,
             temperature_unit: temperatureUnit,
           }),
         },
-        // Retry transient failures (network blips / 5xx) with a 15s per-attempt cap.
+        // Retry fetch on transient failures.
         { retries: 2, timeoutMs: 15000 }
       );
 
-      // Update session cache with response data (contains userId, email, onboardingCompleted)
+      // Update session cache.
       queryClient.setQueryData(['session'], response);
 
-      // Update profile cache if it exists to keep settings in sync
+      // Update profile cache to sync settings.
       queryClient.setQueryData(['user-profile'], (prev: any) => {
         if (!prev) return prev;
         return {
@@ -106,31 +103,26 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
   }
 
-  // Skipping finalizes onboarding with whatever has been entered so far (the
-  // defaults are all valid), so it reuses the same submit path as the CTA.
+  // Skip action completes onboarding using default values.
   const handleSkip = handleComplete;
 
-  // Final CTA: offer the native "add to home screen" prompt as part of finishing.
-  // It must be triggered inside the click gesture; it's a no-op on platforms
-  // without a deferred prompt (iOS, already installed), so completion never blocks.
+  // Trigger PWA installation prompt if available, then complete onboarding.
   async function handleFinish() {
     if (busy) return;
     try {
       await promptInstall();
     } catch {
-      // Never let an install hiccup get in the way of finishing onboarding.
+      // Ignore installation prompt failures to ensure onboarding completion.
     }
     await handleComplete();
   }
 
-  // Explicit "Install App" button on the final step. Fires the native prompt
-  // without completing onboarding, so the user can install and still review the
-  // last screen. Only shown when a deferred prompt is actually available.
+  // Optional standalone PWA install action.
   async function handleInstall() {
     try {
       await promptInstall();
     } catch {
-      // Non-blocking — the user can still finish via the primary CTA.
+      // Ignore installation prompt failures.
     }
   }
   const installCta =

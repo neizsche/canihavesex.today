@@ -38,7 +38,7 @@ export class SubscriptionRepository {
        WHERE user_id = $1 AND status = 'active'
        ORDER BY (plan = 'lifetime') DESC, current_period_end DESC NULLS LAST
        LIMIT 1`,
-      [userId],
+      [userId]
     );
     return rows[0];
   }
@@ -56,7 +56,7 @@ export class SubscriptionRepository {
          AND provider_subscription_id IS NOT NULL
        ORDER BY current_period_end DESC NULLS LAST
        LIMIT 1`,
-      [userId],
+      [userId]
     );
     return rows[0];
   }
@@ -70,7 +70,7 @@ export class SubscriptionRepository {
     await this.db.query(
       `UPDATE subscriptions SET cancel_at_period_end = true
        WHERE provider_subscription_id = $1`,
-      [providerSubscriptionId],
+      [providerSubscriptionId]
     );
   }
 
@@ -86,7 +86,7 @@ export class SubscriptionRepository {
        WHERE user_id = $1 AND provider_customer_id IS NOT NULL
        ORDER BY updated_at DESC
        LIMIT 1`,
-      [userId],
+      [userId]
     );
     return rows[0]?.provider_customer_id ?? undefined;
   }
@@ -138,7 +138,7 @@ export class SubscriptionRepository {
         e.plan,
         e.status,
         e.currentPeriodEnd,
-      ],
+      ]
     );
   }
 }

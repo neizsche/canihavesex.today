@@ -1,5 +1,11 @@
 import * as React from 'react';
-import { CreditCard, HelpCircle, Infinity as InfinityIcon, Check, ChevronRight } from 'lucide-react';
+import {
+  CreditCard,
+  HelpCircle,
+  Infinity as InfinityIcon,
+  Check,
+  ChevronRight,
+} from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { SettingsActionRow, SettingsExpandableRow } from '@/components/common/ui/settings-row';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
@@ -152,7 +158,10 @@ export function BillingSection({
                           {PLANS.yearly.cadence}
                         </div>
                       </div>
-                      <Check className="h-4 w-4 text-[#007aff] dark:text-[#0a84ff]" strokeWidth={3} />
+                      <Check
+                        className="h-4 w-4 text-[#007aff] dark:text-[#0a84ff]"
+                        strokeWidth={3}
+                      />
                     </div>
                   </div>
 

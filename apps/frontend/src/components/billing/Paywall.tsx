@@ -4,12 +4,11 @@ import { BrandTitle } from '@/components/common/BrandTitle';
 import { PlanPicker } from './PlanPicker';
 import type { BillingState } from '@/hooks/queries/useBillingStatus';
 
+// Invalidates the query cache on sign-out to prevent stale session data leaks.
 async function signOut() {
   try {
     await apiJson('/api/signout', { method: 'POST' });
 
-    // Purge the persisted query cache so the next user on this device
-    // doesn't see stale session data from the previous account.
     try {
       window.localStorage.removeItem('chs-query-cache');
     } catch {}
@@ -21,10 +20,9 @@ async function signOut() {
 }
 
 /**
- * Full-screen block shown when billing is enabled and the user is no longer
- * entitled (trial expired, or never had a plan). Logging and insights are also
- * gated server-side (402); this is the calm front door to subscribe. Settings
- * stays reachable so a blocked user can still export or delete their data.
+ * Full-screen billing gate component rendered when billing is enabled and the user lacks active entitlements
+ * (e.g., trial expired or no active subscription). Backend requests for logging and insights will return 402.
+ * Settings remain accessible to allow data export or account deletion.
  */
 export function Paywall({ state }: { state: BillingState }) {
   const expired = state === 'expired';
@@ -34,7 +32,7 @@ export function Paywall({ state }: { state: BillingState }) {
       <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-6 py-12">
         <div className="mb-8 space-y-3 text-center">
           <img
-            src="/logo.png"
+            src="/assets/logo.png"
             alt="App Logo"
             width={64}
             height={64}

@@ -53,7 +53,11 @@ function pick<T>(arr: readonly T[]): T {
 }
 
 const NOTES = {
-  period: ['Cramps in the evening — heat pad helped.', 'Flow heavier today.', 'Low energy, took it easy.'],
+  period: [
+    'Cramps in the evening — heat pad helped.',
+    'Flow heavier today.',
+    'Low energy, took it easy.',
+  ],
   fertile: ['Felt great today.', 'Noticed clear, stretchy fluid.', 'Lots of energy.'],
   luteal: ['A little bloated.', 'Calm, steady day.', 'Slept in, felt groggy.'],
 } as const;
@@ -108,7 +112,11 @@ function buildSignals(
   const sleep = chance(0.1) ? 'poor' : pick(['good', 'good', 'fair']);
   if (chance(0.7)) symptoms.push(`sleep:${sleep}`);
 
-  const libido = isPeriod ? 'low' : isFertile ? pick(['high', 'high', 'normal']) : pick(['normal', 'normal', 'low']);
+  const libido = isPeriod
+    ? 'low'
+    : isFertile
+      ? pick(['high', 'high', 'normal'])
+      : pick(['normal', 'normal', 'low']);
   if (chance(0.65)) symptoms.push(`libido:${libido}`);
 
   // Sexual activity — the heart of the app's question. A few times per cycle,
@@ -161,7 +169,7 @@ export async function seedDemoAccount(db: Db): Promise<{ logs: number; cycles: n
        (user_id, provider, provider_subscription_id, provider_customer_id,
         plan, status, current_period_end)
      VALUES ($1, 'demo', $2, NULL, 'lifetime', 'active', NULL)`,
-    [userId, `demo-lifetime-${userId}`],
+    [userId, `demo-lifetime-${userId}`]
   );
 
   const today = isoToday();

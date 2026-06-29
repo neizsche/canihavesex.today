@@ -10,8 +10,17 @@ function parseAndMergeDotenv(raw: string) {
     if (idx <= 0) continue;
     const key = trimmed.slice(0, idx).trim();
     let value = trimmed.slice(idx + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
+    } else {
+      // Strip inline comments for unquoted values
+      const commentIdx = value.indexOf(' #');
+      if (commentIdx !== -1) {
+        value = value.slice(0, commentIdx).trim();
+      }
     }
     if (process.env[key] == null || process.env[key] === '') {
       process.env[key] = value;
@@ -68,4 +77,3 @@ export function loadEnv() {
     console.log(`   Backend URL: ${process.env.PUBLIC_BACKEND_BASE}`);
   }
 }
-

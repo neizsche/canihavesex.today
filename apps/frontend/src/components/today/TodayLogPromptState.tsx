@@ -18,7 +18,7 @@ export function TodayLogPromptState({
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
       <img
-        src="/logo.png"
+        src="/assets/logo.png"
         alt="App Logo"
         width={80}
         height={80}

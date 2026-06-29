@@ -75,15 +75,13 @@ export function TodayScreen() {
   const reanchorMut = useReanchor();
 
   const apiData = todayQuery.data;
-  // Drift re-anchor state (see useReanchor). `paused` is a sticky break/pregnant
-  // state; `reanchor.show` offers the overdue prompt; `reanchor.acked` switches
-  // the copy to the calm "still waiting" line after the user acknowledges.
+  // Re-anchor and pause states. `paused` indicates suspended tracking;
+  // `reanchor.show` prompts when overdue; `reanchor.acked` displays a waiting state.
   const paused = apiData?.status === 'paused';
   const reanchor = apiData?.reanchor as { show?: boolean; acked?: boolean } | undefined;
   const safeInsights = apiData?.insights || {};
-  // Keep showing cached results during a background refetch (stale-while-
-  // revalidate). Blanking this on isFetching caused the Log CTA to flash before
-  // results whenever the page was revisited after the 5-minute staleTime.
+  // Use stale-while-revalidate caching. Retaining data during background refetches
+  // prevents layout flashes on subsequent page visits.
   const dailyLogDone = apiData?.dailyLogDone ?? false;
 
   const activeStatus: FertilityStatus = (apiData?.status as FertilityStatus) || 'not_fertile';
@@ -107,8 +105,7 @@ export function TodayScreen() {
 
   const lastUpdatedText = formatRelativeTime(apiData?.lastModified);
 
-  // First load with nothing cached yet: show a neutral state rather than the Log
-  // CTA, which would otherwise flash before the initial fetch resolves.
+  // Render placeholder during initial data load to prevent UI flash.
   if (todayQuery.isLoading) {
     return (
       <div className="h-full bg-background font-sans flex flex-col">

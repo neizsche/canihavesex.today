@@ -12,7 +12,7 @@ export class EntitlementService {
   constructor(
     private readonly users: UserRepository,
     private readonly subscriptions: SubscriptionRepository,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: () => number = () => Date.now()
   ) {}
 
   /** Returns null if the user no longer exists. */

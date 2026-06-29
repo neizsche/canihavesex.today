@@ -69,7 +69,7 @@ export function AnimatedEducationScreen({
                 <div className="absolute inset-0 rounded-full bg-rose-500/10 blur-2xl" />
                 <div className="relative flex h-24 w-24 items-center justify-center transition-transform duration-500 hover:scale-105">
                   <img
-                    src="/logo.png"
+                    src="/assets/logo.png"
                     alt="App Logo"
                     decoding="sync"
                     fetchPriority="high"

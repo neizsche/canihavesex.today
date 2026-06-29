@@ -24,8 +24,7 @@ export async function createDb(): Promise<Db> {
 
   if (!url) {
     throw new Error(
-      'DATABASE_URL is required. ' +
-      'Expected format: "postgresql://user:pass@host:5432/db"'
+      'DATABASE_URL is required. ' + 'Expected format: "postgresql://user:pass@host:5432/db"'
     );
   }
 
@@ -38,15 +37,15 @@ export async function createDb(): Promise<Db> {
   } catch (err) {
     throw new Error(
       `Invalid DATABASE_URL format. ` +
-      `Expected e.g. "postgresql://user:pass@host:5432/db". ` +
-      `Received: ${JSON.stringify(url)}`
+        `Expected e.g. "postgresql://user:pass@host:5432/db". ` +
+        `Received: ${JSON.stringify(url)}`
     );
   }
 
   // Configure connection pool for production use
   const sslDisabled = process.env.DB_SSL === 'false';
   const sslCa = process.env.DB_SSL_CA;
-  
+
   // Strict cert verification is opt-in via DB_SSL_STRICT=1. It stays off by
   // default because managed providers (e.g. Supabase) present a private-CA chain
   // that Node won't trust out of the box — enabling strict without also supplying
@@ -55,10 +54,9 @@ export async function createDb(): Promise<Db> {
   const sslStrictEnv = process.env.DB_SSL_STRICT;
   const rejectUnauthorized = sslStrictEnv === '1' || sslStrictEnv === 'true';
 
-  const ssl =
-    sslDisabled
-      ? false
-      : {
+  const ssl = sslDisabled
+    ? false
+    : {
         rejectUnauthorized,
         ...(sslCa ? { ca: sslCa } : {}),
       };
@@ -67,9 +65,9 @@ export async function createDb(): Promise<Db> {
     connectionString: url,
     // Connection pool settings
     max: parseInt(process.env.DB_POOL_MAX || '20'), // Maximum number of clients
-    min: parseInt(process.env.DB_POOL_MIN || '2'),  // Minimum number of clients
+    min: parseInt(process.env.DB_POOL_MIN || '2'), // Minimum number of clients
     idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'), // Close idle clients after 30 seconds
-    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000'), // Return error after 2 seconds if connection could not be established
+    connectionTimeoutMillis: parseInt(process.env.DATABASE_TIMEOUT_MS || '2000'), // Return error after 2 seconds if connection could not be established
     // SSL configuration
     // Supabase requires SSL (even in development)
     // For local PostgreSQL without SSL, set DB_SSL=false
@@ -156,7 +154,7 @@ export async function createDb(): Promise<Db> {
           },
           async close() {
             // No-op for transaction Db wrapper
-          }
+          },
         };
 
         const result = await callback(txDb);
@@ -168,6 +166,6 @@ export async function createDb(): Promise<Db> {
       } finally {
         client.release();
       }
-    }
+    },
   };
 }

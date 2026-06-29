@@ -1,9 +1,8 @@
 export type PaidPlan = 'yearly' | 'lifetime';
 
 /**
- * Display copy for the two paid plans. Prices are presentational only — the
- * source of truth is the Dodo hosted checkout, which is what actually charges
- * the customer. Keep these in sync with the landing site pricing.
+ * Static configuration for paid billing plans. Prices defined here are for UI presentation only.
+ * Dodo Payments hosted checkout serves as the source of truth for actual charges.
  */
 export const PLANS: Record<
   PaidPlan,

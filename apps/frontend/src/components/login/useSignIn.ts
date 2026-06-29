@@ -11,12 +11,12 @@ export function useSignIn({ returnTo }: UseSignInOptions) {
   const [status, setStatus] = React.useState<string>('');
   const [statusTone, setStatusTone] = React.useState<StatusTone>('muted');
   const [busy, setBusy] = React.useState(false);
-  // Gate the form until we know whether an existing session will redirect us away.
+  // Flag to defer form rendering until active session check resolves.
   const [checkingSession, setCheckingSession] = React.useState(true);
 
   const apiBase = React.useMemo(() => getApiBase(), []);
 
-  // Arriving from the landing page ("Try the live demo" → ?demo=1).
+  // Detect demo mode trigger from URL search parameters.
   const wantsDemo = React.useMemo(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('demo'),
     []
@@ -76,7 +76,7 @@ export function useSignIn({ returnTo }: UseSignInOptions) {
     }
   }, [returnTo]);
 
-  // Auto-start the demo when arriving from the landing page (?demo=1).
+  // Automatically trigger demo session initialization if requested via URL.
   const demoTriggered = React.useRef(false);
   React.useEffect(() => {
     if (!wantsDemo || demoTriggered.current) return;

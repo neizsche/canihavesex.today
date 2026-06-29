@@ -28,7 +28,7 @@ export function CycleLine({
   const hasFertile = fertileStartDay != null && fertileEndDay != null;
   const isTodayFertile = hasFertile && day >= fertileStartDay && day <= fertileEndDay;
 
-  // Calculate percentages (0 to 100) based on 1-indexed days
+  // Percentages mapping for 1-indexed cycle progression
   const lengthSpan = Math.max(1, length - 1);
   const progressPercent = Math.min(100, Math.max(0, ((day - 1) / lengthSpan) * 100));
 
@@ -39,7 +39,7 @@ export function CycleLine({
   return (
     <InsetGroup containerClassName="mb-0">
       <div className="px-5 py-4">
-        {/* Header Zone */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <span className="text-[14px] font-bold text-zinc-900 dark:text-white">
             Cycle Day {day}
@@ -49,9 +49,9 @@ export function CycleLine({
           </span>
         </div>
 
-        {/* Progress Zone (Solid Pill) */}
+        {/* Progress Bar */}
         <div className="relative h-2.5 bg-zinc-100 dark:bg-zinc-800/80 rounded-full mb-5">
-          {/* Fertile window overlay marker */}
+          {/* Fertile window overlay */}
           {hasFertile && (
             <div
               className="absolute top-0 h-full bg-[#af52de]/15 dark:bg-[#bf5af2]/20 rounded-full"
@@ -62,16 +62,16 @@ export function CycleLine({
             />
           )}
 
-          {/* Current Day Slider Thumb (Logo) */}
+          {/* Current day indicator */}
           <img
-            src="/logo.png"
+            src="/assets/logo.png"
             alt="Current Day"
             className="absolute top-1/2 -mt-4 w-8 h-8 object-contain transition-all duration-300 z-10"
             style={{ left: `calc(${progressPercent}% - 16px)` }}
           />
         </div>
 
-        {/* Details Zone */}
+        {/* Details */}
         <div className="flex justify-between items-start">
           <div>
             <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.06em] mb-1">

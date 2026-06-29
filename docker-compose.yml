@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: canihavesex
-      POSTGRES_PASSWORD: canihavesex_secure_password_change_me
-      POSTGRES_DB: canihavesex
+      POSTGRES_USER: ${POSTGRES_USER:-canihavesex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-canihavesex}
     volumes:
       - db_data:/var/lib/postgresql/data
 
@@ -15,12 +15,11 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://canihavesex:canihavesex_secure_password_change_me@db:5432/canihavesex
+      DATABASE_URL: postgres://${POSTGRES_USER:-canihavesex}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-canihavesex}
       DB_SSL: "false"
       NODE_ENV: production
       PORT: "1299"
-      SELF_HOST: "true"
-      COOKIE_SECRET: default_cookie_secret_please_change_in_production_32_chars
+      COOKIE_SECRET: ${COOKIE_SECRET}
     ports:
       - "3112:1299"
 

@@ -33,7 +33,9 @@ export function isEmailVerificationEnabled(): boolean {
  * handed to the email sender. Never log it.
  */
 export function generateCode(): string {
-  return randomInt(0, 10 ** CODE_LENGTH).toString().padStart(CODE_LENGTH, '0');
+  return randomInt(0, 10 ** CODE_LENGTH)
+    .toString()
+    .padStart(CODE_LENGTH, '0');
 }
 
 /**

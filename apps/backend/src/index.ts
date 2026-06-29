@@ -27,7 +27,12 @@ import { BillingEventRepository } from './repositories/BillingEventRepository.js
 import { EmailVerificationService } from './services/EmailVerificationService.js';
 import { EntitlementService } from './services/EntitlementService.js';
 import { isBillingEnabled } from './entitlement.js';
-import { isSelfHost, shouldBypassHttpsRedirect, DEMO_EMAIL, isDemoAccountEnabled } from './config.js';
+import {
+  isSelfHost,
+  shouldBypassHttpsRedirect,
+  DEMO_EMAIL,
+  isDemoAccountEnabled,
+} from './config.js';
 import { isoToday } from './utils/dates.js';
 import { createDodoProviderFromEnv } from './billing/DodoProvider.js';
 import { sendVerificationEmail, sendPurchaseConfirmationEmail } from './email.js';
@@ -59,16 +64,16 @@ export async function createApp() {
       level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
       ...(shouldPrettyLog
         ? {
-            transport: {
-              target: 'pino-pretty',
-              options: {
-                colorize: true,
-                translateTime: 'SYS:standard',
-                ignore: 'pid,hostname',
-                singleLine: true,
-              },
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'SYS:standard',
+              ignore: 'pid,hostname',
+              singleLine: true,
             },
-          }
+          },
+        }
         : {}),
     },
     disableRequestLogging: true,
@@ -195,7 +200,7 @@ export async function createApp() {
   if (cookieSecret.length < 32 || cookieSecret.includes('CHANGE_ME')) {
     console.error(
       'COOKIE_SECRET is too short or still the placeholder. ' +
-        'Set a strong random value before starting, e.g.:  openssl rand -hex 32'
+      'Set a strong random value before starting, e.g.:  openssl rand -hex 32'
     );
     process.exit(1);
   }
@@ -213,7 +218,7 @@ export async function createApp() {
 
   // 1. Register Core Plugins
   await app.register(cors, {
-    origin: process.env.NODE_ENV === 'production' ? (process.env.FRONTEND_URL ?? false) : true,
+    origin: process.env.NODE_ENV === 'production' ? (process.env.PUBLIC_APP_BASE ?? false) : true,
     credentials: true,
   });
   await app.register(cookie, {
@@ -230,27 +235,30 @@ export async function createApp() {
   });
 
   const db = await createDb();
-  await migrate(db);
+  // Self-hosters get zero-config auto-migrate on boot. Managed cloud sets
+  // RUN_MIGRATIONS_ON_BOOT=false and runs migrations as a discrete deploy step
+  // (see .github/workflows/deploy.yml + src/scripts/migrate.ts) to keep the
+  // cold-start path lean.
+  if (process.env.RUN_MIGRATIONS_ON_BOOT !== 'false') {
+    await migrate(db);
+  }
 
   const userRepository = new UserRepository(db);
   const settingsRepository = new SettingsRepository(db);
   const subscriptionRepository = new SubscriptionRepository(db);
   const billingEventRepository = new BillingEventRepository(db);
   const entitlementService = new EntitlementService(userRepository, subscriptionRepository);
-  // Payment provider. Null when billing is off, or on but not fully configured
-  // (missing Dodo keys/product ids) — the billing routes report "unavailable".
   const paymentProvider = isBillingEnabled() ? createDodoProviderFromEnv() : null;
   if (isBillingEnabled() && !paymentProvider) {
-    console.warn(
-      '[billing] BILLING_ENABLED is on but Dodo is not fully configured; checkout/portal/webhook are disabled.'
+    app.log.warn(
+      '[billing] ENABLE_CLOUD_BILLING is on but Dodo is not fully configured; checkout/portal/webhook are disabled.'
     );
   }
-  // Self-host is the free edition: billing and purchase emails are hard-disabled
-  // even if the operator configured the cloud env. Warn so it's not a silent
-  // surprise that those keys do nothing.
-  if (isSelfHost() && (process.env.BILLING_ENABLED === 'true' || createDodoProviderFromEnv())) {
-    console.warn(
-      '[billing] SELF_HOST is set — billing, payments and purchase emails are disabled regardless of BILLING_ENABLED / DODO_* env.'
+
+  // Ensure SELF_HOST and BILLING don't mix silently
+  if (isSelfHost() && (process.env.ENABLE_CLOUD_BILLING === 'true' || createDodoProviderFromEnv())) {
+    app.log.warn(
+      '[billing] IS_MANAGED_CLOUD is not true — billing, payments and purchase emails are disabled regardless of ENABLE_CLOUD_BILLING / DODO_* env.'
     );
   }
   const emailVerification = new EmailVerificationService(
@@ -280,9 +288,9 @@ export async function createApp() {
         uptime: process.uptime(),
         ...(includeDetails
           ? {
-              memory: process.memoryUsage(),
-              version: process.version,
-            }
+            memory: process.memoryUsage(),
+            version: process.version,
+          }
           : {}),
       });
     } catch (error) {

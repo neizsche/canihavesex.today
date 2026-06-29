@@ -28,6 +28,8 @@ ENV NODE_ENV=production \
     FRONTEND_DIST=/app/frontend \
     DB_SSL=false
 
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --gid 1001 nodejs
 
@@ -57,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD node -e "const http = require('http'); const req = http.request('http://localhost:' + (process.env.PORT || 1299) + '/health', { timeout: 2000 }, (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }); req.on('error', () => process.exit(1)); req.end();"
 
 # server.js boots Fastify (API + static frontend) and runs DB migrations on start.
-CMD ["node", "apps/backend/dist/server.js"]
+CMD ["dumb-init", "node", "apps/backend/dist/server.js"]

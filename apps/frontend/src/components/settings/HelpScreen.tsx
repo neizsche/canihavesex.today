@@ -12,17 +12,17 @@ interface HelpScreenProps {
 export function HelpScreen({ onBack }: HelpScreenProps) {
   return (
     <div className="h-full bg-background font-sans flex flex-col animate-in slide-in-from-right duration-300">
-      {/* Header with Back Button */}
+      {/* Header */}
       <Header onBack={onBack} title="Help" />
 
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="pb-24 pt-8">
           <div className="max-w-md mx-auto space-y-8">
-            {/* Hero Section */}
+            {/* Hero */}
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="w-24 h-24 flex items-center justify-center">
                 <img
-                  src="/logo.png"
+                  src="/assets/logo.png"
                   alt="App Logo"
                   decoding="sync"
                   fetchPriority="high"
@@ -37,7 +37,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
               </div>
             </div>
 
-            {/* Support Links */}
+            {/* Support links */}
             <div className="space-y-6">
               <InsetGroup title="Contact">
                 <a

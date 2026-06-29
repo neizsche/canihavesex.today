@@ -25,7 +25,6 @@ function PlanOption({
           : 'border-border/40 bg-card hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
       )}
     >
-      {/* Radio */}
       <span
         className={cn(
           'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors',
@@ -55,9 +54,8 @@ function PlanOption({
 }
 
 /**
- * Two selectable plans + a single primary "Subscribe" action. Used in the
- * Settings subscription card and the full-screen paywall. Ink + grey + the one
- * iOS blue accent — no decorative color (per BRAND.md).
+ * Plan selection component rendering available plans and a checkout trigger button.
+ * Colors are restricted to grayscale and the iOS blue accent (#007aff / #0a84ff).
  */
 export function PlanPicker({ defaultPlan = 'yearly' }: { defaultPlan?: PaidPlan }) {
   const [selected, setSelected] = React.useState<PaidPlan>(defaultPlan);

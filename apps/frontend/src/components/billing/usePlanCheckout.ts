@@ -4,9 +4,8 @@ import { apiJson } from '@/lib/api';
 import type { PaidPlan } from './plans';
 
 /**
- * Shared billing actions used by both the Settings subscription card and the
- * full-screen paywall: start a hosted Dodo checkout, open the customer portal,
- * or cancel an active recurring subscription.
+ * Custom hook providing handlers for starting checkout, redirecting to the customer portal,
+ * and canceling active subscriptions.
  */
 export function usePlanCheckout() {
   const queryClient = useQueryClient();
@@ -40,9 +39,8 @@ export function usePlanCheckout() {
     setPortalBusy(false);
   }
 
-  // Cancel the active yearly subscription at period end. Access continues until
-  // the current period ends; we refetch billing status so the card flips to
-  // "Cancels on X". Returns true on success so the caller can react.
+  // Cancels the active subscription at the end of the billing cycle.
+  // Refetches the billing-status query to update the UI. Returns a boolean indicating success.
   async function cancelSubscription(): Promise<boolean> {
     setCancelBusy(true);
     try {

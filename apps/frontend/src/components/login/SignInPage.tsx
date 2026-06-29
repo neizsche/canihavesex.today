@@ -58,8 +58,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
           : 'One honest question, answered calmly.'
         : 'Log today. See where you are.';
 
-  // While checking for an existing session — or running the ?demo=1 handshake —
-  // show only the brand mark, no form, so users redirect without a login flash.
+  // Render loading state during active session verification or demo initialization to prevent layout flash.
   if (checkingSession || autoDemo) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
@@ -79,13 +78,13 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
       <div className="flex-1 overflow-y-auto">
         <div className="min-h-full flex flex-col items-center justify-center px-6 py-8">
           <div className="w-full max-w-[400px] space-y-8">
-            {/* Brand mark — same logo as Today/Help, centered directly above the form */}
+            {/* Centered brand logo element */}
             <div
               className="flex justify-center opacity-0 animate-slide-up-fade"
               style={getItemStyle(0)}
             >
               <img
-                src="/logo.png"
+                src="/assets/logo.png"
                 alt="App Logo"
                 width={72}
                 height={72}
@@ -129,7 +128,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
         </div>
       </div>
 
-      {/* Privacy line — calm, single line, never a sales pitch */}
+      {/* Privacy note footer */}
       <div
         className="flex-shrink-0 pb-8 px-6 flex items-center justify-center gap-2 text-muted-foreground opacity-0 animate-slide-up-fade"
         style={getItemStyle(3)}

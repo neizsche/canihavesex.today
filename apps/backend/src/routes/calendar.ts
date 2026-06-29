@@ -4,11 +4,7 @@ import { LogRepository, logHasMeaningfulData } from '../repositories/LogReposito
 import { CycleRepository } from '../repositories/CycleRepository.js';
 import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { EngineService } from '../services/EngineService.js';
-import {
-  daysBetweenIso,
-  isoToday,
-  parseTimezoneOffsetMinutes,
-} from '../utils/dates.js';
+import { daysBetweenIso, isoToday, parseTimezoneOffsetMinutes } from '../utils/dates.js';
 import { buildInsightCards } from '../utils/insights.js';
 import { buildCalendarResponse } from '../utils/calendar.js';
 import { buildPatterns, type Phase } from '../utils/patterns.js';

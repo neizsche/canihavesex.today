@@ -1,8 +1,0 @@
----
-import AppLayout from '@/layouts/AppLayout.astro';
-import { LegacyAppRedirect } from '@/components/common/LegacyAppRedirect';
----
-
-<AppLayout title="Log today" active="log" showNav={false}>
-  <LegacyAppRedirect client:only="react" to="/app#/log" />
-</AppLayout>

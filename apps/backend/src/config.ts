@@ -25,7 +25,7 @@ export function isTesting(): boolean {
 
 /** Whether the application is running in self-hosted mode. */
 export function isSelfHost(): boolean {
-  return process.env.SELF_HOST === 'true';
+  return process.env.IS_MANAGED_CLOUD !== 'true';
 }
 
 /** Whether HTTPS redirection should be bypassed (e.g. for HTTP self-hosting). */

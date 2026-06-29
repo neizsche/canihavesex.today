@@ -27,10 +27,10 @@ import {
 import { bbtFieldConfig } from './temperatureUnits';
 import { useTemperatureUnit } from '@/hooks/queries/useTemperatureUnit';
 
-// localStorage flag: the one-time "how to log" coach sheet has been seen.
+// Flag indicating if the coaching modal has been viewed.
 const COACH_SEEN_KEY = 'chs-log-coach-seen';
 
-// Calendar status → dot colour, matching the calendar grid in ChartScreen.
+// Map calendar status to tailwind color classes.
 const STATUS_DOT: Record<CalendarStatus, string> = {
   period: 'bg-[#ff3b30]',
   fertile: 'bg-[#af52de]',
@@ -67,7 +67,7 @@ export function LogScreen() {
   const [coachOpen, setCoachOpen] = React.useState(false);
   const [mucusGuideOpen, setMucusGuideOpen] = React.useState(false);
 
-  // Auto-open the "how to log" coach sheet once, on the user's first visit.
+  // Trigger coach sheet presentation on first visit.
   React.useEffect(() => {
     try {
       if (localStorage.getItem(COACH_SEEN_KEY) !== 'true') setCoachOpen(true);
@@ -87,20 +87,18 @@ export function LogScreen() {
 
   const toggleMore = React.useCallback(() => setShowMore((v) => !v), []);
 
-  // Last saved snapshot, for dirty checking.
+  // Cached state representation of the last saved payload for change detection.
   const [savedState, setSavedState] = React.useState<LogFormState>(EMPTY_LOG_STATE);
 
   const query = useLog(date);
   const saveMutation = useSaveLog();
   const { data: billing } = useBillingStatus();
 
-  // BBT display/input unit (storage stays Celsius). Drives the field's label,
-  // bounds, and the conversion at the form-state seams below.
+  // Basal Body Temperature (BBT) unit configuration. Inputs are converted to Celsius for storage.
   const tempUnit = useTemperatureUnit();
   const bbtField = bbtFieldConfig(tempUnit);
 
-  // Colour the date with its calendar status (red/purple/green) so editing a
-  // past day carries over the visual cue from the calendar cell that opened it.
+  // Resolve status-based color representation for the active date.
   const calendarStatus = useCalendarDayStatus(date);
   const statusDot = calendarStatus ? STATUS_DOT[calendarStatus] : '';
 
@@ -119,8 +117,7 @@ export function LogScreen() {
       const next = payloadToFormState(query.data.payload, tempUnit);
       dispatch({ type: 'reset', state: next });
       setSavedState(next);
-      // Always start collapsed on a new/changed date — the coloured field list
-      // shows what's inside, so there's no need to force the section open.
+      // Collapse optional sections by default on date change.
       setShowMore(false);
       setTempOpen(!!next.bbt);
       setLhOpen(!!next.lhTest);
@@ -135,12 +132,9 @@ export function LogScreen() {
 
   const isDirty = isLogDirty(form, savedState);
   const anyInput = hasAnyInput(form);
-  // Cervical fluid can't be observed through real menstrual flow, so the field
-  // is disabled then. Spotting is left active — it can be ovulation spotting,
-  // where mucus is still meaningful.
+  // Disable cervical fluid inputs during active menstruation (flow); remain active during spotting.
   const mucusDisabled = form.bleeding && !form.spotting && !!form.flow;
-  // The collapsed "More to track" row colours each field name that holds data,
-  // so the description doubles as an at-a-glance summary without auto-expanding.
+  // Map populated optional fields to highlight active items in the collapsed view.
   const moreFieldActive: Record<string, boolean> = {
     mood: form.mood.length > 0,
     symptoms: form.bodySymptoms.length > 0,
@@ -214,12 +208,9 @@ export function LogScreen() {
 
   const minDate = query.data?.minDate || '2020-01-01';
   const isAtMinDate = date <= minDate;
-  // The shared demo account is explore-only for the past: today stays editable
-  // (so the live demo still feels real), but earlier days are locked so visitors
-  // can't rewrite the seeded history. Server-enforced too.
+  // Demo mode constraint: only the current date is editable; historical dates are read-only.
   const demoPastLocked = billing?.state === 'demo' && date < todayIso();
-  // Edit lock: minDate is the back-log window floor (server-enforced). Days
-  // before it are read-only — older entries can be viewed but not changed.
+  // Enforce retrospective logging limit (minDate).
   const isEditable = date >= minDate && !demoPastLocked;
 
   return (
@@ -277,8 +268,7 @@ export function LogScreen() {
           <div
             className={cn(
               'relative cursor-default',
-              // Read-only: make every field non-interactive (not just Save) and
-              // dim it so the locked state reads clearly.
+              // Disable user interactions when the entry is read-only.
               !isEditable && 'pointer-events-none select-none opacity-60'
             )}
           >
@@ -305,7 +295,7 @@ export function LogScreen() {
                 patch={patch}
               />
 
-              {/* Action Buttons */}
+              {/* Form actions */}
               <div className="px-4 pb-8 space-y-3">
                 <Button
                   onClick={save}

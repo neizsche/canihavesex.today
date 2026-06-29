@@ -31,7 +31,7 @@ const env = loadEnv(mode, envDir, '');
 const frontendPort = Number(env.FRONTEND_PORT || 3000);
 const frontendPreviewPort = Number(env.FRONTEND_PREVIEW_PORT || frontendPort);
 
-const isSelfHost = env.SELF_HOST === 'true';
+const isSelfHost = env.IS_MANAGED_CLOUD !== 'true';
 const sentryDsn = env.SENTRY_DSN;
 
 const integrations = [react(), sitemap()];
@@ -98,7 +98,7 @@ export default defineConfig({
         // Precache shared icons (logo + the install-card app icon) so the
         // installed PWA renders them instantly from cache across screens
         // instead of re-fetching each time.
-        includeAssets: ['icon.svg', 'offline.html', 'logo.png', 'apple-touch-icon.png'],
+        includeAssets: ['icon.svg', 'offline.html', 'assets/logo.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'canihavesex.today',
           short_name: 'canihavesex',

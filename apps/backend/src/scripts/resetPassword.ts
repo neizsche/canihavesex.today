@@ -8,7 +8,9 @@ loadEnv();
 async function main() {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.log('Usage: docker compose exec app node apps/backend/dist/scripts/resetPassword.js <email> <new_password>');
+    console.log(
+      'Usage: docker compose exec app node apps/backend/dist/scripts/resetPassword.js <email> <new_password>'
+    );
     process.exit(1);
   }
 

@@ -76,7 +76,10 @@ async function main() {
         payload: { plan },
       });
       body = res.json();
-      const ok = res.statusCode === 200 && typeof body.url === 'string' && body.url.includes('dodopayments.com');
+      const ok =
+        res.statusCode === 200 &&
+        typeof body.url === 'string' &&
+        body.url.includes('dodopayments.com');
       check(`${plan} → checkout_url`, ok, res.statusCode === 200 ? body.url : body);
     }
 
@@ -92,11 +95,20 @@ async function main() {
         metadata: { userId, plan: 'yearly' },
       },
     });
-    res = await app.inject({ method: 'POST', url: '/api/billing/webhook', headers: signedHeaders(payload), payload });
+    res = await app.inject({
+      method: 'POST',
+      url: '/api/billing/webhook',
+      headers: signedHeaders(payload),
+      payload,
+    });
     check('webhook accepted (200)', res.statusCode === 200, res.statusCode);
     res = await app.inject({ method: 'GET', url: '/api/billing/status', headers: { cookie } });
     body = res.json();
-    check('status now active/yearly', body.entitled === true && body.state === 'active' && body.plan === 'yearly', body);
+    check(
+      'status now active/yearly',
+      body.entitled === true && body.state === 'active' && body.plan === 'yearly',
+      body
+    );
 
     console.log('\n4) Webhook payment.succeeded (lifetime product) → lifetime:');
     payload = JSON.stringify({
@@ -110,11 +122,20 @@ async function main() {
         metadata: { userId, plan: 'lifetime' },
       },
     });
-    res = await app.inject({ method: 'POST', url: '/api/billing/webhook', headers: signedHeaders(payload), payload });
+    res = await app.inject({
+      method: 'POST',
+      url: '/api/billing/webhook',
+      headers: signedHeaders(payload),
+      payload,
+    });
     check('webhook accepted (200)', res.statusCode === 200, res.statusCode);
     res = await app.inject({ method: 'GET', url: '/api/billing/status', headers: { cookie } });
     body = res.json();
-    check('status now active/lifetime (lifetime wins)', body.entitled === true && body.plan === 'lifetime', body);
+    check(
+      'status now active/lifetime (lifetime wins)',
+      body.entitled === true && body.plan === 'lifetime',
+      body
+    );
 
     console.log('\n5) payment.succeeded WITH subscription_id (renewal) → ignored, not lifetime:');
     payload = JSON.stringify({
@@ -127,13 +148,28 @@ async function main() {
         metadata: { userId, plan: 'yearly' },
       },
     });
-    const before = (await db.query(`SELECT count(*) c FROM subscriptions WHERE user_id=$1`, [userId]))[0] as { c: string };
-    res = await app.inject({ method: 'POST', url: '/api/billing/webhook', headers: signedHeaders(payload), payload });
-    const after = (await db.query(`SELECT count(*) c FROM subscriptions WHERE user_id=$1`, [userId]))[0] as { c: string };
-    check('renewal payment created no new row', res.statusCode === 200 && before.c === after.c, { before: before.c, after: after.c });
+    const before = (
+      await db.query(`SELECT count(*) c FROM subscriptions WHERE user_id=$1`, [userId])
+    )[0] as { c: string };
+    res = await app.inject({
+      method: 'POST',
+      url: '/api/billing/webhook',
+      headers: signedHeaders(payload),
+      payload,
+    });
+    const after = (
+      await db.query(`SELECT count(*) c FROM subscriptions WHERE user_id=$1`, [userId])
+    )[0] as { c: string };
+    check('renewal payment created no new row', res.statusCode === 200 && before.c === after.c, {
+      before: before.c,
+      after: after.c,
+    });
 
     console.log('\n6) Tampered signature → 400:');
-    payload = JSON.stringify({ type: 'subscription.active', data: { subscription_id: 'x', metadata: { userId } } });
+    payload = JSON.stringify({
+      type: 'subscription.active',
+      data: { subscription_id: 'x', metadata: { userId } },
+    });
     const headers = signedHeaders(payload);
     headers['webhook-signature'] = 'v1,bogussignature';
     res = await app.inject({ method: 'POST', url: '/api/billing/webhook', headers, payload });

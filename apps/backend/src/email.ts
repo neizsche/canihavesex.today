@@ -56,7 +56,7 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
  */
 export async function sendPurchaseConfirmationEmail(
   to: string,
-  plan: 'yearly' | 'lifetime',
+  plan: 'yearly' | 'lifetime'
 ): Promise<void> {
   const from = process.env.EMAIL_FROM || 'canihavesex.today <onboarding@resend.dev>';
   const planLabel = plan === 'lifetime' ? 'Lifetime' : 'Yearly';

@@ -23,7 +23,12 @@ class FakeStore implements VerificationStore {
   verifiedUsers = new Set<string>();
   private seq = 0;
 
-  async createCode(rec: { userId: string; codeHash: string; expiresAt: string; createdAt: string }) {
+  async createCode(rec: {
+    userId: string;
+    codeHash: string;
+    expiresAt: string;
+    createdAt: string;
+  }) {
     this.rows.push({
       id: `code-${this.seq++}`,
       user_id: rec.userId,
@@ -37,7 +42,10 @@ class FakeStore implements VerificationStore {
   async latestActiveCodeForUser(userId: string) {
     return [...this.rows]
       .filter((r) => r.user_id === userId && r.consumed_at === null)
-      .sort((a, b) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime())[0];
+      .sort(
+        (a, b) =>
+          new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime()
+      )[0];
   }
   async incrementAttempts(id: string) {
     const row = this.rows.find((r) => r.id === id);

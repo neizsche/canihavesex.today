@@ -59,7 +59,7 @@ export class EmailVerificationService {
     private readonly store: VerificationStore,
     private readonly sendEmail: SendEmail,
     private readonly secret: string,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: () => number = () => Date.now()
   ) {}
 
   /**

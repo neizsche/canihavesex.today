@@ -24,6 +24,14 @@ class RateLimiter {
     const entry = this.limits.get(identifier);
 
     if (!entry) {
+      // Prevent memory exhaustion (e.g. from x-forwarded-for spoofing)
+      if (this.limits.size >= 100_000) {
+        this.cleanup(); // try normal cleanup first
+        if (this.limits.size >= 100_000) {
+          this.limits.clear(); // force clear if still full
+        }
+      }
+
       // First request from this identifier
       this.limits.set(identifier, {
         count: 1,
@@ -88,16 +96,15 @@ class RateLimiter {
 export const rateLimiter = new RateLimiter();
 
 // Rate limiting middleware for Fastify
-export function createRateLimitMiddleware(options: {
-  windowMs?: number;
-  maxRequests?: number;
-  skipSuccessfulRequests?: boolean;
-  skipFailedRequests?: boolean;
-} = {}) {
-  const limiter = new RateLimiter(
-    options.windowMs,
-    options.maxRequests
-  );
+export function createRateLimitMiddleware(
+  options: {
+    windowMs?: number;
+    maxRequests?: number;
+    skipSuccessfulRequests?: boolean;
+    skipFailedRequests?: boolean;
+  } = {}
+) {
+  const limiter = new RateLimiter(options.windowMs, options.maxRequests);
 
   return async function rateLimitMiddleware(req: any, reply: any) {
     // Prefer a stable authenticated identifier when possible.
@@ -109,11 +116,14 @@ export function createRateLimitMiddleware(options: {
       const resetTime = limiter.getResetTime(identifier);
       const remaining = limiter.getRemainingRequests(identifier);
 
-      req.log.warn({
-        route: req.url,
-        identifier: uid ? 'user' : 'ip',
-        userId: uid ?? undefined,
-      }, 'rate limit exceeded');
+      req.log.warn(
+        {
+          route: req.url,
+          identifier: uid ? 'user' : 'ip',
+          userId: uid ?? undefined,
+        },
+        'rate limit exceeded'
+      );
 
       return reply.status(429).send({
         error: 'Too many requests',

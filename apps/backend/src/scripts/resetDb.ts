@@ -13,10 +13,10 @@ const APP_TABLES = [
   'logs',
   'daily_status',
   'cycles',
-  'active_cycles',     // legacy, merged into cycles
-  'user_settings',     // merged preferences + metadata
-  'user_preferences',  // legacy (pre-consolidation)
-  'user_metadata',     // legacy (pre-consolidation)
+  'active_cycles', // legacy, merged into cycles
+  'user_settings', // merged preferences + metadata
+  'user_preferences', // legacy (pre-consolidation)
+  'user_metadata', // legacy (pre-consolidation)
   'user_identities',
   'waitlist',
   'users',
