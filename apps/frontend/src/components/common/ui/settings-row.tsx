@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils';
 import { ChevronRight, Lock } from 'lucide-react';
 
 interface SettingsActionRowProps {
-  icon: React.ReactNode;
-  iconBgColor: string;
+  icon?: React.ReactNode;
+  iconBgColor?: string;
   label: string;
   detail?: string;
   onClick: () => void;
@@ -18,6 +18,7 @@ interface SettingsActionRowProps {
    */
   locked?: boolean;
   className?: string;
+  rightElement?: React.ReactNode;
 }
 
 export function SettingsActionRow({
@@ -30,6 +31,7 @@ export function SettingsActionRow({
   destructive,
   locked,
   className,
+  rightElement,
 }: SettingsActionRowProps) {
   return (
     <button
@@ -47,14 +49,16 @@ export function SettingsActionRow({
       )}
     >
       <div className="flex items-center gap-3 text-left">
-        <div
-          className={cn(
-            'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
-            iconBgColor
-          )}
-        >
-          {icon}
-        </div>
+        {icon && (
+          <div
+            className={cn(
+              'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
+              iconBgColor
+            )}
+          >
+            {icon}
+          </div>
+        )}
         <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
           {label}
         </div>
@@ -65,7 +69,9 @@ export function SettingsActionRow({
             {detail}
           </span>
         )}
-        {locked ? (
+        {rightElement ? (
+          rightElement
+        ) : locked ? (
           <Lock className="icon-sm text-zinc-300 dark:text-zinc-600" />
         ) : (
           <ChevronRight
@@ -78,14 +84,15 @@ export function SettingsActionRow({
 }
 
 interface SettingsExpandableRowProps {
-  icon: React.ReactNode;
-  iconBgColor: string;
+  icon?: React.ReactNode;
+  iconBgColor?: string;
   title: string;
   description?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
   className?: string;
+  rightElement?: React.ReactNode;
 }
 
 export function SettingsExpandableRow({
@@ -97,6 +104,7 @@ export function SettingsExpandableRow({
   onToggle,
   children,
   className,
+  rightElement,
 }: SettingsExpandableRowProps) {
   return (
     <div className={cn('divide-y divide-zinc-200/50 dark:divide-zinc-800/50', className)}>
@@ -107,14 +115,16 @@ export function SettingsExpandableRow({
         className="w-full min-h-[44px] sm:min-h-[48px] flex items-center justify-between px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
       >
         <div className="flex items-center gap-3 text-left">
-          <div
-            className={cn(
-              'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
-              iconBgColor
-            )}
-          >
-            {icon}
-          </div>
+          {icon && (
+            <div
+              className={cn(
+                'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
+                iconBgColor
+              )}
+            >
+              {icon}
+            </div>
+          )}
           <div className={cn(description ? 'space-y-0.5' : '')}>
             <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
               {title}
@@ -124,12 +134,16 @@ export function SettingsExpandableRow({
             )}
           </div>
         </div>
-        <ChevronRight
-          className={cn(
-            'icon-sm text-zinc-300 dark:text-zinc-600 transition-transform',
-            open && 'rotate-90 text-zinc-500 dark:text-zinc-400'
-          )}
-        />
+        {rightElement ? (
+          rightElement
+        ) : (
+          <ChevronRight
+            className={cn(
+              'icon-sm text-zinc-300 dark:text-zinc-600 transition-transform',
+              open && 'rotate-90 text-zinc-500 dark:text-zinc-400'
+            )}
+          />
+        )}
       </button>
 
       <div
@@ -148,8 +162,8 @@ export function SettingsExpandableRow({
 }
 
 interface SettingsToggleRowProps {
-  icon: React.ReactNode;
-  iconBgColor: string;
+  icon?: React.ReactNode;
+  iconBgColor?: string;
   label: string;
   description?: string;
   checked: boolean;
@@ -176,14 +190,16 @@ export function SettingsToggleRow({
       )}
     >
       <div className="flex items-center gap-3 text-left flex-1 min-w-0">
-        <div
-          className={cn(
-            'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
-            iconBgColor
-          )}
-        >
-          {icon}
-        </div>
+        {icon && (
+          <div
+            className={cn(
+              'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
+              iconBgColor
+            )}
+          >
+            {icon}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
             {label}

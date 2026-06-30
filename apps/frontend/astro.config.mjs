@@ -5,6 +5,7 @@ import sentry from '@sentry/astro';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import { loadEnv } from 'vite';
 
 // Environment-specific configuration
@@ -34,6 +35,22 @@ const frontendPreviewPort = Number(env.FRONTEND_PREVIEW_PORT || frontendPort);
 const isSelfHost = env.IS_MANAGED_CLOUD !== 'true';
 const sentryDsn = env.SENTRY_DSN;
 
+// Build stamp sent to the backend as `x-app-version` on every API call, so the
+// ops dashboard can see which client build a user is on (useful after a PWA
+// release). Prefer an explicit env (CI/Docker), else the short git SHA, else
+// 'dev'. Resolved at build time and inlined via the `__APP_VERSION__` define.
+const appVersion =
+  env.PUBLIC_APP_VERSION ||
+  (() => {
+    try {
+      return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim();
+    } catch {
+      return 'dev';
+    }
+  })();
+
 const integrations = [react(), sitemap()];
 
 if (sentryDsn && !isSelfHost) {
@@ -54,6 +71,9 @@ export default defineConfig({
   },
   vite: {
     envDir,
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

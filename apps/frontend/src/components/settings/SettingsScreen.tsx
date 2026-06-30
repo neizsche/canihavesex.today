@@ -16,13 +16,11 @@ import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 import { useSession } from '@/hooks/queries/useSession';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useTheme } from '@/hooks/useTheme';
-import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
 import { useProfileSettings } from '@/hooks/queries/useProfileSettings';
-import { BillingSection } from './BillingSection';
+import { AccountHub } from './AccountHub';
 import { CycleScreen } from './CycleScreen';
 import { SettingsAccountActions } from './SettingsAccountActions';
-import { SettingsInstallCard } from './SettingsInstallCard';
 import { SettingsPreferencesSection } from './SettingsPreferencesSection';
 
 type ConfirmAction = 'delete-all' | 'delete-account' | null;
@@ -38,7 +36,6 @@ export function SettingsScreen() {
     variant: 'success' | 'destructive';
   } | null>(null);
   const [view, setView] = React.useState<SettingsView>('main');
-  const [installOpen, setInstallOpen] = React.useState(false);
   // Open when the user taps a demo-locked action — explains why it's unavailable.
   const [demoLockOpen, setDemoLockOpen] = React.useState(false);
 
@@ -57,15 +54,6 @@ export function SettingsScreen() {
   const isDemo = billing?.state === 'demo';
   const { showBranding: brandingVisible } = useDiscreetMode();
   const { theme, setTheme } = useTheme();
-  const { canPrompt, isInstalled, isIOS, isAndroid, promptInstall } = useInstallPrompt();
-  // Show the install affordance only when it can do something: a native prompt
-  // is available, or it's a mobile OS where we can show manual steps. Hidden
-  // once already installed.
-  const showInstall = !isInstalled && (canPrompt || isIOS || isAndroid);
-  // Manual steps to fall back to when no native prompt is available.
-  const manualSteps = isIOS
-    ? SETTINGS_SCREEN_LABELS.install.iosSteps
-    : SETTINGS_SCREEN_LABELS.install.androidSteps;
 
   async function executeDeleteAllData() {
     setBusy(true);
@@ -189,11 +177,7 @@ export function SettingsScreen() {
               </h1>
             </div>
 
-            <BillingSection
-              session={session}
-              email={session?.email}
-              onHelp={() => setView('help')}
-            />
+            <AccountHub session={session} email={session?.email} onHelp={() => setView('help')} />
 
             <SettingsPreferencesSection
               cycleLength={cycleLength}
@@ -217,19 +201,6 @@ export function SettingsScreen() {
                 saveProfile({ temperature_unit: next });
               }}
             />
-
-            {showInstall && (
-              <SettingsInstallCard
-                canPrompt={canPrompt}
-                isIOS={isIOS}
-                installOpen={installOpen}
-                manualSteps={manualSteps}
-                onToggleInstall={() => setInstallOpen((prev) => !prev)}
-                onPromptInstall={() => {
-                  void promptInstall();
-                }}
-              />
-            )}
 
             <SettingsAccountActions
               email={session?.email}

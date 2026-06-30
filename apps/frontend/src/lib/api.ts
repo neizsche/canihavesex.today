@@ -17,6 +17,9 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     cache: 'no-store',
     headers: {
       'X-Requested-With': 'XMLHttpRequest',
+      // Client build stamp — the backend records it on login as ops telemetry.
+      'X-App-Version': config.appVersion,
+      'X-Timezone-Offset': new Date().getTimezoneOffset().toString(),
       ...(init.headers || {}),
     },
   });

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { isoDateForOffset, parseTimezoneOffsetMinutes } from '../src/utils/dates.js';
 
 describe('isoDateForOffset', () => {
-
   test('east of UTC (NZ, UTC+13) rolls into the new day just after local midnight', () => {
     // 2026-06-20T12:30Z is 2026-06-21T01:30 in NZ — already the next day there.
     const instant = new Date('2026-06-20T12:30:00Z');

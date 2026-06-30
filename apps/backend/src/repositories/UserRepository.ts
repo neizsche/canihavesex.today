@@ -49,6 +49,17 @@ export class UserRepository {
     await this.db.query('UPDATE users SET email_verified = $1 WHERE id = $2', [verified, userId]);
   }
 
+  // Stamp a successful login: bump last_login_at to now and record the client
+  // build that signed in. app_version is only overwritten when the caller has a
+  // value (COALESCE keeps the previous one otherwise). Operational telemetry for
+  // the ops dashboard; never read by the app runtime (see migration v12).
+  async recordLogin(userId: string, appVersion: string | null): Promise<void> {
+    await this.db.query(
+      'UPDATE users SET last_login_at = NOW(), app_version = COALESCE($2, app_version) WHERE id = $1',
+      [userId, appVersion]
+    );
+  }
+
   async delete(id: string): Promise<void> {
     await this.db.query('DELETE FROM users WHERE id = $1', [id]);
   }

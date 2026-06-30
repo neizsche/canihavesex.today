@@ -38,6 +38,8 @@ const USER_SCOPED_TABLES = [
   'user_settings',
   'user_identities',
   'subscriptions',
+  'billing_events',
+  'email_verification_codes',
 ];
 
 function jitter(amount: number): number {

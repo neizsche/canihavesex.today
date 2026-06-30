@@ -20,9 +20,7 @@ const APP_TABLES = [
   'user_identities',
   'waitlist',
   'users',
-  // migration bookkeeping (+ its legacy predecessor) so migrate() re-applies
   'schema_migrations',
-  'schema_meta',
 ];
 
 async function reset() {

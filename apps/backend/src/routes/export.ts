@@ -18,8 +18,6 @@ export async function exportRoutes(fastify: FastifyInstance, opts: { db: any }) 
     // CSV Construction
     let csv = '';
 
-
-
     // Headers
     csv += 'Date,Bleeding,Temperature,Mucus,LH Test,Disturbances,Symptoms,Notes\n';
 

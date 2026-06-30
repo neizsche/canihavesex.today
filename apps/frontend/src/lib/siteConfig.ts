@@ -13,6 +13,10 @@ export const BRAND = {
 
 export const CONTACT_EMAIL = 'support@canihavesex.today';
 
+// Public marketing/landing site (apex domain). Legal pages live here, NOT on the
+// app subdomain — always link to these absolutely.
+export const WEBSITE_URL = 'https://canihavesex.today';
+
 export const HERO = {
   SUBTITLE: {
     BEFORE: 'A simple ',

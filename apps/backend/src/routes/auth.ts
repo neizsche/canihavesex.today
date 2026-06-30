@@ -39,6 +39,20 @@ export async function authRoutes(
   const logRepository = new LogRepository(db);
   const engineService = new EngineService(db);
 
+  // Fire-and-forget login telemetry for the internal ops dashboard: stamp
+  // last_login_at and the client build (x-app-version header) that signed in.
+  // Never awaited — a telemetry write must not block or fail a sign-in.
+  const recordLogin = (
+    req: { headers: Record<string, unknown>; log: { warn: Function } },
+    userId: string
+  ) => {
+    const raw = req.headers['x-app-version'];
+    const appVersion = typeof raw === 'string' ? raw.slice(0, 40) : null;
+    void userRepository.recordLogin(userId, appVersion).catch((err) => {
+      req.log.warn({ err, route: 'recordLogin' }, 'login telemetry write failed');
+    });
+  };
+
   const credsSchema = z.object({
     email: z
       .string()
@@ -154,6 +168,7 @@ export async function authRoutes(
     }
 
     setSessionCookie(reply, userId);
+    recordLogin(req, userId);
     const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(userId);
     return reply.send({ userId, email, onboardingCompleted });
   });
@@ -193,6 +208,7 @@ export async function authRoutes(
     }
 
     setSessionCookie(reply, user.id);
+    recordLogin(req, user.id);
     const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
     return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
   });
@@ -224,6 +240,7 @@ export async function authRoutes(
     }
 
     setSessionCookie(reply, user.id);
+    recordLogin(req, user.id);
     const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
     return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
   });
@@ -364,6 +381,7 @@ export async function authRoutes(
         reply.clearCookie('oauth_return_to', { path: '/' });
 
         setSessionCookie(reply, userId);
+        recordLogin(req, userId);
         return reply.redirect(`${appBase()}${returnTo}`);
       } catch (e) {
         req.log.warn({ route: 'oauth/google/callback', err: e }, 'id_token verification failed');

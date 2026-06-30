@@ -1,6 +1,13 @@
 import { APP_NAME } from './siteConfig';
 
+// Injected at build time by Vite (`define` in astro.config.mjs). Declared here so
+// TypeScript knows the global token the bundler will replace.
+declare const __APP_VERSION__: string;
+
 export const config = {
+  // Client build stamp, sent as x-app-version on API calls (ops telemetry).
+  appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev',
+
   // Backend API
   backendBase: (() => {
     const env = import.meta.env as any;

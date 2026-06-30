@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ChevronRight, Mail, FileText, Shield, ExternalLink } from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
-import { BRAND, CONTACT_EMAIL } from '@/lib/siteConfig';
+import { BRAND, CONTACT_EMAIL, WEBSITE_URL } from '@/lib/siteConfig';
 import { Header } from '@/components/common/Header';
 import { BrandTitle } from '@/components/common/BrandTitle';
 
@@ -59,8 +59,9 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
               <InsetGroup title="Legal">
                 <div className="space-y-0 divide-y divide-border/30">
                   <a
-                    href="/terms?ref=app"
+                    href={`${WEBSITE_URL}/terms?ref=app`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                   >
                     <div className="flex items-center gap-3">
@@ -74,8 +75,9 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                     <ChevronRight className="w-4 h-4 text-zinc-300" />
                   </a>
                   <a
-                    href="/privacy?ref=app"
+                    href={`${WEBSITE_URL}/privacy?ref=app`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                   >
                     <div className="flex items-center gap-3">
@@ -93,7 +95,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
 
               <InsetGroup title="About">
                 <a
-                  href="https://canihavesex.today?ref=app"
+                  href={`${WEBSITE_URL}?ref=app`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"

@@ -11,7 +11,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "simulate:normal": "tsx src/scripts/simulateUser.ts",
     "seed:demo": "tsx src/scripts/seedDemo.ts",
-    "reset:db": "RESET_DB_CONFIRM=yes tsx src/scripts/resetDb.ts",
+    "reset:db": "RESET_DB_CONFIRM=yes tsx src/scripts/resetDb.ts && npm run seed:demo",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
