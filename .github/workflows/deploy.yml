@@ -1,0 +1,126 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: # Allow manual triggers
+    inputs:
+      publish_package:
+        description: 'Publish package to GHCR'
+        required: true
+        type: boolean
+        default: false
+
+env:
+  GCP_PROJECT_ID: canihavesextoday-mvp
+  GCP_REGION: us-central1
+  CLOUD_RUN_SERVICE: canihavesex
+  # Artifact Registry repository (created during setup)
+  AR_REPO: app
+  IMAGE_NAME: canihavesex
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+      packages: write # Required to push to GHCR
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate Docker to Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up GHCR Image Name & Generate Tags
+        id: docker_meta
+        run: |
+          # Convert owner name to lowercase for GHCR compatibility
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          GHCR_IMAGE="ghcr.io/${OWNER_LOWER}/canihavesex"
+          
+          # Base tags for GCP deployment
+          TAGS="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }},${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest"
+          
+          # Conditionally add GHCR tags if this is a tag push or manual flag is true
+          if [[ "${{ github.ref }}" == refs/tags/v* ]] || [[ "${{ github.event.inputs.publish_package }}" == 'true' ]]; then
+            TAGS="$TAGS,${GHCR_IMAGE}:${{ github.sha }},${GHCR_IMAGE}:latest"
+            
+            # If triggered by a specific v*.*.* tag, add that specific version tag to the package
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+              VERSION="${GITHUB_REF#refs/tags/}"
+              TAGS="$TAGS,${GHCR_IMAGE}:${VERSION}"
+            fi
+          fi
+          
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Run DB migrations as a discrete step (not on app boot) using the image we
+      # just pushed. The Cloud Run service has RUN_MIGRATIONS_ON_BOOT=false so the
+      # app's cold-start path stays lean. Runs before traffic shifts to the new
+      # revision, so the schema is ready when the new image starts serving.
+      - name: Run database migrations
+        run: |
+          # Verified TLS for the migration connection too: pull the same Supabase
+          # CA from Secret Manager (single source of truth with the Cloud Run
+          # deploy below) and run with strict cert checking.
+          DB_SSL_CA="$(gcloud secrets versions access latest --secret=DB_SSL_CA)"
+          docker run --rm \
+            -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            -e RUN_MIGRATIONS_ON_BOOT=false \
+            -e DB_SSL=true \
+            -e DB_SSL_STRICT=1 \
+            -e DB_SSL_CA="$DB_SSL_CA" \
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            node apps/backend/dist/scripts/migrate.js
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Verified TLS to Postgres (Supabase). DB_SSL_CA is the Supabase project
+          # CA cert, stored in GCP Secret Manager (secret name: DB_SSL_CA). With
+          # the CA present, DB_SSL_STRICT=1 makes Node refuse any cert not signed
+          # by Supabase's CA — closing the MITM gap. `merge` strategies preserve
+          # all other env/secrets already set on the service (COOKIE_SECRET, etc.).
+          env_vars: |-
+            DB_SSL=true
+            DB_SSL_STRICT=1
+          env_vars_update_strategy: merge
+          secrets: |-
+            DB_SSL_CA=DB_SSL_CA:latest
+          secrets_update_strategy: merge

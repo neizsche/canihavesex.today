@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-canihavesex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-canihavesex}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    # Gate the app on Postgres actually accepting connections, not just the
+    # container having started — otherwise first boot can crash on the 2s DB
+    # connection timeout before the database is ready.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-canihavesex} -d ${POSTGRES_DB:-canihavesex}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ghcr.io/neizsche/canihavesex:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-canihavesex}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-canihavesex}
+      DB_SSL: "false"
+      NODE_ENV: production
+      PORT: "1299"
+      COOKIE_SECRET: ${COOKIE_SECRET}
+    ports:
+      - "3112:1299"
+
+volumes:
+  db_data:

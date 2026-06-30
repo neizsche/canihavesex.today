@@ -1,0 +1,23 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.github
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+**/.DS_Store
+supabase/
+.agent
+.claude
+
+# AI and agent configuration
+.ai
+.agents
+
+# Documentation
+docs
+*.md

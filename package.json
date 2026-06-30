@@ -1,0 +1,21 @@
+{
+  "name": "canihavesex-today",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "dev": "npm run dev -w apps/backend & npm run dev -w apps/frontend",
+    "dev:backend": "npm run dev -w apps/backend",
+    "dev:frontend": "npm run dev -w apps/frontend",
+    "build": "npm run build -w apps/backend && npm run build -w apps/frontend",
+    "simulate:normal": "npm run simulate:normal -w apps/backend",
+    "lint": "npm run lint -w apps/backend && npm run lint -w apps/frontend",
+    "format": "npm run format -w apps/backend && npm run format -w apps/frontend",
+    "format:check": "npm run format:check -w apps/backend && npm run format:check -w apps/frontend",
+    "test": "npm run test -w apps/backend && npm run test -w apps/frontend"
+  }
+}
