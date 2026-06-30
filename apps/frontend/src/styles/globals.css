@@ -1,0 +1,305 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #f2f2f7;
+    /* iOS systemGroupedBackground — gray canvas so white cells pop */
+    --foreground: #000000;
+    /* iOS label — primary text and icon color */
+
+    --color-risk-high: #c94a4a;
+    /* High fertility risk accent */
+    --color-risk-medium: #c28b1e;
+    /* Medium fertility risk accent */
+    --color-risk-low: #3f8f5f;
+    /* Low fertility risk accent */
+    --color-bg: #f2f2f7;
+    /* Legacy/fallback background */
+    --color-text-primary: #000000;
+    /* Primary text */
+    --color-text-muted: #6c6c70;
+    /* iOS secondaryLabel — de-emphasized text */
+
+    --card: #ffffff;
+    /* iOS secondarySystemGroupedBackground — white cells/sections */
+    --card-foreground: #000000;
+    /* Text inside cards */
+
+    --popover: #ffffff;
+    /* Modal/Sheet surface (white) */
+    --popover-foreground: #000000;
+    /* Text inside popovers */
+
+    --muted: #e5e5ea;
+    /* iOS systemGray5 — subtle fills (segmented tracks, chips) */
+    --muted-foreground: #6c6c70;
+    /* iOS secondaryLabel — metadata/placeholder text */
+
+    --border: transparent;
+    /* No visible outer border (Inset Grouped) */
+    --input: #e5e5ea;
+    /* Form input border */
+    --ring: #007aff;
+    /* Apple Blue focus accent */
+
+    --primary: #000000;
+    /* Brand primary action color */
+    --primary-foreground: #ffffff;
+    /* Text on primary actions */
+
+    --secondary: #e5e5ea;
+    /* iOS systemGray5 — secondary button background */
+    --secondary-foreground: #000000;
+    /* Text on secondary actions */
+
+    --destructive: #ff3b30;
+    /* Destructive action color */
+    --destructive-foreground: #ffffff;
+    /* Text on destructive actions */
+
+    --radius: 14px;
+    /* Core UI rounding radius */
+
+    /* Fertility Risk Tones */
+    --risk-high: #c62121;
+    --risk-high-bg: #fef2f2;
+    --risk-medium: #c47c0b;
+    --risk-medium-bg: #fffbeb;
+    --risk-low: #166534;
+    --risk-low-bg: #f0fdf4;
+
+    /* Viewport Scaling Defaults (Medium) */
+    --scale-factor: 1;
+    --row-h: 3rem;
+    --inset-gap: 1.25rem;
+    --font-scale: 1;
+    --vh-offset: 0px;
+  }
+
+  /* Small Screen Scaling - More aggressive for tight layouts */
+  [data-scale='small'] {
+    --scale-factor: 0.85;
+    --row-h: 2.5rem;
+    --inset-gap: 0.5rem;
+    --font-scale: 0.9;
+    --radius: 12px;
+  }
+
+  /* Large Screen Scaling - More generous spacing */
+  [data-scale='large'] {
+    --scale-factor: 1.15;
+    --row-h: 3.5rem;
+    --inset-gap: 2rem;
+    --font-scale: 1.1;
+  }
+
+  @media (max-height: 720px) {
+    :root {
+      --radius: 12px;
+    }
+  }
+
+  .dark {
+    --background: #000000;
+    /* Dark mode app background */
+    --foreground: #ffffff;
+    /* Primary text color */
+
+    --card: #1c1c1e;
+    /* Section/Card background */
+    --card-foreground: #ffffff;
+    /* Text on sections/cards */
+
+    --popover: #2c2c2e;
+    /* Modal/Sheet background */
+    --popover-foreground: #ffffff;
+    /* Text on popovers */
+
+    --muted: #1c1c1e;
+    /* Subtle element background */
+    --muted-foreground: #8e8e93;
+    /* Secondary label color */
+
+    --border: transparent;
+    /* No visible outer border (Inset Grouped) */
+    --input: #38383a;
+    /* Form field border */
+    --ring: #0a84ff;
+    /* System blue focus accent */
+
+    --primary: #ffffff;
+    /* Primary action background */
+    --primary-foreground: #000000;
+    /* Primary action text */
+
+    --secondary: #1c1c1e;
+    /* Secondary action background */
+    --secondary-foreground: #ffffff;
+    /* Secondary action text */
+
+    --destructive: #ff453a;
+    /* System red (Dark Mode) */
+    --destructive-foreground: #ffffff;
+    /* Destructive text */
+
+    /* Dark Mode Risk Tones */
+    --risk-high: #ff453a;
+    --risk-high-bg: #2c1414;
+    --risk-medium: #ff9f0a;
+    --risk-medium-bg: #2c2010;
+    --risk-low: #32d74b;
+    --risk-low-bg: #102414;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  ::selection {
+    background: hsl(var(--muted));
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Standard Icon Sizes */
+  .icon-xs {
+    @apply w-3.5 h-3.5;
+  }
+
+  .icon-sm {
+    @apply w-4 h-4;
+  }
+
+  .icon-md {
+    @apply w-5 h-5;
+  }
+
+  .icon-lg {
+    @apply w-6 h-6;
+  }
+
+  .icon-xl {
+    @apply w-8 h-8;
+  }
+
+  .icon-2xl {
+    @apply w-12 h-12;
+  }
+
+  .icon-lg-plus {
+    @apply w-7 h-7;
+  }
+
+  /* Short Screen Adjustments */
+  @media (max-height: 720px) {
+    .short-hide {
+      @apply hidden;
+    }
+
+    .short-p-narrow {
+      @apply px-4;
+    }
+
+    .short-py-narrow {
+      @apply py-2;
+    }
+
+    .short-tight {
+      @apply tracking-tight leading-tight;
+    }
+
+    .short-text-xs {
+      @apply text-[10px];
+    }
+
+    .short-text-sm {
+      @apply text-[13px];
+    }
+
+    .short-text-base {
+      @apply text-[15px];
+    }
+
+    .short-text-lg {
+      @apply text-[17px];
+    }
+  }
+
+  /* ── Onboarding shell spacing ──────────────────────────────────────────────
+     Single source of truth for where the brand header and the primary CTA rest
+     on every onboarding step. Both are safe-area aware (clear of the notch and
+     the home indicator) and tighten on short viewports, so the flow breathes the
+     same on a small phone, a tall phone, and desktop. Tune the resting heights
+     here rather than per-screen. */
+  .onboarding-header {
+    @apply flex flex-shrink-0 items-center justify-center;
+    padding-top: max(env(safe-area-inset-top, 0px), 2rem);
+    padding-bottom: 1rem;
+  }
+
+  .onboarding-footer {
+    @apply mx-auto w-full max-w-md flex-shrink-0;
+    padding-top: 0.5rem;
+    /* The "sweet spot": comfortably above the home indicator, not floating high. */
+    padding-bottom: max(env(safe-area-inset-bottom, 0px) + 0.75rem, 1.5rem);
+  }
+
+  @media (max-height: 720px) {
+    .onboarding-header {
+      padding-top: max(env(safe-area-inset-top, 0px), 1rem);
+      padding-bottom: 0.5rem;
+    }
+
+    .onboarding-footer {
+      padding-top: 0.25rem;
+      padding-bottom: max(env(safe-area-inset-bottom, 0px) + 0.5rem, 1rem);
+    }
+  }
+
+  /* Custom animations for SignInPage */
+  @keyframes slideUpFade {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up-fade {
+    animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-slide-up-fade {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+}

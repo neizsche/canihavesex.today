@@ -1,0 +1,9 @@
+# Frontend Environment Configuration
+# Copy this file to .env and customize for your deployment
+
+# Backend API URL (required for production)
+PUBLIC_BACKEND_BASE=https://api.canihavesex.today
+
+# App configuration
+PUBLIC_APP_NAME="Can I Have Sex Today"
+PUBLIC_APP_BASE=https://canihavesex.today
