@@ -18,6 +18,12 @@ interface OnboardingData {
 
 interface OnboardingFlowProps {
   onComplete: () => void;
+  /**
+   * Shared demo session: run the flow as a walkthrough only. Nothing is
+   * persisted — the account is read-only and keeps its seeded cycle config, so
+   * completion just drops the visitor into the seeded app.
+   */
+  isDemo?: boolean;
 }
 
 const BrandingHeader = () => (
@@ -33,7 +39,7 @@ const BrandLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
+export function OnboardingFlow({ onComplete, isDemo = false }: OnboardingFlowProps) {
   const queryClient = useQueryClient();
   const { canPrompt, isInstalled, promptInstall } = useInstallPrompt();
   const [step, setStep] = React.useState<OnboardingStep>('consent');
@@ -56,6 +62,13 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
     if (!data.cycle_regularity) {
       setError('Please complete all required fields.');
+      return;
+    }
+
+    // Demo is read-only: don't call the API (it would 403) or mutate the seeded
+    // config — just finish the walkthrough and land in the app.
+    if (isDemo) {
+      onComplete();
       return;
     }
 

@@ -3,7 +3,8 @@ import { useSession } from '@/hooks/queries/useSession';
 import { currentReturnTo, UnauthorizedError } from '@/lib/api';
 import { SignInPage } from '@/components/login/SignInPage';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
-import { Loader2 } from 'lucide-react';
+import { Spinner } from '@/components/common/ui/spinner';
+import { seenWithinDay, markSeenToday } from '@/lib/dailyFlag';
 
 interface SessionGateProps {
   children: React.ReactNode;
@@ -14,8 +15,30 @@ function redirectToAuth(): void {
   window.location.href = `/?openAuth=true&returnTo=${encodeURIComponent(rt)}`;
 }
 
+const DEMO_ONBOARDING_DONE_KEY = 'demo-onboarding-done';
+
 export function SessionGate({ children }: SessionGateProps) {
   const session = useSession();
+
+  // The shared demo always walks visitors through onboarding as part of the
+  // tour — its seeded `onboardingCompleted` flag is ignored. We remember
+  // completion for a day (see dailyFlag) so finishing the walkthrough doesn't
+  // bounce them back into it; a day later a returning visitor sees it again.
+  const isDemo = !!session.data?.isDemo;
+  const [demoOnboardingDone, setDemoOnboardingDone] = React.useState<boolean>(() =>
+    seenWithinDay(DEMO_ONBOARDING_DONE_KEY)
+  );
+
+  const needsOnboarding =
+    session.data?.onboardingCompleted === false || (isDemo && !demoOnboardingDone);
+
+  const completeOnboarding = React.useCallback(() => {
+    if (isDemo) {
+      markSeenToday(DEMO_ONBOARDING_DONE_KEY);
+      setDemoOnboardingDone(true);
+    }
+    window.location.hash = '#/today';
+  }, [isDemo]);
 
   React.useEffect(() => {
     if (session.isError && session.error instanceof UnauthorizedError) {
@@ -28,7 +51,7 @@ export function SessionGate({ children }: SessionGateProps) {
 
     const isAtOnboarding = window.location.hash === '#/onboarding';
 
-    if (session.data?.onboardingCompleted === false) {
+    if (needsOnboarding) {
       if (!isAtOnboarding) {
         window.location.hash = '#/onboarding';
       }
@@ -39,15 +62,12 @@ export function SessionGate({ children }: SessionGateProps) {
       // If onboarding is completed but user is on #/onboarding, redirect to #/today
       window.location.hash = '#/today';
     }
-  }, [session.data?.userId, session.data?.onboardingCompleted]);
+  }, [session.data?.userId, needsOnboarding]);
 
   if (session.isLoading) {
     return (
       <div className="flex min-h-[50dvh] items-center justify-center">
-        <Loader2
-          className="h-7 w-7 animate-spin text-[#007aff] dark:text-[#0a84ff]"
-          strokeWidth={2.5}
-        />
+        <Spinner size={28} />
       </div>
     );
   }
@@ -95,8 +115,8 @@ export function SessionGate({ children }: SessionGateProps) {
   // Gate onboarding synchronously during render. The hash-sync effect above
   // only runs after a commit, so relying on it to swap routes briefly flashes
   // the Today screen first. Returning here keeps the app chrome from mounting.
-  if (session.data.onboardingCompleted === false) {
-    return <OnboardingFlow onComplete={() => (window.location.hash = '#/today')} />;
+  if (needsOnboarding) {
+    return <OnboardingFlow isDemo={isDemo} onComplete={completeOnboarding} />;
   }
 
   return <>{children}</>;
