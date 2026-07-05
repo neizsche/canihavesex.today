@@ -6,6 +6,9 @@ import { cn } from '@/lib/utils';
 import { todayIso, addDays } from '@/lib/date';
 import { Button } from '@/components/common/ui/button';
 import { Header } from '@/components/common/Header';
+import { ActionSheet } from '@/components/common/ui/action-sheet';
+import { WaitlistCapture, hasJoinedWaitlist } from '@/components/common/WaitlistCapture';
+import { seenWithinDay, markSeenToday } from '@/lib/dailyFlag';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
@@ -29,6 +32,9 @@ import { useTemperatureUnit } from '@/hooks/queries/useTemperatureUnit';
 
 // Flag indicating if the coaching modal has been viewed.
 const COACH_SEEN_KEY = 'chs-log-coach-seen';
+
+// Caps the demo's post-save waitlist invite to once per day (see @/lib/dailyFlag).
+const WAITLIST_PROMPT_KEY = 'chs_waitlist_prompted';
 
 // Map calendar status to tailwind color classes.
 const STATUS_DOT: Record<CalendarStatus, string> = {
@@ -64,6 +70,7 @@ export function LogScreen() {
   const [tempOpen, setTempOpen] = React.useState(false);
   const [lhOpen, setLhOpen] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
+  const [waitlistOpen, setWaitlistOpen] = React.useState(false);
   const [coachOpen, setCoachOpen] = React.useState(false);
   const [mucusGuideOpen, setMucusGuideOpen] = React.useState(false);
 
@@ -93,6 +100,7 @@ export function LogScreen() {
   const query = useLog(date);
   const saveMutation = useSaveLog();
   const { data: billing } = useBillingStatus();
+  const isDemo = billing?.state === 'demo';
 
   // Basal Body Temperature (BBT) unit configuration. Inputs are converted to Celsius for storage.
   const tempUnit = useTemperatureUnit();
@@ -173,6 +181,20 @@ export function LogScreen() {
       {
         onSuccess: () => {
           setSavedState(form);
+          // Demo: after a save (an engaged, positive moment) invite to the
+          // waitlist — at most once a day, and never once they've joined. The
+          // save has already persisted; we just hold the post-save navigation
+          // until they cancel or add their email. They're free to skip.
+          if (
+            isDemo &&
+            date === todayIso() &&
+            !hasJoinedWaitlist() &&
+            !seenWithinDay(WAITLIST_PROMPT_KEY)
+          ) {
+            markSeenToday(WAITLIST_PROMPT_KEY);
+            setWaitlistOpen(true);
+            return;
+          }
           setSuccess(true);
           setTimeout(() => {
             setSuccess(false);
@@ -325,6 +347,21 @@ export function LogScreen() {
       </div>
 
       <LogCoachSheet isOpen={coachOpen} onClose={closeCoach} />
+
+      {/* Post-save demo invite. Skippable — closing (cancel or after joining)
+          continues to Today, so the save is never blocked. */}
+      <ActionSheet
+        isOpen={waitlistOpen}
+        onClose={() => {
+          setWaitlistOpen(false);
+          window.location.hash = '#/today';
+        }}
+        title="That's logged"
+        description="Enjoying the demo? We launch soon — want an invite?"
+        actions={[]}
+      >
+        <WaitlistCapture source="demo_log" />
+      </ActionSheet>
     </div>
   );
 }

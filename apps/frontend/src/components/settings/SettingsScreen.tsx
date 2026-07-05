@@ -11,6 +11,7 @@ import {
 } from '@/lib/cacheUtils';
 import { Header } from '@/components/common/Header';
 import { ActionSheet } from '@/components/common/ui/action-sheet';
+import { WaitlistCapture } from '@/components/common/WaitlistCapture';
 import { HelpScreen } from './HelpScreen';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 import { useSession } from '@/hooks/queries/useSession';
@@ -245,10 +246,12 @@ export function SettingsScreen() {
           <ActionSheet
             isOpen={demoLockOpen}
             onClose={() => setDemoLockOpen(false)}
-            title="Not available in the demo"
-            description="You're exploring the shared demo account, so this is read-only. Create your own account to delete data or manage your account."
+            title="This is a live demo"
+            description="Changes here aren't saved. We launch soon — want an invite?"
             actions={[]}
-          />
+          >
+            <WaitlistCapture source="demo_lock" />
+          </ActionSheet>
         </div>
       </div>
     </div>

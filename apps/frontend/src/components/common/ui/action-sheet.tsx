@@ -12,9 +12,18 @@ interface ActionSheetProps {
   title?: string;
   description?: string;
   actions: ActionSheetAction[];
+  /** Optional custom body rendered below the title/description (e.g. a form). */
+  children?: React.ReactNode;
 }
 
-export function ActionSheet({ isOpen, onClose, title, description, actions }: ActionSheetProps) {
+export function ActionSheet({
+  isOpen,
+  onClose,
+  title,
+  description,
+  actions,
+  children,
+}: ActionSheetProps) {
   const [mounted, setMounted] = React.useState(false);
 
   // Handle mounting animation state
@@ -57,6 +66,12 @@ export function ActionSheet({ isOpen, onClose, title, description, actions }: Ac
                   {description}
                 </div>
               )}
+            </div>
+          )}
+
+          {children && (
+            <div className="px-4 py-4 border-b border-black/5 dark:border-white/5 last:border-b-0">
+              {children}
             </div>
           )}
 
