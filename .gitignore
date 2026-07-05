@@ -4,6 +4,8 @@ docs/*
 
 # internal review / audit docs (not for public repo)
 review/
+# private agent context (Antigravity workspace rules — local only, not for public repo)
+.agents/
 # environment / secrets
 .env
 .env.*

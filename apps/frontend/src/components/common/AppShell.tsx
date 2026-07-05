@@ -12,6 +12,7 @@ import {
   clearPersistedCache,
 } from '@/lib/cacheUtils';
 import { BottomNav } from './BottomNav';
+import { DemoWaitlistPrompt } from './DemoWaitlistPrompt';
 import { SessionGate } from './SessionGate';
 import { ThemeSync } from './ThemeSync';
 import { OfflineScreen } from './OfflineScreen';
@@ -89,6 +90,8 @@ function AppChrome() {
         <main className="flex-1 overflow-y-auto no-scrollbar">{content}</main>
         {!blocked && phase === 'idle' && <BottomNav active={route} />}
       </div>
+      {/* Pre-launch waitlist invite — renders itself only inside the demo session. */}
+      <DemoWaitlistPrompt route={route} />
     </div>
   );
 }

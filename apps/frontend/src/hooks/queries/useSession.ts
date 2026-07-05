@@ -5,6 +5,8 @@ export interface SessionData {
   userId: string;
   email?: string | null;
   onboardingCompleted?: boolean;
+  /** True only for the shared public demo session (see backend /api/session). */
+  isDemo?: boolean;
 }
 
 export function useSession() {

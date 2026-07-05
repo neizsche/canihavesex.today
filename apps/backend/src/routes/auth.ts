@@ -434,7 +434,12 @@ export async function authRoutes(
 
     const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(userId);
 
-    return reply.send({ userId, email, onboardingCompleted });
+    // Surface whether this is the shared public demo session so the client can
+    // show demo-only affordances (e.g. the pre-launch waitlist prompt) without
+    // hardcoding the demo address in the frontend bundle.
+    const isDemo = isDemoAccountEnabled() && email === DEMO_EMAIL;
+
+    return reply.send({ userId, email, onboardingCompleted, isDemo });
   });
 
   // Unauthenticated session check endpoint

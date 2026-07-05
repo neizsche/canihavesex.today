@@ -1,0 +1,53 @@
+---
+// Standalone 404. Intentionally independent of the app shell, session, and the
+// fertility engine so it renders for anyone who lands on a dead URL — signed in
+// or not. Borrows the brand's verdict tone ("Nope."), not the Today screen.
+import AppLayout from '@/layouts/AppLayout.astro';
+import { BRAND, WEBSITE_URL } from '@/lib/siteConfig';
+---
+
+<AppLayout
+  title="Page Not Found"
+  showBranding={false}
+  showNav={false}
+  maxWidthClass="w-full !px-0 !pt-0 !pb-0 !mx-0"
+>
+  <section class="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+    <!-- Brand wordmark, doubles as the escape hatch home -->
+    <a
+      href={WEBSITE_URL}
+      class="mb-12 text-[17px] font-bold tracking-tight text-foreground select-none"
+    >
+      {BRAND.PREFIX}<span class="text-rose-500 font-extrabold italic mx-[1px]"
+        >{BRAND.HIGHLIGHT}</span
+      >{BRAND.SUFFIX}
+    </a>
+
+    <p
+      class="mb-5 text-[13px] font-medium uppercase tracking-[0.2em] text-muted-foreground"
+    >
+      404 · Page not found
+    </p>
+
+    <!-- The verdict. Rose full-stop echoes the wordmark's highlight. -->
+    <h1 class="text-[64px] sm:text-[88px] leading-none font-extrabold tracking-tight text-foreground">
+      Nope<span class="text-rose-500">.</span>
+    </h1>
+
+    <p class="mt-7 max-w-sm text-[17px] leading-relaxed text-muted-foreground">
+      This page isn't on the calendar. We checked the whole cycle — there's
+      nothing here.
+    </p>
+
+    <a
+      href={WEBSITE_URL}
+      class="mt-10 inline-flex items-center justify-center rounded-[--radius] bg-primary px-7 py-3.5 text-[17px] font-semibold text-primary-foreground transition active:scale-[0.98]"
+    >
+      Take me home
+    </a>
+
+    <p class="mt-9 text-[13px] text-muted-foreground/70">
+      The answer's still no — just not the fun kind.
+    </p>
+  </section>
+</AppLayout>

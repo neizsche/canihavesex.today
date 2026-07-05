@@ -46,6 +46,7 @@ import { exportRoutes } from './routes/export.js';
 import { userRoutes } from './routes/user.js';
 import { adminRoutes } from './routes/admin.js';
 import { billingRoutes } from './routes/billing.js';
+import { waitlistRoutes } from './routes/waitlist.js';
 
 loadEnv();
 
@@ -217,8 +218,22 @@ export async function createApp() {
   }
 
   // 1. Register Core Plugins
+  // In production, allow the app's own origin plus the marketing/landing site
+  // origin — the pre-launch waitlist form there posts here cross-origin. The
+  // marketing origin defaults to the known apex (same value the frontend uses:
+  // apps/frontend/src/lib/siteConfig.ts → WEBSITE_URL), overridable via
+  // PUBLIC_MARKETING_BASE, and is omitted entirely on self-host so a
+  // self-hoster's CORS allowlist stays limited to their own app. In dev, reflect
+  // any origin.
+  const marketingOrigin = isSelfHost()
+    ? undefined
+    : process.env.PUBLIC_MARKETING_BASE || 'https://canihavesex.today';
+  const prodOrigins = [process.env.PUBLIC_APP_BASE, marketingOrigin].filter(
+    (o): o is string => !!o
+  );
   await app.register(cors, {
-    origin: process.env.NODE_ENV === 'production' ? (process.env.PUBLIC_APP_BASE ?? false) : true,
+    origin:
+      process.env.NODE_ENV === 'production' ? (prodOrigins.length > 0 ? prodOrigins : false) : true,
     credentials: true,
   });
   await app.register(cookie, {
@@ -331,7 +346,18 @@ export async function createApp() {
       // The Dodo webhook is a server-to-server call authenticated by its own
       // signature, not a browser request — exempt from the CSRF header check.
       const isWebhook = req.url === '/api/billing/webhook';
-      if (!isAdmin && !isWebhook && req.headers['x-requested-with'] !== 'XMLHttpRequest') {
+      // The public waitlist endpoint is posted to cross-origin from the marketing
+      // site, which can't reliably attach the custom header. CSRF is a non-issue
+      // here: it's unauthenticated, idempotent, and returns 200 regardless of
+      // whether the address was new (no enumeration), so a forged request can at
+      // most add an email the attacker already knows.
+      const isWaitlist = req.url.startsWith('/api/waitlist');
+      if (
+        !isAdmin &&
+        !isWebhook &&
+        !isWaitlist &&
+        req.headers['x-requested-with'] !== 'XMLHttpRequest'
+      ) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'CSRF validation failed: Missing custom header',
@@ -448,6 +474,10 @@ export async function createApp() {
     sendPurchaseEmail: sendPurchaseConfirmationEmail,
   });
 
+  // Public pre-launch email capture (posted to from the marketing site and the
+  // in-app demo prompt). Auth-exempt (plugins/auth.ts) and CSRF/CORS-exempt below.
+  app.register(waitlistRoutes, { db });
+
   // Serve the built frontend SPA (single-image deployment). FRONTEND_DIST points
   // at the directory of built static files. When unset (e.g. API-only local dev
   // where Vite serves the frontend), this is skipped entirely.
@@ -485,7 +515,11 @@ export async function createApp() {
 
     app.setNotFoundHandler((req, reply) => {
       if (req.method === 'GET' && !req.url.startsWith('/api/') && !req.url.startsWith('/health')) {
-        return reply.sendFile('index.html'); // SPA fallback (client-side hash routing)
+        // The app uses client-side hash routing, so the only real server paths
+        // are `/` and `/app` (served above by @fastify/static). Any other GET is
+        // a genuine dead URL — serve the custom 404 page with a 404 status
+        // rather than falling back to index.html (which would render sign-in).
+        return reply.status(404).sendFile('404.html');
       }
       return reply.status(404).send({ error: 'Not Found' });
     });
