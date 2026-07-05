@@ -56,6 +56,27 @@ const shouldPrettyLog =
     process.env.NODE_ENV !== 'production' &&
     !!process.stdout.isTTY);
 
+/**
+ * Given a base origin, return both its apex and `www.` forms so a CORS allowlist
+ * covers whichever the browser actually sends. Callers may configure the apex
+ * (https://example.com) while the site canonically serves on www (or vice
+ * versa); returning both avoids a silent cross-origin block. A malformed value
+ * is passed through unchanged.
+ */
+function withWwwVariant(origin: string): string[] {
+  try {
+    const url = new URL(origin);
+    const host = url.host;
+    const sibling = host.startsWith('www.')
+      ? host.slice('www.'.length)
+      : `www.${host}`;
+    const siblingOrigin = `${url.protocol}//${sibling}`;
+    return [origin, siblingOrigin];
+  } catch {
+    return [origin];
+  }
+}
+
 export async function createApp() {
   const app = Fastify({
     // In production we typically run behind a reverse proxy (Fly/Render/NGINX/etc).
@@ -225,10 +246,16 @@ export async function createApp() {
   // PUBLIC_MARKETING_BASE, and is omitted entirely on self-host so a
   // self-hoster's CORS allowlist stays limited to their own app. In dev, reflect
   // any origin.
-  const marketingOrigin = isSelfHost()
+  //
+  // Allow both the apex and the `www.` variant: the landing site canonically
+  // serves on www (apex 307-redirects to www), so the browser's Origin on the
+  // waitlist POST is https://www.<domain>, not the apex. Listing only one would
+  // block the other.
+  const marketingBase = isSelfHost()
     ? undefined
     : process.env.PUBLIC_MARKETING_BASE || 'https://canihavesex.today';
-  const prodOrigins = [process.env.PUBLIC_APP_BASE, marketingOrigin].filter(
+  const marketingOrigins = marketingBase ? withWwwVariant(marketingBase) : [];
+  const prodOrigins = [process.env.PUBLIC_APP_BASE, ...marketingOrigins].filter(
     (o): o is string => !!o
   );
   await app.register(cors, {

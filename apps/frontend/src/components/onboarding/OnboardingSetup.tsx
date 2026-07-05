@@ -1,18 +1,29 @@
 import * as React from 'react';
-import { InsetGroup } from '@/components/common/ui/inset-group';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { OnboardingFrame, onboardingPrimaryButton } from './OnboardingFrame';
 import { OnboardingSkipLink } from './OnboardingSkipLink';
 
 interface OnboardingSetupProps {
   regularity?: 'regular' | 'irregular' | 'unsure' | null;
   cycleLength?: number;
-  onUpdate: (data: { regularity?: any; cycleLength?: number }) => void;
+  onUpdate: (data: { regularity?: 'regular' | 'irregular' | 'unsure'; cycleLength?: number }) => void;
   onContinue: () => void;
   onSkip?: () => void;
   skipBusy?: boolean;
 }
 
+const REGULARITY = [
+  { id: 'regular', label: 'Regular', desc: 'Varies less than a week' },
+  { id: 'irregular', label: 'Irregular', desc: 'Varies a lot' },
+  { id: 'unsure', label: 'Not sure', desc: "I'll learn as I log" },
+] as const;
+
+/**
+ * Step 3 — the only input. Deliberately minimal: two grouped cards, one accent
+ * color, no section chrome. The engine only needs a rough regularity + average
+ * length for its cold start; everything else is refined from real logs.
+ */
 export function OnboardingSetup({
   regularity,
   cycleLength = 28,
@@ -22,108 +33,90 @@ export function OnboardingSetup({
   skipBusy,
 }: OnboardingSetupProps) {
   return (
-    <div className="flex h-full w-full flex-col bg-background font-sans">
-      {/* Scrollable form region — the Continue button below stays pinned. */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-4">
-        <div className="mx-auto max-w-md space-y-6">
-          {/* Header Area */}
-          <div className="space-y-2 px-4">
-            <h1 className="text-[30px] font-extrabold tracking-[-0.04em] text-zinc-900 dark:text-zinc-100 leading-tight">
-              About Your Cycle
-            </h1>
-            <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-              Quick details for better predictions.
-            </p>
-          </div>
+    <OnboardingFrame
+      stepIndex={2}
+      footer={
+        <>
+          <button onClick={onContinue} className={onboardingPrimaryButton}>
+            Continue
+          </button>
+          {onSkip && <OnboardingSkipLink onClick={onSkip} disabled={skipBusy} />}
+        </>
+      }
+    >
+      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-8 py-4">
+        <div className="space-y-2">
+          <h1 className="text-[32px] font-extrabold leading-[1.1] tracking-[-0.045em] text-zinc-900 dark:text-white">
+            Tell us about your cycle
+          </h1>
+          <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+            Two quick details. We refine everything from your logs.
+          </p>
+        </div>
 
-          <div className="space-y-6">
-            {/* 2. Regularity Section */}
-            <InsetGroup
-              title="Cycle Regularity"
-              className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50"
-            >
-              {[
-                { id: 'regular', label: 'Regular', desc: ' varies by <7 days' },
-                { id: 'irregular', label: 'Irregular', desc: ' varies widely' },
-                { id: 'unsure', label: 'Unsure', desc: " I don't know" },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => onUpdate({ regularity: opt.id })}
-                  className={cn(
-                    'w-full flex items-center justify-between p-4 transition-colors text-left',
-                    regularity === opt.id
-                      ? 'bg-blue-50/50 dark:bg-blue-900/10'
-                      : 'hover:bg-zinc-50 dark:hover:bg-white/5'
-                  )}
-                >
-                  <div className="flex flex-col">
-                    <span
-                      className={cn(
-                        'text-[17px]',
-                        regularity === opt.id
-                          ? 'font-semibold text-[#007aff]'
-                          : 'text-zinc-900 dark:text-zinc-100'
-                      )}
-                    >
-                      {opt.label}
-                    </span>
-                    <span className="text-[13px] text-muted-foreground">{opt.desc}</span>
-                  </div>
-                  {regularity === opt.id && (
-                    <Check className="w-5 h-5 text-[#007aff]" strokeWidth={2.5} />
-                  )}
-                </button>
-              ))}
-            </InsetGroup>
-          </div>
-
-          {/* Cycle Length — a single typical value. The engine only needs an
-              average for its cold start, so we ask for one number and refine it
-              from real logs later. */}
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1 px-4">
-              <h3 className="font-semibold text-[17px] text-zinc-900 dark:text-zinc-100">
-                Typical Cycle Length
-              </h3>
-            </div>
-            <InsetGroup>
-              <div className="p-6 space-y-5">
-                <div className="flex items-baseline justify-center gap-1.5">
-                  <span className="text-[44px] font-bold leading-none text-zinc-900 dark:text-zinc-100">
-                    {cycleLength}
+        {/* Regularity — a clean grouped list, one row selected. */}
+        <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border/30 bg-card">
+          {REGULARITY.map((opt) => {
+            const active = regularity === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => onUpdate({ regularity: opt.id })}
+                className={cn(
+                  'flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors',
+                  active ? 'bg-[#0a84ff]/[0.06]' : 'active:bg-muted/60'
+                )}
+              >
+                <div className="flex flex-col">
+                  <span
+                    className={cn(
+                      'text-[17px]',
+                      active
+                        ? 'font-semibold text-[#007aff] dark:text-[#0a84ff]'
+                        : 'text-zinc-900 dark:text-zinc-100'
+                    )}
+                  >
+                    {opt.label}
                   </span>
-                  <span className="text-[17px] font-medium text-zinc-500 dark:text-zinc-400">
-                    days
-                  </span>
+                  <span className="text-[13px] text-zinc-500 dark:text-zinc-400">{opt.desc}</span>
                 </div>
-                <input
-                  type="range"
-                  min={21}
-                  max={35}
-                  value={cycleLength}
-                  onChange={(e) => onUpdate({ cycleLength: Number(e.target.value) })}
-                  className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#007aff]"
-                />
-                <p className="text-center text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Not sure? 28 days is typical — we'll fine-tune it as you log.
-                </p>
-              </div>
-            </InsetGroup>
+                {active && (
+                  <Check
+                    className="h-5 w-5 shrink-0 text-[#007aff] dark:text-[#0a84ff]"
+                    strokeWidth={2.5}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Cycle length — a single average; inline readout, no big display. */}
+        <div className="rounded-2xl border border-border/30 bg-card px-5 py-5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">
+              Typical cycle length
+            </span>
+            <span className="flex items-baseline gap-1">
+              <span className="text-[28px] font-bold leading-none tabular-nums text-zinc-900 dark:text-zinc-100">
+                {cycleLength}
+              </span>
+              <span className="text-[14px] font-medium text-zinc-400">days</span>
+            </span>
           </div>
+          <input
+            type="range"
+            min={21}
+            max={35}
+            value={cycleLength}
+            onChange={(e) => onUpdate({ cycleLength: Number(e.target.value) })}
+            className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-[#0a84ff] dark:bg-zinc-700"
+          />
+          <p className="mt-3 text-[13px] leading-relaxed text-zinc-400 dark:text-zinc-500">
+            Not sure? 28 days is typical.
+          </p>
         </div>
       </div>
-
-      {/* Pinned footer — Continue is always visible without scrolling to it. */}
-      <div className="onboarding-footer space-y-3 px-4">
-        <button
-          onClick={onContinue}
-          className="h-14 w-full rounded-xl bg-[#007aff] text-[17px] font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-[#0051d5] active:scale-[0.98]"
-        >
-          Continue
-        </button>
-        {onSkip && <OnboardingSkipLink onClick={onSkip} disabled={skipBusy} />}
-      </div>
-    </div>
+    </OnboardingFrame>
   );
 }

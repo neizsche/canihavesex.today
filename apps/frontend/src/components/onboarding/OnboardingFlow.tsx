@@ -1,17 +1,18 @@
 import * as React from 'react';
 import { apiJson } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
-import { OnboardingScopeConsent } from './OnboardingScopeConsent';
+import { CalendarX2, Droplets, Sparkles } from 'lucide-react';
+import { OnboardingWelcome } from './OnboardingWelcome';
+import { OnboardingEducation, type EducationItem } from './OnboardingEducation';
 import { OnboardingSetup } from './OnboardingSetup';
-import { AnimatedEducationScreen } from './AnimatedEducationScreen';
-import { BrandTitle } from '@/components/common/BrandTitle';
+import { OnboardingReady } from './OnboardingReady';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { detectTemperatureUnit } from '@/components/log/temperatureUnits';
+import { toIsoDate } from '@/lib/date';
 
-type OnboardingStep = 'consent' | 'education' | 'setup' | 'cycle_basics' | 'signals_overview';
+type OnboardingStep = 'welcome' | 'education' | 'setup' | 'ready';
 
 interface OnboardingData {
-  consent: boolean;
   cycle_regularity: 'regular' | 'irregular' | 'unsure' | null;
   cycle_length: number;
 }
@@ -26,33 +27,38 @@ interface OnboardingFlowProps {
   isDemo?: boolean;
 }
 
-const BrandingHeader = () => (
-  <div className="onboarding-header z-50">
-    <BrandTitle />
-  </div>
-);
-
-const BrandLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in fade-in duration-300 motion-reduce:animate-none">
-    <BrandingHeader />
-    <div className="flex-1 min-h-0 relative">{children}</div>
-  </div>
-);
+// The one education screen: what makes this different from a calendar app.
+const EDUCATION_ITEMS: EducationItem[] = [
+  {
+    icon: CalendarX2,
+    title: 'Ovulation moves',
+    desc: "It shifts from cycle to cycle, so dates alone can't pin your fertile window.",
+  },
+  {
+    icon: Droplets,
+    title: 'Your body shows it',
+    desc: "Fluid, temperature, and ovulation tests reveal what's actually happening.",
+  },
+  {
+    icon: Sparkles,
+    title: 'Estimates that adapt',
+    desc: "We blend your history with today's signals to sharpen every prediction.",
+  },
+];
 
 export function OnboardingFlow({ onComplete, isDemo = false }: OnboardingFlowProps) {
   const queryClient = useQueryClient();
   const { canPrompt, isInstalled, promptInstall } = useInstallPrompt();
-  const [step, setStep] = React.useState<OnboardingStep>('consent');
+  const [step, setStep] = React.useState<OnboardingStep>('welcome');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [data, setData] = React.useState<OnboardingData>({
-    consent: false,
-    cycle_regularity: 'regular', // Default to make flow skippable
+    cycle_regularity: 'regular', // Default to make the flow skippable.
     cycle_length: 28,
   });
 
   const updateData = (partial: Partial<OnboardingData>) => {
-    // Use functional state updates to prevent state loss from concurrent render updates.
+    // Functional update to prevent state loss from concurrent renders.
     setData((prev) => ({ ...prev, ...partial }));
   };
 
@@ -116,123 +122,69 @@ export function OnboardingFlow({ onComplete, isDemo = false }: OnboardingFlowPro
     }
   }
 
-  // Skip action completes onboarding using default values.
+  // Skip (from the setup step) completes onboarding using the default values.
   const handleSkip = handleComplete;
 
-  // Trigger PWA installation prompt if available, then complete onboarding.
+  // Trigger the PWA install prompt if available, then complete onboarding.
   async function handleFinish() {
     if (busy) return;
     try {
       await promptInstall();
     } catch {
-      // Ignore installation prompt failures to ensure onboarding completion.
+      // Ignore install-prompt failures to ensure onboarding completes.
     }
     await handleComplete();
   }
 
-  // Optional standalone PWA install action.
+  // Optional standalone PWA install action, surfaced on the final step.
   async function handleInstall() {
     try {
       await promptInstall();
     } catch {
-      // Ignore installation prompt failures.
+      // Ignore install-prompt failures.
     }
   }
   const installCta =
     canPrompt && !isInstalled ? { label: 'Install App', onClick: handleInstall } : null;
 
-  // Render current step
-  if (step === 'consent') {
-    return (
-      <BrandLayout>
-        <OnboardingScopeConsent
-          onContinue={() => setStep('education')}
-          onSkip={handleSkip}
-          skipBusy={busy}
+  switch (step) {
+    case 'welcome':
+      return <OnboardingWelcome onContinue={() => setStep('education')} />;
+
+    case 'education':
+      return (
+        <OnboardingEducation
+          title="Calendars guess. Your body knows."
+          items={EDUCATION_ITEMS}
+          onContinue={() => setStep('setup')}
         />
-      </BrandLayout>
-    );
-  }
+      );
 
-  // Content for "How it Works"
-  const HOW_IT_WORKS_ITEMS = [
-    {
-      title: 'More than just dates',
-      desc: 'Most apps guess based on calendars. Pregnancy depends on ovulation, which varies each cycle.',
-    },
-    {
-      title: 'Biological signals',
-      desc: 'Your body gives real signs (like temperature and fluid) that reveal when you are actually fertile.',
-    },
-    {
-      title: 'Adaptive predictions',
-      desc: 'We combine your cycle history with these real-time signals to narrow down uncertainty.',
-    },
-  ];
-
-  // Content for "Signals Overview"
-  const SIGNALS_ITEMS = [
-    {
-      title: 'Cervical Mucus',
-      desc: 'Changes from dry to slippery to identify your fertile window as it approaches.',
-    },
-    {
-      title: 'Body Temperature',
-      desc: 'A slight rise confirms that ovulation has effectively occurred.',
-    },
-    {
-      title: 'LH Tests',
-      desc: 'Positive tests narrow down the exact 12–36 hour window.',
-    },
-  ];
-
-  if (step === 'education') {
-    return (
-      <AnimatedEducationScreen
-        title="How this app works"
-        items={HOW_IT_WORKS_ITEMS}
-        onComplete={() => setStep('setup')}
-        onSkip={handleSkip}
-        busy={busy}
-      />
-    );
-  }
-
-  if (step === 'setup') {
-    return (
-      <BrandLayout>
+    case 'setup':
+      return (
         <OnboardingSetup
           regularity={data.cycle_regularity}
           cycleLength={data.cycle_length}
           onUpdate={(updates) => {
-            const payload: Partial<typeof data> = {};
+            const payload: Partial<OnboardingData> = {};
             if (updates.regularity !== undefined) payload.cycle_regularity = updates.regularity;
             if (updates.cycleLength !== undefined) payload.cycle_length = updates.cycleLength;
             updateData(payload);
           }}
-          onContinue={() => setStep('signals_overview')}
+          onContinue={() => setStep('ready')}
           onSkip={handleSkip}
           skipBusy={busy}
         />
-      </BrandLayout>
-    );
-  }
+      );
 
-  return (
-    <>
-      {/* Cycle Basics step removed/merged into Setup */}
-
-      {step === 'signals_overview' && (
-        <AnimatedEducationScreen
-          title="Understanding your signs"
-          items={SIGNALS_ITEMS}
-          onComplete={handleFinish}
+    case 'ready':
+      return (
+        <OnboardingReady
+          onFinish={handleFinish}
           busy={busy}
           error={error}
-          ctaLabel="Get started"
           secondaryCta={installCta}
         />
-      )}
-    </>
-  );
+      );
+  }
 }
