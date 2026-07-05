@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
-import { Loader2 } from 'lucide-react';
+import { Spinner } from '@/components/common/ui/spinner';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { SegmentedTabs } from '@/components/common/ui/segmented-tabs';
@@ -84,10 +84,7 @@ export function ChartsScreen({ today: todayOverride }: { today?: Date } = {}) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2
-          className="h-7 w-7 animate-spin text-[#007aff] dark:text-[#0a84ff]"
-          strokeWidth={2.5}
-        />
+        <Spinner size={28} />
       </div>
     );
   }

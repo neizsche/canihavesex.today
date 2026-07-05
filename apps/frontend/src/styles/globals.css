@@ -302,4 +302,28 @@
       transform: none !important;
     }
   }
+
+  /* iOS-style activity indicator (see components/common/ui/spinner.tsx) — each
+     spoke fades on a staggered loop so the bright point chases around the ring. */
+  @keyframes iosSpinnerFade {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.15;
+    }
+  }
+
+  .ios-spinner-spoke {
+    animation-name: iosSpinnerFade;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ios-spinner-spoke {
+      animation: none !important;
+      opacity: 0.4 !important;
+    }
+  }
 }

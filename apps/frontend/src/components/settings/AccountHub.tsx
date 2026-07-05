@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CreditCard, HelpCircle, Check, ChevronRight, Download, Share, Plus } from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
+import { Spinner } from '@/components/common/ui/spinner';
 import { SettingsActionRow, SettingsExpandableRow } from '@/components/common/ui/settings-row';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
@@ -255,7 +256,7 @@ export function AccountHub({
                             </div>
                           </div>
                           {checkoutBusy === 'lifetime' ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#007aff] border-t-transparent dark:border-[#0a84ff]" />
+                            <Spinner size={16} />
                           ) : (
                             <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-600" />
                           )}

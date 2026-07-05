@@ -55,6 +55,9 @@ export function useSignIn({ returnTo }: UseSignInOptions) {
   const startDemo = React.useCallback(async () => {
     setBusy(true);
     setStatus('');
+    // Surface the full-screen launch loader whether the demo was requested via
+    // ?demo (landing hand-off) or tapped from the in-page option.
+    setAutoDemo(true);
     try {
       const res = await apiFetch('/api/auth/demo', { method: 'POST' });
       if (res.ok) {
@@ -208,6 +211,7 @@ export function useSignIn({ returnTo }: UseSignInOptions) {
     setPassword,
     setCode,
     setMode,
+    setStatus,
     startDemo,
     handleEmailSubmit,
     handleVerifySubmit,

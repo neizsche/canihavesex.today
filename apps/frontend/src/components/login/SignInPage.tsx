@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { HERO } from '@/lib/siteConfig';
-import { ShieldCheck, Loader2 } from 'lucide-react';
-import { BrandTitle } from '@/components/common/BrandTitle';
+import { ShieldCheck } from 'lucide-react';
+import { Spinner } from '@/components/common/ui/spinner';
 import { SignInPageForm } from './SignInPageForm';
 import { useSignIn } from './useSignIn';
 
@@ -25,6 +25,8 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
     setPassword,
     setCode,
     setMode,
+    setStatus,
+    startDemo,
     handleEmailSubmit,
     handleVerifySubmit,
     resendCode,
@@ -61,13 +63,22 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
   // Render loading state during active session verification or demo initialization to prevent layout flash.
   if (checkingSession || autoDemo) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-6">
-          <BrandTitle />
-          <Loader2
-            className="h-7 w-7 animate-spin text-[#007aff] dark:text-[#0a84ff]"
-            strokeWidth={2.5}
-          />
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-9 bg-background">
+        <img
+          src="/assets/logo.png"
+          alt=""
+          width={64}
+          height={64}
+          decoding="sync"
+          fetchPriority="high"
+          className="w-16 h-16 object-contain opacity-0 animate-slide-up-fade mix-blend-multiply dark:mix-blend-normal"
+          style={{ animationFillMode: 'both' }}
+        />
+        <div
+          className="opacity-0 animate-slide-up-fade"
+          style={{ animationDelay: '0.12s', animationFillMode: 'both' }}
+        >
+          <Spinner size={26} />
         </div>
       </div>
     );
@@ -123,18 +134,10 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
                 setStatus('');
               }}
               onStartGoogleOauth={startGoogleOauth}
+              onStartDemo={startDemo}
             />
           </div>
         </div>
-      </div>
-
-      {/* Privacy note footer */}
-      <div
-        className="flex-shrink-0 pb-8 px-6 flex items-center justify-center gap-2 text-muted-foreground opacity-0 animate-slide-up-fade"
-        style={getItemStyle(3)}
-      >
-        <ShieldCheck className="w-4 h-4" strokeWidth={2.25} />
-        <span className="text-[13px]">{HERO.PRIVACY_NOTE}</span>
       </div>
     </div>
   );

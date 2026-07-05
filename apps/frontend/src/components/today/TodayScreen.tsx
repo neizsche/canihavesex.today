@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/common/Header';
+import { Spinner } from '@/components/common/ui/spinner';
 import { useDiscreetMode } from '@/hooks/queries/useDiscreetMode';
 import { useNavigation } from '@/hooks/useNavigation';
 import { useInsights } from '@/hooks/queries/useInsights';
@@ -116,7 +117,7 @@ export function TodayScreen() {
             !brandingVisible && 'pt-10 sm:pt-12'
           )}
         >
-          <div className="text-sm text-zinc-400 dark:text-zinc-600 animate-pulse">Loading…</div>
+          <Spinner size={28} />
         </div>
       </div>
     );

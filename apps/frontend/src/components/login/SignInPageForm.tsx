@@ -3,6 +3,18 @@ import { cn } from '@/lib/utils';
 
 type StatusTone = 'muted' | 'danger';
 
+// Flat, system-blue filled button — Apple's prominent action style. No drop
+// shadow: depth comes from the color, not a glow.
+const primaryButtonClass =
+  'w-full h-14 rounded-2xl bg-[#0a84ff] text-white font-semibold text-[17px] ' +
+  'transition-all hover:bg-[#0070e0] active:scale-[0.98] ' +
+  'disabled:opacity-40 disabled:pointer-events-none';
+
+// Borderless field that sits inside a shared grouped card (iOS Settings style).
+const groupFieldClass =
+  'w-full h-14 px-4 bg-transparent text-[17px] text-foreground ' +
+  'placeholder:text-muted-foreground outline-none';
+
 export function SignInPageForm({
   mode,
   providers,
@@ -25,6 +37,7 @@ export function SignInPageForm({
   onBackToSignIn,
   onToggleMode,
   onStartGoogleOauth,
+  onStartDemo,
 }: {
   mode: 'signin' | 'signup' | 'verify';
   providers: {
@@ -52,6 +65,7 @@ export function SignInPageForm({
   onBackToSignIn: () => void;
   onToggleMode: () => void;
   onStartGoogleOauth: () => void;
+  onStartDemo: () => void;
 }) {
   return (
     <>
@@ -80,11 +94,7 @@ export function SignInPageForm({
                 required
                 className={`${inputClass} text-center tracking-[0.5em] text-[20px]`}
               />
-              <button
-                type="submit"
-                disabled={busy || code.length !== 6}
-                className="w-full h-14 rounded-xl bg-[#0a84ff] text-white font-semibold text-[17px] transition-all hover:bg-[#0070e0] active:scale-[0.98] shadow-lg shadow-[#0a84ff]/20 disabled:opacity-60 disabled:pointer-events-none"
-              >
+              <button type="submit" disabled={busy || code.length !== 6} className={primaryButtonClass}>
                 {busy ? 'Verifying…' : 'Verify email'}
               </button>
             </form>
@@ -108,30 +118,29 @@ export function SignInPageForm({
         ) : providers.password ? (
           <>
             <form onSubmit={onEmailSubmit} className="space-y-3">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => onEmailChange(e.target.value)}
-                placeholder="Email"
-                autoComplete="email"
-                required
-                className={inputClass}
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => onPasswordChange(e.target.value)}
-                placeholder="Password"
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                required
-                minLength={8}
-                className={inputClass}
-              />
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full h-14 rounded-xl bg-[#0a84ff] text-white font-semibold text-[17px] transition-all hover:bg-[#0070e0] active:scale-[0.98] shadow-lg shadow-[#0a84ff]/20 disabled:opacity-60 disabled:pointer-events-none"
-              >
+              {/* One grouped card with a hairline between fields — iOS form idiom. */}
+              <div className="overflow-hidden rounded-2xl border border-[var(--input)] bg-card divide-y divide-[var(--input)] transition-colors focus-within:border-[#0a84ff]/60">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => onEmailChange(e.target.value)}
+                  placeholder="Email"
+                  autoComplete="email"
+                  required
+                  className={groupFieldClass}
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => onPasswordChange(e.target.value)}
+                  placeholder="Password"
+                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  required
+                  minLength={8}
+                  className={groupFieldClass}
+                />
+              </div>
+              <button type="submit" disabled={busy} className={primaryButtonClass}>
                 {busy
                   ? mode === 'signin'
                     ? 'Signing in…'
@@ -145,20 +154,22 @@ export function SignInPageForm({
             <button
               type="button"
               onClick={onToggleMode}
-              className="w-full text-[14px] text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full text-center text-[14px] text-muted-foreground transition-colors"
             >
-              {mode === 'signin'
-                ? "Don't have an account? Create one"
-                : 'Already have an account? Sign in'}
+              {mode === 'signin' ? (
+                <>
+                  Don't have an account? <span className="font-medium text-[#0a84ff]">Create one</span>
+                </>
+              ) : (
+                <>
+                  Already have an account? <span className="font-medium text-[#0a84ff]">Sign in</span>
+                </>
+              )}
             </button>
 
             {providers.google && (
               <div className="space-y-5 pt-1">
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-[var(--input)]" />
-                  <span className="text-[12px] text-muted-foreground">or</span>
-                  <div className="h-px flex-1 bg-[var(--input)]" />
-                </div>
+                <Divider />
                 <GoogleButton busy={busy} onClick={onStartGoogleOauth} />
               </div>
             )}
@@ -167,18 +178,29 @@ export function SignInPageForm({
           <div className="space-y-4">
             {providers.google ? (
               <GoogleButton busy={busy} onClick={onStartGoogleOauth} />
-            ) : (
+            ) : !providers.demo ? (
               <div className="text-[14px] text-[var(--destructive)] text-center font-medium py-4">
                 No sign-in methods are configured in this environment.
               </div>
-            )}
+            ) : null}
           </div>
+        )}
+
+        {/* Tertiary, always-quiet way in — look around before committing an account. */}
+        {mode !== 'verify' && providers.demo && (
+          <button
+            type="button"
+            onClick={onStartDemo}
+            disabled={busy}
+            className="w-full text-center text-[14px] text-muted-foreground transition-colors disabled:opacity-60 disabled:pointer-events-none"
+          >
+            Just exploring? <span className="font-medium text-[#0a84ff]">Try the live demo</span>
+          </button>
         )}
 
         {status && (
           <div
             className={cn(
-              'animate-in fade-in slide-in-from-top-2 duration-200',
               statusTone === 'danger'
                 ? 'text-[14px] text-[var(--destructive)] text-center font-medium'
                 : 'text-[14px] text-muted-foreground text-center'
@@ -193,13 +215,23 @@ export function SignInPageForm({
   );
 }
 
+function Divider() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-[var(--input)]" />
+      <span className="text-[12px] text-muted-foreground">or</span>
+      <div className="h-px flex-1 bg-[var(--input)]" />
+    </div>
+  );
+}
+
 function GoogleButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="w-full h-14 rounded-xl bg-card text-foreground font-semibold text-[16px] border border-[var(--input)] transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center gap-3"
+      className="w-full h-14 rounded-2xl bg-card text-foreground font-semibold text-[16px] border border-[var(--input)] transition-all hover:bg-muted active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center gap-3"
     >
       <svg className="h-5 w-5" viewBox="0 0 24 24">
         <path
