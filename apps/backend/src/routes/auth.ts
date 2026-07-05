@@ -110,18 +110,24 @@ export async function authRoutes(
     // Reset today's entry on every demo login so each visitor starts with a
     // clean "log today" — the only day the demo lets them edit. Whatever the
     // previous visitor (or the seed) left for today is cleared, then the
-    // engine recomputes so the cached status reflects the empty day.
-    try {
-      const today = isoToday();
-      await logRepository.deleteLogByDate(user.id, today);
-      await engineService.recompute(user.id, today);
-      cacheService.invalidateUser(user.id);
-    } catch (err) {
-      _req.log.error({ err, route: 'auth/demo' }, 'demo today-reset failed');
-    }
+    // engine recomputes so the cached status reflects the empty day. The
+    // onboarding read is independent, so run it alongside the reset chain
+    // rather than after it.
+    const today = isoToday();
+    const [, onboardingCompleted] = await Promise.all([
+      (async () => {
+        try {
+          await logRepository.deleteLogByDate(user.id, today);
+          await engineService.recompute(user.id, today);
+          cacheService.invalidateUser(user.id);
+        } catch (err) {
+          _req.log.error({ err, route: 'auth/demo' }, 'demo today-reset failed');
+        }
+      })(),
+      settingsRepository.hasCompletedOnboarding(user.id),
+    ]);
 
     setSessionCookie(reply, user.id);
-    const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(user.id);
     return reply.send({ userId: user.id, email: user.email, onboardingCompleted });
   });
 
@@ -429,10 +435,13 @@ export async function authRoutes(
     const userId = req.userId;
     if (!userId) return reply.send({ userId: null, email: null, onboardingCompleted: false });
 
-    const user = await userRepository.findById(userId);
+    // Independent reads — run them together so this gate costs one DB
+    // round-trip instead of two (it blocks the app-open spinner on every load).
+    const [user, onboardingCompleted] = await Promise.all([
+      userRepository.findById(userId),
+      settingsRepository.hasCompletedOnboarding(userId),
+    ]);
     const email = user?.email ?? null;
-
-    const onboardingCompleted = await settingsRepository.hasCompletedOnboarding(userId);
 
     // Surface whether this is the shared public demo session so the client can
     // show demo-only affordances (e.g. the pre-launch waitlist prompt) without
