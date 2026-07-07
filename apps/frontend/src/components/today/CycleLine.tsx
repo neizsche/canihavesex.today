@@ -1,11 +1,6 @@
-import * as React from 'react';
-
-import { InsetGroup } from '@/components/common/ui/inset-group';
-
 interface CycleLineProps {
   day: number;
   length: number;
-  lastUpdatedText: string;
   fertileStartDay: number | null;
   fertileEndDay: number | null;
   nextPeriodDateStr: string | null;
@@ -13,10 +8,14 @@ interface CycleLineProps {
   fertileEndDateStr: string | null;
 }
 
+/**
+ * The cycle summary as a borderless line that floats on the page background —
+ * cycle day, a progress track with the fertile window highlighted, and the two
+ * key dates as a footnote. No card, so it shares the zen language of the hero.
+ */
 export function CycleLine({
   day,
   length,
-  lastUpdatedText,
   fertileStartDay,
   fertileEndDay,
   nextPeriodDateStr,
@@ -26,7 +25,6 @@ export function CycleLine({
   if (!day || !length) return null;
 
   const hasFertile = fertileStartDay != null && fertileEndDay != null;
-  const isTodayFertile = hasFertile && day >= fertileStartDay && day <= fertileEndDay;
 
   // Percentages mapping for 1-indexed cycle progression
   const lengthSpan = Math.max(1, length - 1);
@@ -36,64 +34,51 @@ export function CycleLine({
   const fEndPercent = hasFertile ? Math.min(100, ((fertileEndDay - 1) / lengthSpan) * 100) : 0;
   const fWidth = hasFertile ? Math.max(0, fEndPercent - fStartPercent) : 0;
 
+  const hasFertileDates = hasFertile && !!fertileStartDateStr && !!fertileEndDateStr;
+  const hasNextPeriod = !!nextPeriodDateStr;
+
   return (
-    <InsetGroup containerClassName="mb-0">
-      <div className="px-5 py-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[14px] font-bold text-zinc-900 dark:text-white">
-            Cycle Day {day}
-          </span>
-          <span className="text-[12px] font-medium text-zinc-400 dark:text-zinc-500">
-            {lastUpdatedText}
-          </span>
-        </div>
+    <div className="px-2 text-center">
+      <p className="text-[15px] tracking-[0.01em] text-zinc-500 dark:text-zinc-500">
+        Cycle day <span className="font-semibold text-zinc-900 dark:text-white">{day}</span>
+      </p>
 
-        {/* Progress Bar */}
-        <div className="relative h-2.5 bg-zinc-100 dark:bg-zinc-800/80 rounded-full mb-5">
-          {/* Fertile window overlay */}
-          {hasFertile && (
-            <div
-              className="absolute top-0 h-full bg-[#af52de]/15 dark:bg-[#bf5af2]/20 rounded-full"
-              style={{
-                left: `${fStartPercent}%`,
-                width: `${fWidth}%`,
-              }}
-            />
-          )}
-
-          {/* Current day indicator */}
-          <img
-            src="/assets/logo.png"
-            alt="Current Day"
-            className="absolute top-1/2 -mt-4 w-8 h-8 object-contain transition-all duration-300 z-10"
-            style={{ left: `calc(${progressPercent}% - 16px)` }}
+      <div className="relative mt-6 h-1.5 rounded-full bg-zinc-200 dark:bg-white/15">
+        {hasFertile && (
+          <div
+            className="absolute top-0 h-full rounded-full bg-[#FF3B30]/50 dark:bg-[#FF453A]/50"
+            style={{ left: `${fStartPercent}%`, width: `${fWidth}%` }}
           />
-        </div>
+        )}
 
-        {/* Details */}
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.06em] mb-1">
-              Fertile Window
-            </div>
-            <div className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-              {hasFertile && fertileStartDateStr && fertileEndDateStr
-                ? `${fertileStartDateStr} - ${fertileEndDateStr}`
-                : '—'}
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.06em] mb-1">
-              Next Period
-            </div>
-            <div className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
-              {nextPeriodDateStr || '—'}
-            </div>
-          </div>
+        <div
+          className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+          style={{ left: `${progressPercent}%` }}
+        >
+          <span className="block h-3 w-3 rounded-full bg-zinc-950 ring-4 ring-background dark:bg-white" />
         </div>
       </div>
-    </InsetGroup>
+
+      {(hasFertileDates || hasNextPeriod) && (
+        <p className="mt-6 text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-500">
+          {hasFertileDates && (
+            <>
+              Fertile{' '}
+              <span className="text-zinc-700 dark:text-zinc-300">
+                {fertileStartDateStr} – {fertileEndDateStr}
+              </span>
+            </>
+          )}
+          {hasFertileDates && hasNextPeriod && (
+            <span className="px-2 text-zinc-300 dark:text-zinc-700">·</span>
+          )}
+          {hasNextPeriod && (
+            <>
+              Period <span className="text-zinc-700 dark:text-zinc-300">{nextPeriodDateStr}</span>
+            </>
+          )}
+        </p>
+      )}
+    </div>
   );
 }

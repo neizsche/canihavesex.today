@@ -11,6 +11,7 @@ import {
 
 import { cn } from '@/lib/utils';
 import { InsetGroup } from '@/components/common/ui/inset-group';
+import { CoachPill } from '@/components/common/ui/coach-pill';
 import { FieldHeader } from './LogControls';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { clampBbtInput, type LogFormState } from './logState';
@@ -340,22 +341,11 @@ export function LogPrimarySignals({
 
 export function LogCoachButton({ onClick }: { onClick: () => void }) {
   return (
-    <div className="mt-3 flex justify-center">
-      <button
-        onClick={onClick}
-        className="group inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/70 py-1.5 pl-2 pr-3 shadow-sm backdrop-blur-xl transition-all hover:bg-card hover:shadow active:scale-95"
-      >
-        <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-blue-500/10 dark:bg-blue-400/10">
-          <GraduationCap
-            className="h-[13px] w-[13px] text-blue-600 dark:text-blue-400"
-            strokeWidth={2.5}
-          />
-        </span>
-        <span className="text-[13px] font-medium tracking-tight text-zinc-700 dark:text-zinc-200">
-          {LOG_SCREEN_LABELS.coach.title}
-        </span>
-        <ChevronRight className="h-3.5 w-3.5 text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-zinc-600" />
-      </button>
-    </div>
+    <CoachPill
+      icon={GraduationCap}
+      label={LOG_SCREEN_LABELS.coach.title}
+      onClick={onClick}
+      className="mt-3"
+    />
   );
 }

@@ -30,7 +30,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     const tzOffsetMinutes = getTzOffsetMinutes(req);
     const today = isoToday(tzOffsetMinutes);
 
-    const cacheKey = `user:${userId}:insights:today:v3`;
+    const cacheKey = `user:${userId}:insights:today:v4`;
     const cachedResponse = cacheService.get<any>(cacheKey);
     if (cachedResponse) return cachedResponse;
 
@@ -88,7 +88,6 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
       status: status.fertility_status,
       insights,
       date: status.date,
-      lastModified: status.updated_at,
       dailyLogDone,
       reanchor: { show: reanchorFlags.show, acked: reanchorFlags.acked },
     };

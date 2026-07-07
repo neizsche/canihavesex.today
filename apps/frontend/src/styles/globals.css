@@ -326,4 +326,49 @@
       opacity: 0.4 !important;
     }
   }
+
+  /* Today cycle marker (see components/today/CycleLine.tsx) — the one live
+     "heartbeat" on the screen. The core gently breathes while a halo ring
+     expands and fades outward on a slow, calm loop. */
+  @keyframes cycleMarkerCore {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.14);
+    }
+  }
+
+  @keyframes cycleMarkerHalo {
+    0% {
+      transform: scale(0.7);
+      opacity: 0.5;
+    }
+    70% {
+      opacity: 0;
+    }
+    100% {
+      transform: scale(2.4);
+      opacity: 0;
+    }
+  }
+
+  .cycle-marker-core {
+    animation: cycleMarkerCore 4s ease-in-out infinite;
+  }
+
+  .cycle-marker-halo {
+    animation: cycleMarkerHalo 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cycle-marker-core,
+    .cycle-marker-halo {
+      animation: none !important;
+    }
+    .cycle-marker-halo {
+      opacity: 0.3 !important;
+    }
+  }
 }

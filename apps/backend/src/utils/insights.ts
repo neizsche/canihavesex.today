@@ -34,19 +34,23 @@ export function buildInsightCards(
   const daysToNextPeriod =
     cycleDay == null || m.lostTrack ? null : Math.max(0, activeCycleLength + 1 - cycleDay);
 
-  const pool: string[] = [];
+  // Priority-ordered message pool. Each note is tagged 'warn' (needs attention —
+  // anomalies, conflicting signals) or 'info' (neutral context) so the client
+  // can style them distinctly. pool[0] becomes the headline; the rest are notes.
+  const pool: Array<{ text: string; kind: 'info' | 'warn' }> = [];
+  const note = (text: string, kind: 'info' | 'warn' = 'info') => pool.push({ text, kind });
 
   if (m.anomalies?.includes('Multiple LH Surges (PCOS Risk)'))
-    pool.push('Multiple LH surges detected — talk to your doctor.');
+    note('Multiple LH surges detected — talk to your doctor.', 'warn');
   if (m.anomalies?.includes('Conflicting Bio-signals'))
-    pool.push("Signals don't fully agree. Keep logging.");
+    note("Signals don't fully agree. Keep logging.", 'warn');
 
-  if (daysToOv === 0) pool.push('Ovulation day — peak fertility.');
-  else if (daysToOv === 1) pool.push('Ovulation likely tomorrow.');
+  if (daysToOv === 0) note('Ovulation day — peak fertility.');
+  else if (daysToOv === 1) note('Ovulation likely tomorrow.');
   else if (daysToOv !== null && daysToOv > 1 && daysToOv <= 5)
-    pool.push(`Ovulation in ~${daysToOv} days.`);
+    note(`Ovulation in ~${daysToOv} days.`);
 
-  if (m.isConfirmed) pool.push('Ovulation confirmed via temp shift.');
+  if (m.isConfirmed) note('Ovulation confirmed via temp shift.');
 
   if (
     daysToNextPeriod != null &&
@@ -55,12 +59,12 @@ export function buildInsightCards(
     daysToNextPeriod > 0 &&
     daysToNextPeriod <= 5
   )
-    pool.push(`Period in ~${daysToNextPeriod} days.`);
+    note(`Period in ~${daysToNextPeriod} days.`);
 
-  if (m.tempReliability === 0) pool.push('Temp excluded (illness) — no impact on prediction.');
+  if (m.tempReliability === 0) note('Temp excluded (illness) — no impact on prediction.');
 
   if (pool.length < 2 && !m.hasTemp && fertilityStatus === 'fertile')
-    pool.push('Log temp to help confirm ovulation.');
+    note('Log temp to help confirm ovulation.');
 
   const sourceMap: Record<string, string> = {
     BBT: 'Anchored by temperature shift.',
@@ -94,6 +98,12 @@ export function buildInsightCards(
   const fertileEndDay = ovulationDay != null ? ovulationDay + 1 : null;
   // daysToNextPeriod is computed once up top (shared with the luteal nudge).
 
+  // Per-signal state: 'used' (fed the prediction), 'missing' (not logged), or
+  // 'excluded' (logged but discarded — e.g. temp recorded during illness).
+  const signal = (used: boolean) => ({ state: used ? 'used' : 'missing' });
+  const tempSignal =
+    m.tempReliability === 0 ? { state: 'excluded', reason: 'illness' } : signal(!!m.hasTemp);
+
   return {
     today: {
       phase,
@@ -101,7 +111,6 @@ export function buildInsightCards(
       cycle: {
         day: cycleDay,
         length: avgLen,
-        daysToNextPeriod,
         fertileStartDay,
         fertileEndDay,
         nextPeriodDateStr:
@@ -117,16 +126,20 @@ export function buildInsightCards(
             ? formatShortDate(addDaysIso(todayIso, fertileEndDay - cycleDay))
             : null,
       },
-      notifications: pool.slice(0, 2),
+      // Priority-ordered pool: [0] is the headline (Today subtitle), the rest
+      // are secondary notes surfaced in the insights sheet.
+      headline: pool[0] ?? null,
+      notes: pool.slice(1),
       sourceText: sourceMap[m.primarySignal] || sourceMap.CALENDAR,
       confidence: {
         label: confidenceLabel,
         message: confidenceMessage,
+        score: confidenceScore,
         signals: {
-          temp: !!m.hasTemp,
-          lh: !!m.hasLh || m.primarySignal === 'LH',
-          mucus: !!m.hasMucus || m.primarySignal === 'MUCUS',
-          calendar: true,
+          temp: tempSignal,
+          lh: signal(!!m.hasLh || m.primarySignal === 'LH'),
+          mucus: signal(!!m.hasMucus || m.primarySignal === 'MUCUS'),
+          calendar: signal(true),
         },
       },
     },
