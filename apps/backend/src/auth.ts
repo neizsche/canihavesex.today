@@ -61,11 +61,9 @@ export async function ensureUserForEmail(
       created_at: now,
     });
 
-    // Create the default settings row (dark theme, defaults).
+    // Create the default settings row (dark theme, defaults). No cycle is
+    // seeded — the engine derives cycles from logs and handles empty state.
     await settingsRepository.createDefault(userId);
-
-    // NOTE: We no longer create a default "Cycle" here.
-    // The V5 engine handles new users (empty state) gracefully.
   }
 
   return userId;

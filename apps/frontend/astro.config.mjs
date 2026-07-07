@@ -121,7 +121,7 @@ export default defineConfig({
         includeAssets: ['icon.svg', 'offline.html', 'assets/logo.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'canihavesex.today',
-          short_name: 'canihavesex',
+          short_name: 'Cycle',
           start_url: '/',
           scope: '/',
           display: 'standalone',

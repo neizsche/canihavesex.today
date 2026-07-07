@@ -72,8 +72,8 @@ export async function logsRoutes(fastify: FastifyInstance, opts: { db: any }) {
       const today = isoToday(tzOffsetMinutes);
 
       // Edit lock: a day older than the back-log window is read-only. This is the
-      // authoritative guard — the client disables it too, but a stale tab, a
-      // deep link, or an API-key client could still try to write an old date.
+      // authoritative guard — the client disables it too, but a stale tab or a
+      // deep link could still try to write an old date.
       if (!isWithinBacklogWindow(req.params.date, today)) {
         return reply.code(422).send({
           error: 'date_out_of_range',
