@@ -37,19 +37,32 @@ function OnboardingDots({ total, active }: { total: number; active: number }) {
   );
 }
 
+/** What each step hands the frame: centered content, a pinned footer, and the
+ * gap/alignment tuning for its content stack. */
+export interface OnboardingStepView {
+  content: React.ReactNode;
+  footer: React.ReactNode;
+  /** Per-step tuning for the content stack (gap, text alignment, padding). */
+  contentClassName?: string;
+}
+
 /**
- * The single shell every onboarding step renders into: brand mark + progress
- * dots up top, a vertically-centered (but scrollable on short screens) content
- * region, and a pinned footer where the primary CTA always rests in the same
- * spot. Steps supply their content and footer; the frame keeps pacing identical.
+ * The single shell for the whole flow — rendered once and kept mounted across
+ * every step. The brand mark, progress dots, and footer container never remount,
+ * so the active dot glides forward between steps and the CTA holds rock-still.
+ * Only the keyed content region swaps, and each step's content settles in with
+ * the same gentle rise, giving the flow one unified sense of motion.
  */
 export function OnboardingFrame({
   stepIndex,
+  contentKey,
   footer,
   children,
   contentClassName,
 }: {
   stepIndex: number;
+  /** Changing this re-keys the content region so the entrance motion replays. */
+  contentKey: React.Key;
   footer: React.ReactNode;
   children: React.ReactNode;
   contentClassName?: string;
@@ -60,7 +73,18 @@ export function OnboardingFrame({
         <BrandTitle />
         <OnboardingDots total={TOTAL_ONBOARDING_STEPS} active={stepIndex} />
       </div>
-      <div className={cn('min-h-0 flex-1 overflow-y-auto px-6', contentClassName)}>{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6">
+        <div
+          key={contentKey}
+          className={cn(
+            'mx-auto flex min-h-full w-full max-w-md flex-col justify-center',
+            'animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out motion-reduce:animate-none',
+            contentClassName
+          )}
+        >
+          {children}
+        </div>
+      </div>
       <div className="onboarding-footer space-y-3 px-6">{footer}</div>
     </div>
   );

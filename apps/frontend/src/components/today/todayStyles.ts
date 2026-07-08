@@ -35,6 +35,5 @@ export const LOG_PILL_BUTTON = `mt-8 px-9 py-3.5 rounded-full ${SURFACE_RAISED} 
 // — Insights sheet — grouped inset card ————————————————————————————
 export const INSET_CARD = 'rounded-2xl bg-black/[0.03] px-4 dark:bg-white/[0.04]';
 export const INSET_DIVIDE = 'divide-y divide-black/[0.05] dark:divide-white/[0.06]';
-// Tiny uppercase caption above a card (same role as stats' SECTION_CAPTION).
-export const SECTION_CAPTION =
-  'text-[10px] font-semibold uppercase tracking-[0.09em] text-zinc-400 dark:text-zinc-500';
+// Tiny uppercase caption above a card — the app-wide shared style.
+export { SECTION_CAPTION } from '@/lib/typography';

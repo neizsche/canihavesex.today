@@ -19,7 +19,7 @@ export function CalendarDayCell({ cell, onSelect }: CalendarDayCellProps) {
     <div
       onClick={() => interactive && onSelect(dateIso)}
       className={cn(
-        'relative h-12 flex items-center justify-center group',
+        'relative h-11 flex items-center justify-center group',
         interactive ? 'cursor-pointer' : 'cursor-default',
         isRestricted && 'opacity-40'
       )}
@@ -27,27 +27,27 @@ export function CalendarDayCell({ cell, onSelect }: CalendarDayCellProps) {
       {/* Continuous range band (period / fertile window). */}
       {cell.bandClass && (
         <div
-          className={cn('absolute inset-y-[2px] left-0 right-0', cell.radiusClass, cell.bandClass)}
+          className={cn('absolute inset-y-[3px] left-0 right-0', cell.radiusClass, cell.bandClass)}
         />
       )}
 
       {/* Period-start pill — solid red marker overlaid on the faded band. */}
       {isPeriodStart && (
-        <div className="absolute inset-y-[2px] left-0 right-0 bg-[#ff3b30] dark:bg-[#ff453a] rounded-full shadow-sm" />
+        <div className="absolute inset-y-[3px] left-0 right-0 bg-[#ff3b30] dark:bg-[#ff453a] rounded-full shadow-sm" />
       )}
 
       {/* Ovulation marker — solid pill. */}
       {isOvulation && (
-        <div className="absolute inset-y-[2px] left-0 right-0 bg-[#af52de] dark:bg-[#bf5af2] rounded-full shadow-sm" />
+        <div className="absolute inset-y-[3px] left-0 right-0 bg-[#af52de] dark:bg-[#bf5af2] rounded-full shadow-sm" />
       )}
 
       <span
         className={cn(
-          'relative z-10 text-[15px] transition-transform duration-300',
+          'relative z-10 text-[14px] transition-transform duration-300',
           interactive && 'group-hover:scale-110',
           cell.textClass,
-          // Today reads as "now" purely via a larger, bolder number — no ring.
-          isToday && 'text-[18px] font-bold'
+          // Today reads as "now" purely via a slightly larger, bolder number — no ring.
+          isToday && 'text-[16px] font-bold'
         )}
       >
         {dayNum}

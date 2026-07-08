@@ -1,17 +1,16 @@
 import * as React from 'react';
 import { Check, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
-  OnboardingFrame,
   onboardingPrimaryButton,
   onboardingSecondaryButton,
+  type OnboardingStepView,
 } from './OnboardingFrame';
 
 // Mirrors the signal chips on the Today screen so the app feels continuous the
 // moment onboarding ends — a preview of what there is to log, not a lecture.
 const SIGNALS = ['Temp', 'LH', 'Fluid', 'Calendar'];
 
-interface OnboardingReadyProps {
+interface ReadyStepArgs {
   onFinish: () => void;
   /** Disables the buttons and shows a spinner label while setup persists. */
   busy?: boolean;
@@ -24,55 +23,21 @@ interface OnboardingReadyProps {
 /**
  * Step 4 — launch. The payoff: confirmation, one expectation-setting line, and a
  * preview of the signals to log. Also the home for the optional PWA install.
+ * Entrance motion is owned by the frame, so the whole block settles in together.
  */
-export function OnboardingReady({
+export function readyStep({
   onFinish,
   busy = false,
   error = null,
   secondaryCta = null,
-}: OnboardingReadyProps) {
-  const [revealed, setRevealed] = React.useState(false);
-
-  React.useEffect(() => {
-    const id = requestAnimationFrame(() => setRevealed(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  return (
-    <OnboardingFrame
-      stepIndex={3}
-      footer={
-        <>
-          {error && (
-            <p className="text-center text-[15px] text-red-500" role="alert">
-              {error}
-            </p>
-          )}
-          {secondaryCta && (
-            <button
-              onClick={secondaryCta.onClick}
-              disabled={busy}
-              className={onboardingSecondaryButton}
-            >
-              <Download className="h-5 w-5" strokeWidth={2.25} />
-              {secondaryCta.label}
-            </button>
-          )}
-          <button onClick={onFinish} disabled={busy} className={onboardingPrimaryButton}>
-            {busy ? 'Setting up…' : error ? 'Try again' : 'Get started'}
-          </button>
-        </>
-      }
-    >
-      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-8 text-center">
-        <div
-          className={cn(
-            'flex flex-col items-center gap-6 transition-all duration-500 ease-out motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:transition-none',
-            revealed ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
-          )}
-        >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
-            <Check className="h-8 w-8 text-accent" strokeWidth={2.5} />
+}: ReadyStepArgs): OnboardingStepView {
+  return {
+    contentClassName: 'gap-8 text-center',
+    content: (
+      <>
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0a84ff]/10">
+            <Check className="h-8 w-8 text-[#007aff] dark:text-[#0a84ff]" strokeWidth={2.5} />
           </div>
           <div className="space-y-3">
             <h1 className="text-[32px] font-extrabold leading-tight tracking-[-0.045em] text-zinc-900 dark:text-white">
@@ -94,7 +59,29 @@ export function OnboardingReady({
             </span>
           ))}
         </div>
-      </div>
-    </OnboardingFrame>
-  );
+      </>
+    ),
+    footer: (
+      <>
+        {error && (
+          <p className="text-center text-[15px] text-red-500" role="alert">
+            {error}
+          </p>
+        )}
+        {secondaryCta && (
+          <button
+            onClick={secondaryCta.onClick}
+            disabled={busy}
+            className={onboardingSecondaryButton}
+          >
+            <Download className="h-5 w-5" strokeWidth={2.25} />
+            {secondaryCta.label}
+          </button>
+        )}
+        <button onClick={onFinish} disabled={busy} className={onboardingPrimaryButton}>
+          {busy ? 'Setting up…' : error ? 'Try again' : 'Get started'}
+        </button>
+      </>
+    ),
+  };
 }

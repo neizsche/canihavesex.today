@@ -5,6 +5,7 @@ import { InsetGroup } from '@/components/common/ui/inset-group';
 import { StepperRow } from '@/components/common/ui/stepper-row';
 import { SegmentedTabs } from '@/components/common/ui/segmented-tabs';
 import { useProfileSettings, type CycleRegularity } from '@/hooks/queries/useProfileSettings';
+import { SECTION_CAPTION } from '@/lib/typography';
 import { SettingsSubScreen } from './SettingsSubScreen';
 
 const REGULARITY_TABS: { value: CycleRegularity; label: string }[] = [
@@ -64,7 +65,7 @@ export function CycleScreen({ onBack }: { onBack: () => void }) {
       </InsetGroup>
 
       <div className="px-4 space-y-2">
-        <div className="ml-1 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground/70">
+        <div className={`ml-1 ${SECTION_CAPTION}`}>
           Regularity
         </div>
         <SegmentedTabs

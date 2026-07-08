@@ -125,7 +125,7 @@ export function ChartsScreen({ today: todayOverride }: { today?: Date } = {}) {
                       />
                     </div>
 
-                    <div className="px-1 pt-4">
+                    <div className="px-1 pt-1">
                       <CalendarMonthGrid
                         year={currentYear}
                         month={currentMonth}
@@ -142,7 +142,7 @@ export function ChartsScreen({ today: todayOverride }: { today?: Date } = {}) {
 
                     {/* Quiet footnote — the only nudge that days are tappable. Styled
                         like an Apple grouped-list caption: tiny, tertiary, no box. */}
-                    <p className="mt-3.5 text-center text-[11px] font-medium text-zinc-400/90 dark:text-zinc-600">
+                    <p className="mt-3 text-center text-[11px] font-medium text-zinc-400/90 dark:text-zinc-600">
                       Tap any day to view or edit
                     </p>
                   </div>

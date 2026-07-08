@@ -10,6 +10,7 @@ import { usePlanCheckout } from '@/components/billing/usePlanCheckout';
 import { ActionSheet } from '@/components/common/ui/action-sheet';
 import { PLANS } from '@/components/billing/plans';
 import { CONTACT_EMAIL } from '@/lib/siteConfig';
+import { SECTION_CAPTION } from '@/lib/typography';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 
 function formatDate(iso: string | null): string {
@@ -192,7 +193,7 @@ export function AccountHub({
                   )}
 
                   <div className="space-y-1.5">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500 px-1">
+                    <div className={`${SECTION_CAPTION} px-1`}>
                       Options
                     </div>
                     <div className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/20 divide-y divide-zinc-200/50 dark:divide-zinc-800/50">

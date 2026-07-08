@@ -29,7 +29,7 @@ export function CalendarMonthGrid({
 }: CalendarMonthGridProps) {
   return (
     <>
-      <div className="grid grid-cols-7 text-center mb-3">
+      <div className="grid grid-cols-7 text-center mb-2">
         {WEEKDAYS.map((d, idx) => (
           <div
             key={idx}
@@ -43,7 +43,7 @@ export function CalendarMonthGrid({
       <div className="grid grid-cols-7 gap-y-1">
         {/* Leading blanks so day 1 lands on its weekday. */}
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-12" />
+          <div key={`empty-${i}`} className="h-11" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {

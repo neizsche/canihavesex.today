@@ -2,15 +2,24 @@ import * as React from 'react';
 import { apiJson } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarX2, Droplets, Sparkles } from 'lucide-react';
-import { OnboardingWelcome } from './OnboardingWelcome';
-import { OnboardingEducation, type EducationItem } from './OnboardingEducation';
-import { OnboardingSetup } from './OnboardingSetup';
-import { OnboardingReady } from './OnboardingReady';
+import { OnboardingFrame, type OnboardingStepView } from './OnboardingFrame';
+import { welcomeStep } from './OnboardingWelcome';
+import { educationStep, type EducationItem } from './OnboardingEducation';
+import { setupStep } from './OnboardingSetup';
+import { readyStep } from './OnboardingReady';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { detectTemperatureUnit } from '@/components/log/temperatureUnits';
 import { toIsoDate } from '@/lib/date';
 
 type OnboardingStep = 'welcome' | 'education' | 'setup' | 'ready';
+
+// Position of each step in the flow — drives the header progress dots.
+const STEP_INDEX: Record<OnboardingStep, number> = {
+  welcome: 0,
+  education: 1,
+  setup: 2,
+  ready: 3,
+};
 
 interface OnboardingData {
   cycle_regularity: 'regular' | 'irregular' | 'unsure' | null;
@@ -147,44 +156,53 @@ export function OnboardingFlow({ onComplete, isDemo = false }: OnboardingFlowPro
   const installCta =
     canPrompt && !isInstalled ? { label: 'Install App', onClick: handleInstall } : null;
 
-  switch (step) {
-    case 'welcome':
-      return <OnboardingWelcome onContinue={() => setStep('education')} />;
+  // Build just the content + footer for the current step. The frame itself is
+  // rendered once below and stays mounted, so only this inner view changes.
+  const view: OnboardingStepView = (() => {
+    switch (step) {
+      case 'welcome':
+        return welcomeStep({ onContinue: () => setStep('education') });
 
-    case 'education':
-      return (
-        <OnboardingEducation
-          title="Calendars guess. Your body knows."
-          items={EDUCATION_ITEMS}
-          onContinue={() => setStep('setup')}
-        />
-      );
+      case 'education':
+        return educationStep({
+          title: 'Calendars guess. Your body knows.',
+          items: EDUCATION_ITEMS,
+          onContinue: () => setStep('setup'),
+        });
 
-    case 'setup':
-      return (
-        <OnboardingSetup
-          regularity={data.cycle_regularity}
-          cycleLength={data.cycle_length}
-          onUpdate={(updates) => {
+      case 'setup':
+        return setupStep({
+          regularity: data.cycle_regularity,
+          cycleLength: data.cycle_length,
+          onUpdate: (updates) => {
             const payload: Partial<OnboardingData> = {};
             if (updates.regularity !== undefined) payload.cycle_regularity = updates.regularity;
             if (updates.cycleLength !== undefined) payload.cycle_length = updates.cycleLength;
             updateData(payload);
-          }}
-          onContinue={() => setStep('ready')}
-          onSkip={handleSkip}
-          skipBusy={busy}
-        />
-      );
+          },
+          onContinue: () => setStep('ready'),
+          onSkip: handleSkip,
+          skipBusy: busy,
+        });
 
-    case 'ready':
-      return (
-        <OnboardingReady
-          onFinish={handleFinish}
-          busy={busy}
-          error={error}
-          secondaryCta={installCta}
-        />
-      );
-  }
+      case 'ready':
+        return readyStep({
+          onFinish: handleFinish,
+          busy,
+          error,
+          secondaryCta: installCta,
+        });
+    }
+  })();
+
+  return (
+    <OnboardingFrame
+      stepIndex={STEP_INDEX[step]}
+      contentKey={step}
+      footer={view.footer}
+      contentClassName={view.contentClassName}
+    >
+      {view.content}
+    </OnboardingFrame>
+  );
 }
