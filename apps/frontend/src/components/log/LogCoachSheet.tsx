@@ -18,7 +18,7 @@ export function LogCoachSheet({ isOpen, onClose }: LogCoachSheetProps) {
   const { coach } = LOG_SCREEN_LABELS;
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} actionLabel={coach.dismiss}>
+    <BottomSheet isOpen={isOpen} onClose={onClose} actionLabel={coach.dismiss} showGrabber>
       <div className="flex shrink-0 flex-col items-center px-6 pb-4 pt-7 text-center">
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 dark:bg-blue-400/10">
           <GraduationCap className="icon-md text-blue-600 dark:text-blue-400" />

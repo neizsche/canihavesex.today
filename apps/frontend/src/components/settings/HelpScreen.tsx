@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ChevronRight, Mail, FileText, Shield, ExternalLink } from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
+import { SETTINGS_TILE } from '@/components/common/ui/settings-row';
 import { BRAND, CONTACT_EMAIL, WEBSITE_URL } from '@/lib/siteConfig';
 import { Header } from '@/components/common/Header';
 import { BrandTitle } from '@/components/common/BrandTitle';
@@ -30,10 +31,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                 />
               </div>
               <div className="text-center space-y-1">
-                <BrandTitle
-                  className="text-2xl justify-center text-zinc-900 dark:text-zinc-100"
-                  showLogo={false}
-                />
+                <BrandTitle className="text-2xl justify-center text-zinc-900 dark:text-zinc-100" />
               </div>
             </div>
 
@@ -45,7 +43,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                   className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-md bg-blue-500 flex items-center justify-center">
+                    <div className={`${SETTINGS_TILE} bg-[#007aff] dark:bg-[#0a84ff]`}>
                       <Mail className="w-4 h-4 text-white" />
                     </div>
                     <div className="font-normal text-[17px] text-zinc-900 dark:text-zinc-100">
@@ -65,7 +63,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                     className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-md bg-zinc-500 flex items-center justify-center">
+                      <div className={`${SETTINGS_TILE} bg-zinc-500`}>
                         <FileText className="w-4 h-4 text-white" />
                       </div>
                       <div className="font-normal text-[17px] text-zinc-900 dark:text-zinc-100">
@@ -81,7 +79,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                     className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-md bg-zinc-500 flex items-center justify-center">
+                      <div className={`${SETTINGS_TILE} bg-zinc-500`}>
                         <Shield className="w-4 h-4 text-white" />
                       </div>
                       <div className="font-normal text-[17px] text-zinc-900 dark:text-zinc-100">
@@ -101,7 +99,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                   className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-md bg-purple-500 flex items-center justify-center">
+                    <div className={`${SETTINGS_TILE} bg-[#af52de] dark:bg-[#bf5af2]`}>
                       <ExternalLink className="w-4 h-4 text-white" />
                     </div>
                     <div className="font-normal text-[17px] text-zinc-900 dark:text-zinc-100">

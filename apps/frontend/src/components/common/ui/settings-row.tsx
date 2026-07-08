@@ -2,6 +2,12 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronRight, Lock } from 'lucide-react';
 
+/** Shared 30px squircle icon tile — matches the log screen's tiles app-wide. */
+export const SETTINGS_TILE =
+  'w-[30px] h-[30px] rounded-[9px] shadow-sm flex items-center justify-center shrink-0';
+/** Hairline row divider, inset to the label (past the icon tile), iOS-style. */
+export const SETTINGS_DIVIDER = 'h-px bg-zinc-200/50 dark:bg-zinc-800/50 ml-[58px]';
+
 interface SettingsActionRowProps {
   icon?: React.ReactNode;
   iconBgColor?: string;
@@ -49,16 +55,7 @@ export function SettingsActionRow({
       )}
     >
       <div className="flex items-center gap-3 text-left">
-        {icon && (
-          <div
-            className={cn(
-              'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
-              iconBgColor
-            )}
-          >
-            {icon}
-          </div>
-        )}
+        {icon && <div className={cn(SETTINGS_TILE, iconBgColor)}>{icon}</div>}
         <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
           {label}
         </div>
@@ -115,16 +112,7 @@ export function SettingsExpandableRow({
         className="w-full min-h-[44px] sm:min-h-[48px] flex items-center justify-between px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
       >
         <div className="flex items-center gap-3 text-left">
-          {icon && (
-            <div
-              className={cn(
-                'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
-                iconBgColor
-              )}
-            >
-              {icon}
-            </div>
-          )}
+          {icon && <div className={cn(SETTINGS_TILE, iconBgColor)}>{icon}</div>}
           <div className={cn(description ? 'space-y-0.5' : '')}>
             <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
               {title}
@@ -190,16 +178,7 @@ export function SettingsToggleRow({
       )}
     >
       <div className="flex items-center gap-3 text-left flex-1 min-w-0">
-        {icon && (
-          <div
-            className={cn(
-              'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
-              iconBgColor
-            )}
-          >
-            {icon}
-          </div>
-        )}
+        {icon && <div className={cn(SETTINGS_TILE, iconBgColor)}>{icon}</div>}
         <div className="flex-1 min-w-0">
           <div className="font-normal text-[15px] sm:text-[17px] text-zinc-900 dark:text-zinc-100">
             {label}

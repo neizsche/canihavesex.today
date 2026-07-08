@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 import { apiJson } from '@/lib/api';
+import { config } from '@/lib/config';
 import {
   updateCacheFromMutation,
   clearPersistedCache,
@@ -216,6 +217,10 @@ export function SettingsScreen() {
               }
               onSignIn={() => window.dispatchEvent(new Event('auth:open'))}
             />
+
+            <p className="pt-1 text-center text-[12px] font-medium text-zinc-400/80 dark:text-zinc-600">
+              Version {config.appVersion}
+            </p>
           </div>
 
           <ActionSheet

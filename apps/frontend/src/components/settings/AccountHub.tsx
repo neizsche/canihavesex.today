@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CreditCard, HelpCircle, Check, ChevronRight, Download, Share, Plus } from 'lucide-react';
+import { Check, ChevronRight, Share, Plus } from 'lucide-react';
 import { InsetGroup } from '@/components/common/ui/inset-group';
 import { Spinner } from '@/components/common/ui/spinner';
 import { SettingsActionRow, SettingsExpandableRow } from '@/components/common/ui/settings-row';
@@ -102,10 +102,8 @@ export function AccountHub({
     <>
       <InsetGroup>
         {email && (
-          <div className="flex items-center justify-between px-4 py-3 bg-transparent">
-            <div className="text-[17px] font-normal text-zinc-900 dark:text-zinc-100">
-              Account
-            </div>
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="text-[17px] font-normal text-zinc-900 dark:text-zinc-100">Account</div>
             <div className="text-[15px] text-zinc-500 dark:text-zinc-400 truncate pl-4">
               {email}
             </div>
@@ -304,10 +302,7 @@ export function AccountHub({
             {(email || billingEnabled || showInstall) && (
               <div className="h-px bg-zinc-200/50 dark:bg-zinc-800/50 mx-4" />
             )}
-            <SettingsActionRow
-              label="Help & Feedback"
-              onClick={onHelp}
-            />
+            <SettingsActionRow label="Help & feedback" onClick={onHelp} />
           </>
         )}
       </InsetGroup>
