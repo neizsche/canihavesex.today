@@ -29,7 +29,9 @@ export function useTemperatureUnit(): TemperatureUnit {
     queryKey: ['user-profile'],
     queryFn: () => apiJson<{ temperature_unit: TemperatureUnit }>('/api/v1/user/profile'),
     enabled: !!session?.userId,
-    staleTime: 5 * 60 * 1000,
+    // Single-writer profile: never auto-refetch. A background GET on navigation
+    // could race a just-saved change and revert the unit. See useProfileSettings.
+    staleTime: Infinity,
     select: (profile) => profile.temperature_unit,
   });
 

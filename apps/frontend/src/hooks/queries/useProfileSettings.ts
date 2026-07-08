@@ -49,7 +49,11 @@ export function useProfileSettings() {
     queryKey: ['user-profile'],
     queryFn: () => apiJson<UserProfile>('/api/v1/user/profile'),
     enabled: !!session?.userId,
-    staleTime: 60_000,
+    // The profile is single-writer — only this client mutates it, always via an
+    // optimistic cache write in saveProfile. Never auto-refetch: a background
+    // GET on navigation could race a still-debounced PATCH, read the old server
+    // value, and revert a just-toggled setting (dark mode / discreet mode).
+    staleTime: Infinity,
   });
 
   // Populate local mirrors from the server profile (once per mount).
@@ -88,7 +92,10 @@ export function useProfileSettings() {
   }, []);
 
   const saveProfile = React.useCallback(
-    (patch: Record<string, unknown>) => {
+    (patch: Record<string, unknown>, options?: { immediate?: boolean }) => {
+      // Abort any in-flight profile GET first so a load that started before this
+      // change can't resolve later and overwrite our optimistic value.
+      void queryClient.cancelQueries({ queryKey: ['user-profile'] });
       // Optimistically reflect the change in the shared cache right away.
       queryClient.setQueryData<UserProfile>(['user-profile'], (old) =>
         old ? { ...old, ...patch } : old
@@ -101,9 +108,16 @@ export function useProfileSettings() {
       // Accumulate so a quick second change doesn't drop the first patch.
       pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
+      // Single-tap toggles (theme, discreet, temperature) persist immediately so
+      // the server converges before the user can navigate; only continuous
+      // inputs (cycle/period sliders) debounce.
+      if (options?.immediate) {
         void flushProfileSave();
-      }, 800);
+      } else {
+        saveTimerRef.current = setTimeout(() => {
+          void flushProfileSave();
+        }, 800);
+      }
     },
     [queryClient, flushProfileSave]
   );

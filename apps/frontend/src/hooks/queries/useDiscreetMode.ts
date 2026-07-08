@@ -28,7 +28,9 @@ export function useDiscreetMode() {
     queryKey: ['user-profile'],
     queryFn: () => apiJson<{ show_branding: boolean }>('/api/v1/user/profile'),
     enabled: !!session?.userId,
-    staleTime: 5 * 60 * 1000,
+    // Single-writer profile: never auto-refetch. A background GET on navigation
+    // could race a just-saved change and revert discreet mode. See useProfileSettings.
+    staleTime: Infinity,
     select: (profile) => profile.show_branding,
   });
 

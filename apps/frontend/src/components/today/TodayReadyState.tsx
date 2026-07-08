@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 
+import { SURFACE_RAISED } from './todayStyles';
 import { CycleLine } from './CycleLine';
 import { TodayHero } from './TodayHero';
 
@@ -58,10 +59,10 @@ export function TodayReadyState({
 
         <button
           onClick={onViewInsights}
-          className="group inline-flex items-center gap-1 self-center text-[14px] font-medium text-zinc-400 transition-opacity active:opacity-60 dark:text-zinc-500"
+          className={`group flex items-center gap-1 self-center rounded-full px-4 py-1.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 active:scale-[0.98] transition-all hover:text-zinc-800 dark:hover:text-zinc-200 ${SURFACE_RAISED}`}
         >
-          TODAY EXPLAINED
-          <ChevronRight className="h-4 w-4 text-zinc-300 transition-transform group-hover:translate-x-0.5 dark:text-zinc-600" />
+          today, explained
+          <ChevronRight className="h-3.5 w-3.5 opacity-70 transition-transform group-hover:translate-x-0.5" />
         </button>
       </div>
     </div>

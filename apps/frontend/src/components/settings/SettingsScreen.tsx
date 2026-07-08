@@ -192,15 +192,15 @@ export function SettingsScreen() {
               onThemeChange={(checked) => {
                 const next = checked ? 'dark' : 'light';
                 setTheme(next);
-                saveProfile({ theme: next });
+                saveProfile({ theme: next }, { immediate: true });
               }}
               onDiscreetModeChange={(checked) => {
-                saveProfile({ show_branding: !checked });
+                saveProfile({ show_branding: !checked }, { immediate: true });
               }}
               onTemperatureUnitChange={() => {
                 const next = temperatureUnit === 'celsius' ? 'fahrenheit' : 'celsius';
                 setTemperatureUnit(next);
-                saveProfile({ temperature_unit: next });
+                saveProfile({ temperature_unit: next }, { immediate: true });
               }}
             />
 

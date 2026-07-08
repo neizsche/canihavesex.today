@@ -20,7 +20,9 @@ export function ThemeSync() {
     queryKey: ['user-profile'],
     queryFn: () => apiJson<{ theme?: 'light' | 'dark' }>('/api/v1/user/profile'),
     enabled: !!session?.userId,
-    staleTime: 60_000,
+    // Single-writer profile: never auto-refetch. A background GET on navigation
+    // could race a just-saved change and revert the theme. See useProfileSettings.
+    staleTime: Infinity,
   });
 
   React.useEffect(() => {
