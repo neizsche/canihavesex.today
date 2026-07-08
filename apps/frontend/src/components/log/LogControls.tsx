@@ -1,10 +1,23 @@
 import * as React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  TILE_LABEL,
+  SEGMENT_TRACK,
+  SEGMENT_ITEM,
+  SEGMENT_ON,
+  SEGMENT_OFF,
+  SEGMENT_TEXT_NEUTRAL,
+  CHIP,
+  OPTION_IDLE,
+} from './logStyles';
 
 type Option = { id: string; label: string };
 
-/** Icon tile + field label, shared by every row in the log form. */
+/**
+ * Icon tile + field label, shared by every row in the log form. `iconWrapClass`
+ * is a complete tile token from logStyles (e.g. `TILE.bleeding`).
+ */
 export function FieldHeader({
   icon: Icon,
   iconWrapClass,
@@ -18,10 +31,10 @@ export function FieldHeader({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className={cn('w-7 h-7 flex items-center justify-center', iconWrapClass)}>
+      <div className={iconWrapClass}>
         <Icon className={iconClass} />
       </div>
-      <span className="text-[17px] text-zinc-900 dark:text-white font-medium">{label}</span>
+      <span className={TILE_LABEL}>{label}</span>
     </div>
   );
 }
@@ -40,16 +53,14 @@ export function PillGroup({
   onChange: (value: string | null) => void;
 }) {
   return (
-    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+    <div className={SEGMENT_TRACK}>
       {options.map((opt) => (
         <button
           key={opt.id}
           onClick={() => onChange(value === opt.id ? null : opt.id)}
           className={cn(
-            'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm',
-            value === opt.id
-              ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5'
-              : 'text-zinc-500 dark:text-zinc-400 shadow-none bg-transparent'
+            SEGMENT_ITEM,
+            value === opt.id ? `${SEGMENT_ON} ${SEGMENT_TEXT_NEUTRAL}` : SEGMENT_OFF
           )}
         >
           {opt.label}
@@ -77,12 +88,7 @@ export function ChipGroup({
         <button
           key={opt.id}
           onClick={() => onToggle(opt.id)}
-          className={cn(
-            'py-1.5 px-3 rounded-full text-[13px] font-medium border transition-all shadow-sm',
-            selected.includes(opt.id)
-              ? activeClass
-              : 'bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-          )}
+          className={cn(CHIP, selected.includes(opt.id) ? activeClass : OPTION_IDLE)}
         >
           {opt.label}
         </button>

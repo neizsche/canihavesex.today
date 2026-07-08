@@ -11,6 +11,7 @@ import { WaitlistCapture, hasJoinedWaitlist } from '@/components/common/Waitlist
 import { seenWithinDay, markSeenToday } from '@/lib/dailyFlag';
 import { DateNavigator } from '@/components/common/ui/date-navigator';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
+import { PRIMARY_BUTTON, ACTION_BAR } from './logStyles';
 import { useLog, useSaveLog } from '@/hooks/queries/useLogs';
 import { useBillingStatus } from '@/hooks/queries/useBillingStatus';
 import { useCalendarDayStatus, type CalendarStatus } from '@/hooks/queries/useCalendar';
@@ -238,7 +239,7 @@ export function LogScreen() {
   return (
     <div className="h-full bg-background font-sans flex flex-col">
       <Header />
-      <div className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar pb-20">
+      <div className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar pb-4">
         <div
           className={cn(
             'w-full max-w-md mx-auto min-h-full flex flex-col pt-safe-offset-2 sm:pt-4',
@@ -316,33 +317,33 @@ export function LogScreen() {
                 filledFieldsSummary={filledFieldsSummary}
                 patch={patch}
               />
-
-              {/* Form actions */}
-              <div className="px-4 pb-8 space-y-3">
-                <Button
-                  onClick={save}
-                  disabled={
-                    saveMutation.isPending || !isEditable || !isDirty || (!hasData && !anyInput)
-                  }
-                  className="w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
-                >
-                  {saveMutation.isPending
-                    ? LOG_SCREEN_LABELS.buttons.saving
-                    : LOG_SCREEN_LABELS.buttons.save}
-                </Button>
-
-                {anyInput && isEditable && (
-                  <button
-                    onClick={clearAll}
-                    disabled={saveMutation.isPending}
-                    className="w-full py-2.5 text-[15px] font-medium text-red-500 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
-                  >
-                    Clear All
-                  </button>
-                )}
-              </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Pinned action bar — Save/Clear stay reachable above the tab bar (iOS-style). */}
+      <div className={ACTION_BAR}>
+        <div className="max-w-md mx-auto px-4 pt-3 pb-3 space-y-1.5">
+          <Button
+            onClick={save}
+            disabled={saveMutation.isPending || !isEditable || !isDirty || (!hasData && !anyInput)}
+            className={PRIMARY_BUTTON}
+          >
+            {saveMutation.isPending
+              ? LOG_SCREEN_LABELS.buttons.saving
+              : LOG_SCREEN_LABELS.buttons.save}
+          </Button>
+
+          {anyInput && isEditable && (
+            <button
+              onClick={clearAll}
+              disabled={saveMutation.isPending}
+              className="w-full py-2 text-[15px] font-medium text-red-500 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+            >
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 

@@ -15,13 +15,14 @@ import { InsetGroup } from '@/components/common/ui/inset-group';
 import { ChipGroup, FieldHeader, PillGroup } from './LogControls';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { toggleInArray, type LogFormState } from './logState';
-
-const CHIP_ACTIVE_SYMPTOMS =
-  'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-const CHIP_ACTIVE_FACTORS =
-  'bg-zinc-100 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200';
-const CHIP_ACTIVE_MOOD =
-  'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300';
+import {
+  CHIP_ON_FACTORS,
+  CHIP_ON_MOOD,
+  CHIP_ON_SYMPTOMS,
+  NOTES_ICON,
+  ROW_DIVIDER,
+  TILE,
+} from './logStyles';
 
 export function LogWellnessSection({
   form,
@@ -73,44 +74,44 @@ export function LogWellnessSection({
           showMore ? 'max-h-[1600px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={Activity}
-            iconWrapClass="rounded-sm bg-green-500 shadow-sm"
+            iconWrapClass={TILE.symptoms}
             label={LOG_SCREEN_LABELS.fields.symptoms}
           />
           <ChipGroup
             options={LOG_SCREEN_LABELS.bodySignals.symptoms}
             selected={form.bodySymptoms}
             onToggle={(id) => patch({ bodySymptoms: toggleInArray(form.bodySymptoms, id) })}
-            activeClass={CHIP_ACTIVE_SYMPTOMS}
+            activeClass={CHIP_ON_SYMPTOMS}
           />
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={Smile}
-            iconWrapClass="rounded-sm bg-amber-500 shadow-sm"
+            iconWrapClass={TILE.mood}
             label={LOG_SCREEN_LABELS.fields.mood}
           />
           <ChipGroup
             options={LOG_SCREEN_LABELS.bodySignals.mood}
             selected={form.mood}
             onToggle={(id) => patch({ mood: toggleInArray(form.mood, id) })}
-            activeClass={CHIP_ACTIVE_MOOD}
+            activeClass={CHIP_ON_MOOD}
           />
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={Zap}
-            iconWrapClass="rounded-sm bg-sky-500 shadow-sm"
+            iconWrapClass={TILE.energy}
             label={LOG_SCREEN_LABELS.fields.energy}
           />
           <PillGroup
@@ -120,12 +121,12 @@ export function LogWellnessSection({
           />
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={Moon}
-            iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
+            iconWrapClass={TILE.sleep}
             label={LOG_SCREEN_LABELS.fields.sleep}
           />
           <PillGroup
@@ -135,12 +136,12 @@ export function LogWellnessSection({
           />
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={HeartPulse}
-            iconWrapClass="rounded-sm bg-pink-500 shadow-sm"
+            iconWrapClass={TILE.libido}
             label={LOG_SCREEN_LABELS.fields.libido}
           />
           <PillGroup
@@ -150,12 +151,12 @@ export function LogWellnessSection({
           />
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={Heart}
-            iconWrapClass="rounded-sm bg-purple-500 shadow-sm"
+            iconWrapClass={TILE.sex}
             label={LOG_SCREEN_LABELS.fields.sexActivity}
           />
           <PillGroup
@@ -165,32 +166,32 @@ export function LogWellnessSection({
           />
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-3">
           <FieldHeader
             icon={Info}
-            iconWrapClass="rounded-sm bg-zinc-400 dark:bg-zinc-600 shadow-sm"
+            iconWrapClass={TILE.factors}
             label={LOG_SCREEN_LABELS.symptoms.disturbances.title}
           />
           <ChipGroup
             options={LOG_SCREEN_LABELS.symptoms.disturbances.options}
             selected={form.disturbances}
             onToggle={(id) => patch({ disturbances: toggleInArray(form.disturbances, id) })}
-            activeClass={CHIP_ACTIVE_FACTORS}
+            activeClass={CHIP_ON_FACTORS}
           />
           <p className="text-[12px] text-muted-foreground leading-snug">
             {LOG_SCREEN_LABELS.hints.factors}
           </p>
         </div>
 
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+        <div className={ROW_DIVIDER} />
 
         <div className="py-3.5 px-4 flex flex-col gap-2">
           <FieldHeader
             icon={FileText}
-            iconWrapClass="rounded-sm bg-yellow-500/10 shrink-0"
-            iconClass="icon-sm text-yellow-500"
+            iconWrapClass={TILE.notes}
+            iconClass={NOTES_ICON}
             label={LOG_SCREEN_LABELS.fields.notes}
           />
           <textarea

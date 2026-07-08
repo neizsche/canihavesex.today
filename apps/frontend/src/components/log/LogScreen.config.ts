@@ -15,7 +15,7 @@ export const LOG_SCREEN_LABELS = {
     ],
   },
   fields: {
-    period: 'Menstruation',
+    period: 'Bleeding',
     basalTemp: 'Temperature',
     cervicalMucus: 'Cervical Fluid',
     lhTest: 'LH Test',
@@ -96,7 +96,7 @@ export const LOG_SCREEN_LABELS = {
   hints: {
     temperature:
       'Take right after waking — before getting up, talking, or drinking. Same time daily.',
-    cervicalMucus: 'Check before the toilet. Egg white (clear, stretchy) = most fertile.',
+    cervicalMucus: 'Check before the toilet. Egg white = most fertile.',
     cervicalMucusDisabled: 'Not tracked during your period — bleeding masks it.',
     lhTest:
       'Test early afternoon, not first-morning urine. A positive means ovulation is likely in the next day or two.',

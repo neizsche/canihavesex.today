@@ -16,6 +16,22 @@ import { FieldHeader } from './LogControls';
 import { LOG_SCREEN_LABELS } from './LogScreen.config';
 import { clampBbtInput, type LogFormState } from './logState';
 import { type TemperatureUnit, type bbtFieldConfig } from './temperatureUnits';
+import {
+  ACCENT_TEXT,
+  BLEEDING_FILL,
+  CERVICAL_CELL,
+  CERVICAL_ON,
+  OPTION_IDLE,
+  ROW_DIVIDER,
+  SUB_DIVIDER,
+  SEGMENT_TRACK,
+  SEGMENT_ITEM,
+  SEGMENT_ON,
+  SEGMENT_OFF,
+  SEGMENT_TEXT_NEUTRAL,
+  SEGMENT_TEXT_MENSTRUAL,
+  TILE,
+} from './logStyles';
 
 const MUCUS_OPTIONS = [
   { id: 'dry', label: LOG_SCREEN_LABELS.options.mucus[0] },
@@ -34,7 +50,10 @@ function AddButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 text-[15px] font-medium text-[#007AFF] dark:text-[#0A84FF] transition-transform active:scale-95"
+      className={cn(
+        'flex items-center gap-1 text-[15px] font-medium transition-transform active:scale-95',
+        ACCENT_TEXT
+      )}
     >
       <Plus className="icon-xs" strokeWidth={2.5} />
       {LOG_SCREEN_LABELS.buttons.add}
@@ -75,7 +94,7 @@ export function LogPrimarySignals({
         <div className="px-4 py-3.5 flex items-center justify-between min-h-[52px]">
           <FieldHeader
             icon={Droplets}
-            iconWrapClass="rounded-full bg-rose-500 shadow-sm"
+            iconWrapClass={TILE.bleeding}
             label={LOG_SCREEN_LABELS.fields.period}
           />
 
@@ -86,7 +105,7 @@ export function LogPrimarySignals({
             }}
             className={cn(
               'w-[51px] h-[31px] rounded-full relative transition-colors duration-200 ease-in-out cursor-pointer',
-              form.bleeding ? 'bg-rose-500' : 'bg-zinc-200 dark:bg-zinc-700'
+              form.bleeding ? BLEEDING_FILL : 'bg-zinc-200 dark:bg-zinc-700'
             )}
           >
             <span
@@ -105,15 +124,13 @@ export function LogPrimarySignals({
           )}
         >
           <div className="px-4 pb-4 pt-0 space-y-4">
-            <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-0" />
-            <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+            <div className={SUB_DIVIDER} />
+            <div className={SEGMENT_TRACK}>
               <button
                 onClick={() => patch({ spotting: true, flow: null })}
                 className={cn(
-                  'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm',
-                  form.spotting
-                    ? 'bg-rose-500 text-white shadow-md ring-1 ring-rose-600/20'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 shadow-none bg-transparent'
+                  SEGMENT_ITEM,
+                  form.spotting ? `${SEGMENT_ON} ${SEGMENT_TEXT_MENSTRUAL}` : SEGMENT_OFF
                 )}
               >
                 Spotting
@@ -123,10 +140,10 @@ export function LogPrimarySignals({
                   key={opt.id}
                   onClick={() => patch({ flow: opt.id, spotting: false, mucus: null })}
                   className={cn(
-                    'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all shadow-sm',
+                    SEGMENT_ITEM,
                     !form.spotting && form.flow === opt.id
-                      ? 'bg-rose-500 text-white shadow-md ring-1 ring-rose-600/20'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 shadow-none bg-transparent'
+                      ? `${SEGMENT_ON} ${SEGMENT_TEXT_MENSTRUAL}`
+                      : SEGMENT_OFF
                   )}
                 >
                   {opt.label}
@@ -137,7 +154,7 @@ export function LogPrimarySignals({
         </div>
       </div>
 
-      <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+      <div className={ROW_DIVIDER} />
 
       <div className="flex flex-col py-3.5 px-4 gap-3">
         <div
@@ -149,7 +166,7 @@ export function LogPrimarySignals({
         >
           <FieldHeader
             icon={Activity}
-            iconWrapClass="rounded-sm bg-blue-500 shadow-sm"
+            iconWrapClass={TILE.cervical}
             label={LOG_SCREEN_LABELS.fields.cervicalMucus}
           />
           <div className="grid grid-cols-2 gap-2.5">
@@ -158,12 +175,7 @@ export function LogPrimarySignals({
                 key={opt.id}
                 tabIndex={mucusDisabled ? -1 : undefined}
                 onClick={() => patch({ mucus: form.mucus === opt.id ? null : opt.id })}
-                className={cn(
-                  'py-2.5 px-3 rounded-xl text-[15px] font-medium text-center transition-all border shadow-sm',
-                  form.mucus === opt.id
-                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20'
-                    : 'bg-white dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                )}
+                className={cn(CERVICAL_CELL, form.mucus === opt.id ? CERVICAL_ON : OPTION_IDLE)}
               >
                 {opt.label}
               </button>
@@ -180,7 +192,10 @@ export function LogPrimarySignals({
           <div className="flex flex-col mt-0.5">
             <button
               onClick={onToggleMucusGuide}
-              className="flex items-center gap-1 text-[13px] font-medium text-[#007AFF] dark:text-[#0A84FF] self-start transition-opacity active:opacity-70"
+              className={cn(
+                'flex items-center gap-1 text-[13px] font-medium self-start transition-opacity active:opacity-70',
+                ACCENT_TEXT
+              )}
             >
               {LOG_SCREEN_LABELS.cervicalMucusGuide.title}
               <ChevronRight
@@ -229,13 +244,13 @@ export function LogPrimarySignals({
         )}
       </div>
 
-      <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+      <div className={ROW_DIVIDER} />
 
       <div className="px-4 py-3.5 flex flex-col gap-1.5">
         <div className="flex items-center justify-between min-h-[28px]">
           <FieldHeader
             icon={Thermometer}
-            iconWrapClass="rounded-sm bg-orange-500 shadow-sm"
+            iconWrapClass={TILE.temperature}
             label={LOG_SCREEN_LABELS.fields.basalTemp}
           />
           {tempOpen || form.bbt ? (
@@ -279,13 +294,13 @@ export function LogPrimarySignals({
         )}
       </div>
 
-      <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-4" />
+      <div className={ROW_DIVIDER} />
 
       <div className="px-4 py-3.5 flex flex-col gap-3">
         <div className="flex items-center justify-between min-h-[28px]">
           <FieldHeader
             icon={TestTube}
-            iconWrapClass="rounded-sm bg-indigo-500 shadow-sm"
+            iconWrapClass={TILE.lh}
             label={LOG_SCREEN_LABELS.fields.lhTest}
           />
           {!(lhOpen || form.lhTest) ? (
@@ -305,14 +320,12 @@ export function LogPrimarySignals({
         </div>
         {(lhOpen || form.lhTest) && (
           <>
-            <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+            <div className={SEGMENT_TRACK}>
               <button
                 onClick={() => patch({ lhTest: form.lhTest === 'negative' ? null : 'negative' })}
                 className={cn(
-                  'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
-                  form.lhTest === 'negative'
-                    ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5'
-                    : 'text-zinc-500 dark:text-zinc-400'
+                  SEGMENT_ITEM,
+                  form.lhTest === 'negative' ? `${SEGMENT_ON} ${SEGMENT_TEXT_NEUTRAL}` : SEGMENT_OFF
                 )}
               >
                 {LOG_SCREEN_LABELS.options.lhTest.negative}
@@ -320,10 +333,10 @@ export function LogPrimarySignals({
               <button
                 onClick={() => patch({ lhTest: form.lhTest === 'positive' ? null : 'positive' })}
                 className={cn(
-                  'flex-1 py-1.5 rounded-[9px] text-[13px] font-semibold transition-all transition-shadow',
+                  SEGMENT_ITEM,
                   form.lhTest === 'positive'
-                    ? 'bg-white dark:bg-zinc-600 text-rose-500 dark:text-rose-300 shadow-sm ring-1 ring-black/5'
-                    : 'text-zinc-500 dark:text-zinc-400'
+                    ? `${SEGMENT_ON} ${SEGMENT_TEXT_MENSTRUAL}`
+                    : SEGMENT_OFF
                 )}
               >
                 {LOG_SCREEN_LABELS.options.lhTest.positive}
