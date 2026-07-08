@@ -15,4 +15,5 @@ export const SECTION_CAPTION =
 export const CARD_DIVIDE = 'divide-y divide-border/30';
 
 // iOS accent blue — the only non-fertility colour on this screen (data + links).
-export const ACCENT_TEXT = 'text-[#007aff] dark:text-[#0a84ff]';
+// Backed by the app-wide `--accent` token (globals.css).
+export const ACCENT_TEXT = 'text-accent';

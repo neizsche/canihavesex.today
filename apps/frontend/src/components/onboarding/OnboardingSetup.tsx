@@ -64,7 +64,7 @@ export function OnboardingSetup({
                 onClick={() => onUpdate({ regularity: opt.id })}
                 className={cn(
                   'flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors',
-                  active ? 'bg-[#0a84ff]/[0.06]' : 'active:bg-muted/60'
+                  active ? 'bg-accent/[0.06]' : 'active:bg-muted/60'
                 )}
               >
                 <div className="flex flex-col">
@@ -72,7 +72,7 @@ export function OnboardingSetup({
                     className={cn(
                       'text-[17px]',
                       active
-                        ? 'font-semibold text-[#007aff] dark:text-[#0a84ff]'
+                        ? 'font-semibold text-accent'
                         : 'text-zinc-900 dark:text-zinc-100'
                     )}
                   >
@@ -82,7 +82,7 @@ export function OnboardingSetup({
                 </div>
                 {active && (
                   <Check
-                    className="h-5 w-5 shrink-0 text-[#007aff] dark:text-[#0a84ff]"
+                    className="h-5 w-5 shrink-0 text-accent"
                     strokeWidth={2.5}
                   />
                 )}
@@ -110,7 +110,7 @@ export function OnboardingSetup({
             max={35}
             value={cycleLength}
             onChange={(e) => onUpdate({ cycleLength: Number(e.target.value) })}
-            className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-[#0a84ff] dark:bg-zinc-700"
+            className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-[rgb(var(--accent))] dark:bg-zinc-700"
           />
           <p className="mt-3 text-[13px] leading-relaxed text-zinc-400 dark:text-zinc-500">
             Not sure? 28 days is typical.

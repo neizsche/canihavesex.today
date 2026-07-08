@@ -118,7 +118,7 @@ export function AccountHub({
                 detail={SETTINGS_SCREEN_LABELS.install.prompt}
                 onClick={() => void promptInstall()}
                 rightElement={
-                  <div className="flex-shrink-0 rounded-full bg-[#007aff] px-3.5 py-1.5 text-[13px] font-semibold text-white transition-opacity active:opacity-80">
+                  <div className="flex-shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-semibold text-white transition-opacity active:opacity-80">
                     Get
                   </div>
                 }
@@ -130,7 +130,7 @@ export function AccountHub({
                 open={installOpen}
                 onToggle={() => setInstallOpen((prev) => !prev)}
                 rightElement={
-                  <div className="flex-shrink-0 rounded-full bg-[#007aff] px-3.5 py-1.5 text-[13px] font-semibold text-white transition-opacity active:opacity-80">
+                  <div className="flex-shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-semibold text-white transition-opacity active:opacity-80">
                     {installOpen ? 'Close' : 'Get'}
                   </div>
                 }
@@ -223,7 +223,7 @@ export function AccountHub({
                             </div>
                           </div>
                           <Check
-                            className="h-4 w-4 text-[#007aff] dark:text-[#0a84ff]"
+                            className="h-4 w-4 text-accent"
                             strokeWidth={3}
                           />
                         </div>
@@ -287,7 +287,7 @@ export function AccountHub({
                   Billing question?{' '}
                   <a
                     href={`mailto:${CONTACT_EMAIL}`}
-                    className="font-medium text-[#007aff] transition-opacity active:opacity-70 dark:text-[#0a84ff]"
+                    className="font-medium text-accent transition-opacity active:opacity-70"
                   >
                     Contact us
                   </a>

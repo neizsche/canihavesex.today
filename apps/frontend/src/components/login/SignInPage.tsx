@@ -41,7 +41,7 @@ export function SignInPage({ returnTo = '/app#/today' }: SignInPageProps) {
   const inputClass =
     'w-full h-14 px-4 rounded-xl bg-card text-[16px] text-foreground placeholder:text-muted-foreground ' +
     'border border-[var(--input)] outline-none transition-colors duration-200 ' +
-    'focus:border-[#0a84ff] focus:ring-2 focus:ring-[#0a84ff]/30';
+    'focus:border-accent focus:ring-2 focus:ring-accent/30';
 
   const heading =
     mode === 'verify'

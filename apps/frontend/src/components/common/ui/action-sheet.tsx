@@ -53,7 +53,7 @@ export function ActionSheet({
         }`}
       >
         {/* Action Group */}
-        <div className="bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-2xl rounded-2xl overflow-hidden shadow-2xl">
+        <div className="bg-card/80 backdrop-blur-2xl rounded-2xl overflow-hidden shadow-2xl">
           {(title || description) && (
             <div className="px-4 py-4 text-center border-b border-black/5 dark:border-white/5">
               {title && (
@@ -85,8 +85,8 @@ export function ActionSheet({
                 }}
                 className={`w-full py-4 text-[20px] font-normal transition-colors active:bg-black/5 dark:active:bg-white/5 ${
                   action.isDestructive
-                    ? 'text-[#FF3B30] dark:text-[#FF453A]'
-                    : 'text-[#007AFF] dark:text-[#0A84FF]'
+                    ? 'text-destructive'
+                    : 'text-accent'
                 }`}
               >
                 {action.label}
@@ -98,7 +98,7 @@ export function ActionSheet({
         {/* Cancel Group */}
         <button
           onClick={onClose}
-          className="w-full bg-white dark:bg-[#1C1C1E] py-4 rounded-2xl text-[20px] font-semibold text-[#007AFF] dark:text-[#0A84FF] active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors shadow-2xl"
+          className="w-full bg-card py-4 rounded-2xl text-[20px] font-semibold text-accent active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors shadow-2xl"
         >
           Cancel
         </button>

@@ -30,6 +30,8 @@ export default {
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        'accent-foreground': 'var(--accent-foreground)',
         destructive: 'var(--destructive)',
         'destructive-foreground': 'var(--destructive-foreground)',
         primary: 'var(--primary)',

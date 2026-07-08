@@ -40,12 +40,12 @@ export function OnboardingEducation({
         </button>
       }
     >
-      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-9 py-4">
+      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-8 py-4">
         <h1 className="text-[32px] font-extrabold leading-[1.1] tracking-[-0.045em] text-zinc-900 dark:text-white short-text-lg">
           {title}
         </h1>
 
-        <div className="space-y-7">
+        <div className="space-y-6">
           {items.map((item, index) => {
             const Icon = item.icon;
             return (
@@ -57,7 +57,7 @@ export function OnboardingEducation({
                   revealed ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
                 )}
               >
-                <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0a84ff]/10 text-[#007aff] dark:text-[#0a84ff]">
+                <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
                   <Icon className="h-[22px] w-[22px]" strokeWidth={2.25} />
                 </div>
                 <div className="space-y-1 pt-0.5">

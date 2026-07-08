@@ -6,7 +6,7 @@ type StatusTone = 'muted' | 'danger';
 // Flat, system-blue filled button — Apple's prominent action style. No drop
 // shadow: depth comes from the color, not a glow.
 const primaryButtonClass =
-  'w-full h-14 rounded-2xl bg-[#0a84ff] text-white font-semibold text-[17px] ' +
+  'w-full h-14 rounded-2xl bg-accent text-white font-semibold text-[17px] ' +
   'transition-all hover:bg-[#0070e0] active:scale-[0.98] ' +
   'disabled:opacity-40 disabled:pointer-events-none';
 
@@ -119,7 +119,7 @@ export function SignInPageForm({
           <>
             <form onSubmit={onEmailSubmit} className="space-y-3">
               {/* One grouped card with a hairline between fields — iOS form idiom. */}
-              <div className="overflow-hidden rounded-2xl border border-[var(--input)] bg-card divide-y divide-[var(--input)] transition-colors focus-within:border-[#0a84ff]/60">
+              <div className="overflow-hidden rounded-2xl border border-[var(--input)] bg-card divide-y divide-[var(--input)] transition-colors focus-within:border-accent/60">
                 <input
                   type="email"
                   value={email}
@@ -158,11 +158,11 @@ export function SignInPageForm({
             >
               {mode === 'signin' ? (
                 <>
-                  Don't have an account? <span className="font-medium text-[#0a84ff]">Create one</span>
+                  Don't have an account? <span className="font-medium text-accent">Create one</span>
                 </>
               ) : (
                 <>
-                  Already have an account? <span className="font-medium text-[#0a84ff]">Sign in</span>
+                  Already have an account? <span className="font-medium text-accent">Sign in</span>
                 </>
               )}
             </button>
@@ -194,7 +194,7 @@ export function SignInPageForm({
             disabled={busy}
             className="w-full text-center text-[14px] text-muted-foreground transition-colors disabled:opacity-60 disabled:pointer-events-none"
           >
-            Just exploring? <span className="font-medium text-[#0a84ff]">Try the live demo</span>
+            Just exploring? <span className="font-medium text-accent">Try the live demo</span>
           </button>
         )}
 

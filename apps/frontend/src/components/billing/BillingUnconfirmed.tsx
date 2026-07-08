@@ -23,7 +23,7 @@ export function BillingUnconfirmed({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="rounded-full bg-[#007aff] px-6 py-2.5 text-[17px] font-semibold text-white transition-all duration-150 active:scale-[0.99] dark:bg-[#0a84ff]"
+        className="rounded-full bg-accent px-6 py-2.5 text-[17px] font-semibold text-white transition-all duration-150 active:scale-[0.99]"
       >
         Back to plans
       </button>

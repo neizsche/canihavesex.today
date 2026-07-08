@@ -120,7 +120,7 @@ export function BottomSheet({
       >
         <div
           className={cn(
-            'flex max-h-[85vh] flex-col rounded-t-3xl bg-white shadow-2xl sm:mx-4 sm:rounded-3xl dark:bg-[#1C1C1E]',
+            'flex max-h-[85vh] flex-col rounded-t-3xl bg-card shadow-2xl sm:mx-4 sm:rounded-3xl',
             className
           )}
         >
@@ -141,7 +141,7 @@ export function BottomSheet({
           <div className="shrink-0 px-6 pb-8 pt-4">
             <Button
               onClick={onClose}
-              className="h-12 w-full rounded-xl bg-[#007AFF] text-[17px] font-semibold text-white shadow-sm transition-all hover:bg-[#0066D6] active:scale-[0.98]"
+              className="h-12 w-full rounded-xl bg-accent text-[17px] font-semibold text-white shadow-sm transition-all hover:bg-[#0066D6] active:scale-[0.98]"
             >
               {actionLabel}
             </Button>

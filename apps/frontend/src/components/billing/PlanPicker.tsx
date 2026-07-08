@@ -21,7 +21,7 @@ function PlanOption({
       className={cn(
         'flex w-full items-center gap-3.5 rounded-2xl border p-4 text-left transition-colors duration-150',
         selected
-          ? 'border-[#007aff] bg-[#007aff]/[0.05] dark:border-[#0a84ff] dark:bg-[#0a84ff]/[0.1]'
+          ? 'border-accent bg-accent/[0.05] dark:bg-accent/[0.1]'
           : 'border-border/40 bg-card hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
       )}
     >
@@ -29,7 +29,7 @@ function PlanOption({
         className={cn(
           'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors',
           selected
-            ? 'border-[#007aff] bg-[#007aff] dark:border-[#0a84ff] dark:bg-[#0a84ff]'
+            ? 'border-accent bg-accent'
             : 'border-zinc-300 dark:border-zinc-600'
         )}
       >
@@ -55,7 +55,7 @@ function PlanOption({
 
 /**
  * Plan selection component rendering available plans and a checkout trigger button.
- * Colors are restricted to grayscale and the iOS blue accent (#007aff / #0a84ff).
+ * Colors are restricted to grayscale and the app-wide accent token (`--accent`).
  */
 export function PlanPicker({ defaultPlan = 'yearly' }: { defaultPlan?: PaidPlan }) {
   const [selected, setSelected] = React.useState<PaidPlan>(defaultPlan);
@@ -77,7 +77,7 @@ export function PlanPicker({ defaultPlan = 'yearly' }: { defaultPlan?: PaidPlan 
         type="button"
         disabled={!!checkoutBusy}
         onClick={() => startCheckout(selected)}
-        className="mt-1.5 w-full rounded-full bg-[#007aff] py-3 text-[17px] font-semibold text-white transition-all duration-150 active:scale-[0.99] disabled:opacity-60 dark:bg-[#0a84ff]"
+        className="mt-1.5 w-full rounded-full bg-accent py-3 text-[17px] font-semibold text-white transition-all duration-150 active:scale-[0.99] disabled:opacity-60"
       >
         {checkoutBusy ? 'Redirecting…' : 'Subscribe'}
       </button>

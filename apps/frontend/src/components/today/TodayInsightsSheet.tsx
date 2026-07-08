@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import { BottomSheet } from '@/components/common/ui/bottom-sheet';
 import { SIGNAL_ROWS, type SignalState } from './todayShared';
+import { INSET_CARD, INSET_DIVIDE, SECTION_CAPTION } from './todayStyles';
 import { TodayHero } from './TodayHero';
 import { useTodayModel } from './useTodayModel';
 
@@ -74,8 +75,8 @@ export function TodayInsightsSheet({ isOpen, onClose }: TodayInsightsSheetProps)
             />
 
             {/* Facts + signals — grouped rows */}
-            <div className="mt-7 w-full rounded-2xl bg-black/[0.03] px-4 text-left dark:bg-white/[0.04]">
-              <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+            <div className={`mt-7 w-full ${INSET_CARD} text-left`}>
+              <div className={INSET_DIVIDE}>
                 {factRows.map((r) => (
                   <div
                     key={r.label}
@@ -121,11 +122,11 @@ export function TodayInsightsSheet({ isOpen, onClose }: TodayInsightsSheetProps)
             {/* Messages — the engine's reasons (why this sheet beats the Today screen) */}
             {notes.length > 0 && (
               <div className="mt-4 w-full text-left">
-                <div className="mb-2 pl-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-zinc-400 dark:text-zinc-500">
+                <div className={`mb-2 pl-1 ${SECTION_CAPTION}`}>
                   Notes
                 </div>
-                <div className="rounded-2xl bg-black/[0.03] px-4 dark:bg-white/[0.04]">
-                  <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                <div className={INSET_CARD}>
+                  <div className={INSET_DIVIDE}>
                     {notes.map((note, i) => {
                       const warn = note.kind === 'warn';
                       const Icon = warn ? AlertTriangle : Info;

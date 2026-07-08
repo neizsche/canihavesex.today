@@ -7,13 +7,17 @@
  * simple concatenation) so Tailwind's content scanner still detects every
  * utility — never build these from computed fragments.
  */
+import { IOS_INDIGO, IOS_ORANGE, IOS_RED } from '@/lib/iosColors';
 
 // — Accent colours ————————————————————————————————————————————————
 // iOS blue — primary interactive colour: filled cells, links, "+ Add".
-export const ACCENT_FILL = 'bg-[#007AFF] dark:bg-[#0A84FF]';
-export const ACCENT_TEXT = 'text-[#007AFF] dark:text-[#0A84FF]';
-// iOS red — the bleeding identity colour: its tile and its toggle.
-export const BLEEDING_FILL = 'bg-[#FF3B30] dark:bg-[#FF453A]';
+// Backed by the app-wide `--accent` token (globals.css) so light/dark are
+// handled centrally — the single source of truth for the accent blue.
+export const ACCENT_FILL = 'bg-accent';
+export const ACCENT_TEXT = 'text-accent';
+// iOS red — the bleeding identity colour: its tile and its toggle. Shares the
+// app-wide systemRed (`--destructive`) via the iOS palette.
+export const BLEEDING_FILL = IOS_RED;
 
 // — Icon tiles ————————————————————————————————————————————————————
 // 30px squircle. The row-divider inset (ROW_DIVIDER) is derived from this:
@@ -26,8 +30,8 @@ const solidTile = (color: string) => `${TILE_GEOMETRY} shadow-sm ${color}`;
 export const TILE = {
   bleeding: solidTile(BLEEDING_FILL),
   cervical: solidTile(ACCENT_FILL),
-  temperature: solidTile('bg-[#FF9500] dark:bg-[#FF9F0A]'),
-  lh: solidTile('bg-[#5856D6] dark:bg-[#5E5CE6]'),
+  temperature: solidTile(IOS_ORANGE),
+  lh: solidTile(IOS_INDIGO),
   symptoms: solidTile('bg-green-500'),
   mood: solidTile('bg-amber-500'),
   energy: solidTile('bg-sky-500'),
@@ -75,6 +79,6 @@ export const CHIP_ON_FACTORS = 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:
 
 // — Primary CTA + pinned action bar ————————————————————————————————
 export const PRIMARY_BUTTON =
-  'w-full h-12 text-[17px] font-semibold bg-[#007AFF] hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]';
+  'w-full h-12 text-[17px] font-semibold bg-accent hover:bg-[#0066D6] text-white rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]';
 export const ACTION_BAR =
   'shrink-0 border-t border-black/5 dark:border-white/10 bg-background/80 backdrop-blur-xl';

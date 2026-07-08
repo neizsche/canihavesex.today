@@ -6,6 +6,7 @@ import {
   SettingsToggleRow,
   SETTINGS_DIVIDER,
 } from '@/components/common/ui/settings-row';
+import { IOS_GRAY, IOS_INDIGO, IOS_ORANGE, IOS_RED } from '@/lib/iosColors';
 import { SETTINGS_SCREEN_LABELS } from './SettingsScreen.config';
 
 export function SettingsPreferencesSection({
@@ -35,7 +36,7 @@ export function SettingsPreferencesSection({
     <InsetGroup>
       <SettingsActionRow
         icon={<Activity className="icon-sm text-white" />}
-        iconBgColor="bg-[#FF3B30] dark:bg-[#FF453A]"
+        iconBgColor={IOS_RED}
         label="Cycle"
         detail={`${cycleLength}d cycle · ${periodLength}d period · ${regularity}`}
         onClick={onOpenCycle}
@@ -43,7 +44,7 @@ export function SettingsPreferencesSection({
       <div className={SETTINGS_DIVIDER} />
       <SettingsToggleRow
         icon={<Moon className="icon-sm text-white" />}
-        iconBgColor="bg-[#5856D6] dark:bg-[#5E5CE6]"
+        iconBgColor={IOS_INDIGO}
         label={SETTINGS_SCREEN_LABELS.appearance.darkMode}
         description={SETTINGS_SCREEN_LABELS.appearance.darkModeHint}
         checked={theme === 'dark'}
@@ -52,7 +53,7 @@ export function SettingsPreferencesSection({
       <div className={SETTINGS_DIVIDER} />
       <SettingsToggleRow
         icon={<EyeOff className="icon-sm text-white" />}
-        iconBgColor="bg-zinc-500"
+        iconBgColor={IOS_GRAY}
         label={SETTINGS_SCREEN_LABELS.account.discreetMode}
         description={SETTINGS_SCREEN_LABELS.account.discreetModeHint}
         checked={!brandingVisible}
@@ -61,7 +62,7 @@ export function SettingsPreferencesSection({
       <div className={SETTINGS_DIVIDER} />
       <SettingsActionRow
         icon={<Thermometer className="icon-sm text-white" />}
-        iconBgColor="bg-[#FF9500] dark:bg-[#FF9F0A]"
+        iconBgColor={IOS_ORANGE}
         label={SETTINGS_SCREEN_LABELS.appearance.temperatureUnit}
         detail={temperatureUnit === 'celsius' ? 'Celsius (°C)' : 'Fahrenheit (°F)'}
         onClick={onTemperatureUnitChange}

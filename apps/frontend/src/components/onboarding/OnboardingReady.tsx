@@ -71,11 +71,11 @@ export function OnboardingReady({
             revealed ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
           )}
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0a84ff]/10">
-            <Check className="h-8 w-8 text-[#007aff] dark:text-[#0a84ff]" strokeWidth={2.5} />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+            <Check className="h-8 w-8 text-accent" strokeWidth={2.5} />
           </div>
           <div className="space-y-3">
-            <h1 className="text-[34px] font-extrabold leading-tight tracking-[-0.05em] text-zinc-900 dark:text-white">
+            <h1 className="text-[32px] font-extrabold leading-tight tracking-[-0.045em] text-zinc-900 dark:text-white">
               You&apos;re all set.
             </h1>
             <p className="mx-auto max-w-[300px] text-[16px] leading-relaxed text-zinc-500 dark:text-zinc-400">

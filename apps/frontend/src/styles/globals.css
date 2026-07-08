@@ -9,12 +9,6 @@
     --foreground: #000000;
     /* iOS label — primary text and icon color */
 
-    --color-risk-high: #c94a4a;
-    /* High fertility risk accent */
-    --color-risk-medium: #c28b1e;
-    /* Medium fertility risk accent */
-    --color-risk-low: #3f8f5f;
-    /* Low fertility risk accent */
     --color-bg: #f2f2f7;
     /* Legacy/fallback background */
     --color-text-primary: #000000;
@@ -41,8 +35,13 @@
     /* No visible outer border (Inset Grouped) */
     --input: #e5e5ea;
     /* Form input border */
-    --ring: #007aff;
-    /* Apple Blue focus accent */
+    --accent: 0 122 255;
+    /* iOS systemBlue #007aff as RGB channels — channel form lets Tailwind
+       apply alpha (e.g. bg-accent/10) via rgb(var(--accent) / <alpha>) */
+    --accent-foreground: #ffffff;
+    /* Text/icons on an accent fill */
+    --ring: rgb(var(--accent));
+    /* Focus ring reuses the accent — single source of truth */
 
     --primary: #000000;
     /* Brand primary action color */
@@ -61,14 +60,6 @@
 
     --radius: 14px;
     /* Core UI rounding radius */
-
-    /* Fertility Risk Tones */
-    --risk-high: #c62121;
-    --risk-high-bg: #fef2f2;
-    --risk-medium: #c47c0b;
-    --risk-medium-bg: #fffbeb;
-    --risk-low: #166534;
-    --risk-low-bg: #f0fdf4;
 
     /* Viewport Scaling Defaults (Medium) */
     --scale-factor: 1;
@@ -126,8 +117,10 @@
     /* No visible outer border (Inset Grouped) */
     --input: #38383a;
     /* Form field border */
-    --ring: #0a84ff;
-    /* System blue focus accent */
+    --accent: 10 132 255;
+    /* iOS systemBlue (Dark) #0a84ff as RGB channels */
+    --ring: rgb(var(--accent));
+    /* Focus ring reuses the accent — single source of truth */
 
     --primary: #ffffff;
     /* Primary action background */
@@ -143,14 +136,6 @@
     /* System red (Dark Mode) */
     --destructive-foreground: #ffffff;
     /* Destructive text */
-
-    /* Dark Mode Risk Tones */
-    --risk-high: #ff453a;
-    --risk-high-bg: #2c1414;
-    --risk-medium: #ff9f0a;
-    --risk-medium-bg: #2c2010;
-    --risk-low: #32d74b;
-    --risk-low-bg: #102414;
   }
 
   html {

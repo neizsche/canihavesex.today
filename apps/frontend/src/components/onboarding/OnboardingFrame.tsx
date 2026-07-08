@@ -11,7 +11,7 @@ export const TOTAL_ONBOARDING_STEPS = 4;
  * a glow (deliberately no drop shadow).
  */
 export const onboardingPrimaryButton =
-  'h-14 w-full rounded-2xl bg-[#0a84ff] text-[17px] font-semibold text-white ' +
+  'h-14 w-full rounded-2xl bg-accent text-[17px] font-semibold text-white ' +
   'transition-all hover:bg-[#0070e0] active:scale-[0.98] ' +
   'disabled:opacity-40 disabled:pointer-events-none';
 

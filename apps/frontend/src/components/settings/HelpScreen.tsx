@@ -43,7 +43,7 @@ export function HelpScreen({ onBack }: HelpScreenProps) {
                   className="w-full h-12 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 transition-all duration-200 active:bg-zinc-200 dark:active:bg-zinc-700"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`${SETTINGS_TILE} bg-[#007aff] dark:bg-[#0a84ff]`}>
+                    <div className={`${SETTINGS_TILE} bg-accent`}>
                       <Mail className="w-4 h-4 text-white" />
                     </div>
                     <div className="font-normal text-[17px] text-zinc-900 dark:text-zinc-100">
