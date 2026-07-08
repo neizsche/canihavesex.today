@@ -2,6 +2,8 @@ import * as React from 'react';
 import { Check } from 'lucide-react';
 import { type CycleData } from '@/lib/cycle-types';
 import { addDays } from '@/lib/date';
+import { cn } from '@/lib/utils';
+import { ACCENT_TEXT, CARD_DIVIDE, SECTION_CAPTION, STATS_CARD } from './statsStyles';
 
 interface CycleHistoryListProps {
   data: CycleData[];
@@ -36,10 +38,8 @@ export function CycleHistoryList({ data }: CycleHistoryListProps) {
 
   return (
     <section>
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground/70 mb-2.5 ml-1">
-        Cycle History
-      </h3>
-      <div className="bg-card rounded-2xl border border-border/30 overflow-hidden divide-y divide-border/30">
+      <h3 className={SECTION_CAPTION}>Cycle history</h3>
+      <div className={`${STATS_CARD} overflow-hidden ${CARD_DIVIDE}`}>
         {visible.map((cycle) => {
           const endIso = addDays(cycle.startDate, cycle.length - 1);
           return (
@@ -77,7 +77,10 @@ export function CycleHistoryList({ data }: CycleHistoryListProps) {
       {completed.length > INITIAL_CAP && (
         <button
           onClick={() => setShowAll((v) => !v)}
-          className="mt-3 w-full text-[14px] font-semibold text-[#007aff] dark:text-[#0a84ff] py-2 transition-opacity active:opacity-70"
+          className={cn(
+            'mt-3 w-full text-[14px] font-semibold py-2 transition-opacity active:opacity-70',
+            ACCENT_TEXT
+          )}
         >
           {showAll ? 'Show less' : `Show all ${completed.length}`}
         </button>

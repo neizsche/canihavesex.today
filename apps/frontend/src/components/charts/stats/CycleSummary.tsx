@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { STATS_CARD } from './statsStyles';
 
 export interface CycleSummaryData {
   averageCycleLength: number;
@@ -13,16 +14,19 @@ export interface CycleSummaryData {
 
 interface CycleSummaryProps {
   summary: CycleSummaryData;
+  /** One warm, specific read of recent regularity (from the API). */
+  headline?: { text: string; trend?: string } | null;
 }
 
 /**
- * Layer 1 — the honest backbone of the Stats tab. A single Apple-Health-style
- * card: a calm hero number (average cycle) with a quiet regularity chip, then a
+ * The honest backbone of the Stats tab — the page's hero. A single
+ * Apple-Health-style card: a calm hero number (average cycle) with a warm
+ * one-line read of recent regularity and a quiet regularity chip, then a
  * hairline-divided strip of supporting stats. All values are already gated by
  * the ≥3-cycle check upstream. Monochrome by brand — colour signals fertility
  * status only, never decoration.
  */
-export function CycleSummary({ summary }: CycleSummaryProps) {
+export function CycleSummary({ summary, headline = null }: CycleSummaryProps) {
   const strip: { label: string; value: string }[] = [
     { label: 'Median', value: `${summary.medianCycleLength}` },
     { label: 'Range', value: `${summary.minCycleLength}–${summary.maxCycleLength}` },
@@ -34,10 +38,10 @@ export function CycleSummary({ summary }: CycleSummaryProps) {
 
   return (
     <section>
-      <div className="bg-card rounded-2xl border border-border/30 overflow-hidden">
-        {/* Hero — bold number, quiet answer. */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-4">
-          <div>
+      <div className={`${STATS_CARD} overflow-hidden`}>
+        {/* Hero — bold number, warm read, quiet regularity chip. */}
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+          <div className="min-w-0">
             <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80">
               Average cycle
             </div>
@@ -47,15 +51,15 @@ export function CycleSummary({ summary }: CycleSummaryProps) {
               </span>
               <span className="text-[15px] font-medium text-muted-foreground">days</span>
             </div>
+            {headline && (
+              <p className="mt-2.5 text-[13px] text-muted-foreground leading-snug">
+                {headline.text}
+              </p>
+            )}
           </div>
-          <div className="flex flex-col items-end gap-1 pt-1">
-            <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-foreground">
-              {summary.regularityLabel}
-            </span>
-            <span className="text-[11px] font-medium text-muted-foreground">
-              ±{summary.variation}d variation
-            </span>
-          </div>
+          <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-foreground">
+            {summary.regularityLabel}
+          </span>
         </div>
 
         {/* Supporting stats — hairline-divided strip. */}

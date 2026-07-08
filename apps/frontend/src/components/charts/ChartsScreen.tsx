@@ -155,7 +155,10 @@ export function ChartsScreen({ today: todayOverride }: { today?: Date } = {}) {
                 <ChartsView
                   data={statsData}
                   insufficientData={statsQuery.data?.insufficientData}
-                  trends={statsQuery.data?.trends || []}
+                  cyclesTracked={
+                    statsQuery.data?.cyclesTracked ?? statsQuery.data?.averages?.cyclesTracked ?? 0
+                  }
+                  headline={statsQuery.data?.headline || null}
                   summary={statsQuery.data?.summary || null}
                   averages={statsQuery.data?.averages || null}
                   patterns={statsQuery.data?.patterns || []}

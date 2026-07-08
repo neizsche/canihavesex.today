@@ -161,46 +161,39 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
     if (insufficientData) {
       const response = {
         insufficientData: true,
-        trends: [
-          {
-            heading: 'Not Enough Data Yet',
-            msg: 'Log at least 3 complete cycles to unlock detailed trends and history analysis.',
-          },
-        ],
+        cyclesTracked: completedCycles.length,
       };
       cacheService.set(cacheKey, response);
       return response;
     }
 
-    // 2. Sufficient Data: Calculate Trends
-    const trends = [];
-
-    // Trend A: Regularity
+    // 2. Sufficient Data
     const lengths = completedCycles.map((c) => c.length!);
     const minLen = Math.min(...lengths);
     const maxLen = Math.max(...lengths);
     const variation = maxLen - minLen;
 
-    if (variation <= 3) {
-      trends.push({
-        heading: 'Regular Cycles',
-        msg: 'Your cycle lengths are consistent, varying by only ' + variation + ' days.',
-      });
-    } else {
-      trends.push({
-        heading: 'Variable Cycles',
-        msg:
-          'Your cycle lengths vary by ' +
-          variation +
-          ' days. This is normal but makes prediction harder.',
-      });
+    // Headline — one warm, specific read of recent regularity, plus a coarse
+    // direction (settling vs. drifting) the UI can accent. `lengths` is
+    // newest-first, so slice(0, n) is the most recent window.
+    const recent = lengths.slice(0, 6);
+    const recentVar = Math.max(...recent) - Math.min(...recent);
+    const older = lengths.slice(6, 12);
+    let trend: 'steadier' | 'stable' | 'more variable' = 'stable';
+    if (older.length >= 3) {
+      const olderVar = Math.max(...older) - Math.min(...older);
+      if (recentVar < olderVar - 1) trend = 'steadier';
+      else if (recentVar > olderVar + 1) trend = 'more variable';
     }
-
-    // Trend B: Average Length
-    trends.push({
-      heading: 'Average Cycle',
-      msg: `Your typical cycle is ${avg} days long.`,
-    });
+    let headlineText: string;
+    if (recentVar === 0) {
+      headlineText = `Your last ${recent.length} cycles were all ${recent[0]} days.`;
+    } else if (recentVar <= 4) {
+      headlineText = `Steady — your last ${recent.length} cycles stayed within ${recentVar} days.`;
+    } else {
+      headlineText = `Your recent cycles varied by ${recentVar} days — some month-to-month change is normal.`;
+    }
+    const headline = { text: headlineText, trend };
 
     // Summary derivations (Layer 1 — cycle summary grid). All pure
     // derivations of completedCycles already in scope; no new queries.
@@ -247,7 +240,7 @@ export async function calendarRoutes(fastify: FastifyInstance, opts: { db: any }
 
     const response = {
       insufficientData: false,
-      trends,
+      headline,
       summary,
       patterns,
       averages: {

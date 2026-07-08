@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { CARD_DIVIDE, SECTION_CAPTION, STATS_CARD } from './statsStyles';
 
 export interface Pattern {
   category: 'symptom' | 'mood' | 'energy' | 'libido';
@@ -28,10 +29,8 @@ export function BodyPatterns({ patterns }: BodyPatternsProps) {
 
   return (
     <section>
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground/70 mb-2.5 ml-1">
-        Your Patterns
-      </h3>
-      <div className="bg-card rounded-2xl border border-border/30 overflow-hidden divide-y divide-border/30">
+      <h3 className={SECTION_CAPTION}>Your patterns</h3>
+      <div className={`${STATS_CARD} overflow-hidden ${CARD_DIVIDE}`}>
         {patterns.map((p) => (
           <div key={p.category} className="px-4 py-3.5">
             <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80">
